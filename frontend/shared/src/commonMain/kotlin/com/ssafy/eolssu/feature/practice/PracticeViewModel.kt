@@ -36,6 +36,7 @@ import com.ssafy.eolssu.data.song.SheetPracticeDownload
 import com.ssafy.eolssu.data.song.SheetPracticeNeedsReview
 import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.CatalogUnreachable
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineStart
@@ -1054,6 +1055,12 @@ class PracticeViewModel(
         whenCurrentScore { requestCurrentEvaluation() }
     }
 
+    /** 연결 끊김 안내([PracticePopup.ScoreOffline])의 ‘다시 시도’: 창을 닫고 현재 악보 확인부터 다시 한다. */
+    fun retryEvaluation() {
+        closePopup()
+        requestEvaluation()
+    }
+
     private fun requestCurrentEvaluation() {
         if (mine || !accountScope.isActive) return
         if (recorder == null) return
@@ -1101,13 +1108,15 @@ class PracticeViewModel(
         if (sectionSource != null) return currentSectionScore(sectionSource, song)
         val version = song.scoreVersion ?: return true
         if (mine || _uiState.value.solo) return true
+        var offline = false
         val current = try { songRepository.getSong(song.id) }
         catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: CatalogUnreachable) { offline = true; null }
         catch (_: Exception) { null }
         currentCoroutineContext().ensureActive()
         if (!accountScope.isActive || _uiState.value.song?.id != song.id || _uiState.value.song?.scoreVersion != version) return false
         val popup = when {
-            current == null -> PracticePopup.ScoreUnavailable
+            current == null -> if (offline) PracticePopup.ScoreOffline else PracticePopup.ScoreUnavailable
             current.scoreVersion != version -> PracticePopup.ScoreChanged
             else -> return true
         }
@@ -1118,15 +1127,17 @@ class PracticeViewModel(
 
     /** 구간 재평가: 바탕 세션의 악보가 지금도 공개 판본인지 확인한다. 바뀌었거나 확인하지 못하면 녹음하지 않고 알린다. */
     private suspend fun currentSectionScore(source: SectionEvaluationSource, song: Song): Boolean {
+        var offline = false
         val current = try { source.isCurrent() }
         catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: CatalogUnreachable) { offline = true; null }
         catch (_: Exception) { null }
         currentCoroutineContext().ensureActive()
         if (!accountScope.isActive || _uiState.value.song !== song) return false
         val popup = when (current) {
             true -> return true
             false -> PracticePopup.ScoreChanged
-            null -> PracticePopup.ScoreUnavailable
+            null -> if (offline) PracticePopup.ScoreOffline else PracticePopup.ScoreUnavailable
         }
         if (_uiState.value.mode == PracticeMode.Recording || _uiState.value.resume) cancelRecorder()
         _uiState.update { it.toReady().copy(popup = popup) }
@@ -1176,7 +1187,7 @@ class PracticeViewModel(
      * 연주 평가는 시작하지 않고, 기기가 더 묻지 않는 차단일 때만 설정 안내를 띄운다([denyMic]).
      */
     fun micDenied() {
-        if (_uiState.value.popup in setOf(PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable)) return
+        if (_uiState.value.popup in setOf(PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable, PracticePopup.ScoreOffline)) return
         if (_uiState.value.solo) {
             // 한 음씩은 아직 시작하지 않았다. 악보·진행 위치는 그대로 두고 안내만 띄운다.
             _uiState.update { it.copy(popup = if (micPermission?.isPermanentlyDenied() == true) PracticePopup.PermBlocked else PracticePopup.PermDenied) }

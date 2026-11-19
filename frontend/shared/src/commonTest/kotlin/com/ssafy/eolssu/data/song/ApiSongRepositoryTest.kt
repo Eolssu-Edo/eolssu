@@ -31,6 +31,28 @@ class ApiSongRepositoryTest {
     }
 
     @Test
+    fun connectionFailureIsUnreachableButServerErrorIsOnlyUnavailable() = runTest {
+        var offline = true
+        val client = createHttpClient(MockEngine {
+            if (offline) error("연결 거부")
+            respond("""{"isSuccess":false}""", HttpStatusCode.ServiceUnavailable, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repository = ApiSongRepository(client)
+            assertFailsWith<CatalogUnreachable> { repository.getInstruments() }
+            assertFailsWith<CatalogUnreachable> { repository.getSongs("42") }
+            assertFailsWith<CatalogUnreachable> { repository.getSong("42") }
+
+            offline = false
+            for (failure in listOf(
+                assertFailsWith<CatalogUnavailable> { repository.getInstruments() },
+                assertFailsWith<CatalogUnavailable> { repository.getSongs("42") },
+                assertFailsWith<CatalogUnavailable> { repository.getSong("42") },
+            )) assertFalse(failure is CatalogUnreachable)
+        } finally { client.close() }
+    }
+
+    @Test
     fun optionalInstrumentFilterUsesServerIdAndOmittedFilterKeepsWholeList() = runTest {
         val queries = mutableListOf<String?>()
         val client = createHttpClient(MockEngine { request ->

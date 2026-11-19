@@ -16,6 +16,9 @@ import eolssu.shared.generated.resources.practice_score_check_title
 import eolssu.shared.generated.resources.weak_loop_no_notes
 import eolssu.shared.generated.resources.weak_score_changed
 import eolssu.shared.generated.resources.weak_score_unavailable
+import eolssu.shared.generated.resources.practice_score_offline
+import eolssu.shared.generated.resources.practice_score_offline_title
+import eolssu.shared.generated.resources.song_catalog_retry
 import eolssu.shared.generated.resources.practice_popup_abort_body
 import eolssu.shared.generated.resources.practice_popup_abort_title
 import eolssu.shared.generated.resources.practice_popup_blocked_body
@@ -76,6 +79,8 @@ class PracticeDialogActions(
     val onToReady: () -> Unit,
     /** ‘설정에서 허용하기’: 기기 앱 설정으로 보낸다. */
     val onOpenMicSettings: () -> Unit = {},
+    /** 연결 끊김 안내의 ‘다시 시도’: 현재 악보 확인부터 평가 시작을 다시 한다. */
+    val onRetryEvaluation: () -> Unit = {},
 )
 
 /**
@@ -99,6 +104,13 @@ fun PracticeDialog(
             message = stringResource(if (popup == PracticePopup.ScoreChanged) Res.string.weak_score_changed else Res.string.weak_score_unavailable),
         ) {
             EolssuButton(stringResource(Res.string.common_confirm), actions.onClose, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_01)
+        }
+        PracticePopup.ScoreOffline -> EolssuDialog(
+            title = stringResource(Res.string.practice_score_offline_title),
+            message = stringResource(Res.string.practice_score_offline),
+        ) {
+            EolssuButton(stringResource(Res.string.song_catalog_retry), actions.onRetryEvaluation, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_27)
+            EolssuButton(stringResource(Res.string.common_close), actions.onClose, style = EolssuButtonStyle.Ghost, qaTarget = QaTarget.PRACTICE_DIALOGS_BUTTON_28)
         }
         PracticePopup.NoSectionNotes -> EolssuDialog(
             title = stringResource(Res.string.practice_score_check_title),

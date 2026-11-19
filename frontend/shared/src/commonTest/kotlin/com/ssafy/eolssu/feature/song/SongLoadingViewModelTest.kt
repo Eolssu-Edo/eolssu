@@ -41,6 +41,40 @@ class SongLoadingViewModelTest {
     }
 
     @Test
+    fun unreachableServerIsOfflineAndServerErrorIsFailedInBothLists() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val models = androidx.lifecycle.ViewModelStore()
+        try {
+            val repo = CatalogStub().apply { failure = com.ssafy.eolssu.data.song.CatalogUnreachable() }
+            val list = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), com.ssafy.eolssu.data.user.SampleUserRepository())
+            val mine = MySongsViewModel(repo, com.ssafy.eolssu.data.song.SampleMySheetRepository(), com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), com.ssafy.eolssu.data.user.SampleUserRepository())
+            models.put("list", list)
+            models.put("mine", mine)
+            advanceUntilIdle()
+            assertEquals(SongLoadState.Offline, list.uiState.value.loadState)
+            assertEquals(SongLoadState.Offline, mine.uiState.value.loadState)
+
+            repo.failure = com.ssafy.eolssu.data.song.CatalogUnavailable()
+            list.retry()
+            mine.retry()
+            advanceUntilIdle()
+            assertEquals(SongLoadState.Failed, list.uiState.value.loadState)
+            assertEquals(SongLoadState.Failed, mine.uiState.value.loadState)
+
+            repo.failure = null
+            list.retry()
+            mine.retry()
+            advanceUntilIdle()
+            assertEquals(SongLoadState.Ready, list.uiState.value.loadState)
+            assertEquals(SongLoadState.Ready, mine.uiState.value.loadState)
+            assertEquals(SampleSongs.size, mine.uiState.value.songs.size)
+        } finally {
+            models.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun successfulEmptyListIsNotNetworkFailure() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
@@ -85,12 +119,14 @@ class SongLoadingViewModelTest {
 
 private class CatalogStub : SongRepository {
     var offline = false
+    var failure: Exception? = null
     var songs = SampleSongs
     var listRequests = 0
     override suspend fun getInstruments() = listOf(com.ssafy.eolssu.data.song.CatalogInstrument("1", "DANSO", "단소"))
     override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
         listRequests++
         check(!offline) { "Isolated offline test" }
+        failure?.let { throw it }
         return songs.map { it.toSummary() }
     }
     override suspend fun getSong(songId: String): Song? {
