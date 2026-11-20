@@ -293,3 +293,24 @@ sudo python3 publish_sigimsae_placements.py --plan sigimsae-placements/plan-1078
 3. 사후 `backup.py send db`(run `20261117T053021Z-142100144947`). 처음에는 배포 lock을 쥔 채 실행해 `lock timeout`으로 실패했다. 이 백업은 스스로 같은 lock을 잡으므로 lock 밖에서 실행한다.
 
 receipt는 edo1 `/root/sigimsae-1078-{check,apply,after}.json`이다. 공개 API에서 세 곡의 `sigimsaePlacements`가 13·39·5자리로 내려옴을 확인했다.
+
+## 기존 곡 앞부분을 새 곡 하나로 적재 (1227)
+
+S15P31E102-1227. 운영 곡의 앞 N각을 새 곡으로 넣을 때 쓴다. 107곡 묶음 검사(`stage_model_audio.validate_bundle`) 대신 곡 하나짜리 release를 검사하고, DB 쓰기는 기존 `load_model_audio.run`·`publish_model_audio.run`을 그대로 쓴다. 기본은 모두 읽기만 하며 `--apply`가 있어야 쓴다. 계획·결정·운영 결과는 [1227 계획](../../docs/plans/S15P31E102-1227.md)에 있다.
+
+1. 원곡 받기(운영 서버, 읽기만): `sudo python3 fetch_song_source.py --song-id <원곡> --env-file /opt/eolssu/.env --out <새 폴더>`. 곡·음원 행, R2의 음원·시간표·공통 악보, 기존 case 이름 목록을 받는다.
+2. 자르기·묶음 만들기(PC): [data README](../../data/README.md#기존-곡-앞부분-자르기-1227)의 두 명령.
+3. 운영 서버에서 차례로 실행한다. 영수증은 새 파일만 만들고 release 폴더 밖에 둔다. `load`·`publish`는 `upload --apply`가 남긴 완료 영수증(`--upload-receipt`)이 있어야 실행한다.
+
+```sh
+python3 load_single_song.py upload  --release release --model model.json --receipt upload-check.json
+sudo flock -w 120 /run/lock/eolssu-backend-deploy.lock /opt/eolssu-backup/backup.py send prechange
+sudo python3 load_single_song.py upload  --release release --model model.json --env-file /opt/eolssu/.env --receipt upload-apply.json --apply
+sudo python3 load_single_song.py load    --release release --model model.json --upload-receipt upload-apply.json --receipt load-check.json
+sudo flock -w 120 /run/lock/eolssu-backend-deploy.lock python3 load_single_song.py load --release release --model model.json --upload-receipt upload-apply.json --receipt load-apply.json --apply
+sudo flock -w 120 /run/lock/eolssu-backend-deploy.lock python3 load_single_song.py publish --release release --model model.json --upload-receipt upload-apply.json --receipt publish-apply.json --apply --application-ready
+sudo flock -w 120 /run/lock/eolssu-backend-deploy.lock python3 enable_scoring.py --plan <계획>.json --receipt scoring-apply.json --apply
+```
+
+- 곡 제목을 나중에 바꾸면 `songs.title`과 `score_json.score.title`을 함께 바꾼다. 앱(`ApiSongRepository.loadVerified`)은 둘이 다르면 "곡을 불러오지 못했어요"로 곡을 거부한다.
+- 검사: `python -m unittest test_fetch_song_source test_load_single_song`.
