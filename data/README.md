@@ -440,6 +440,18 @@ python -m unittest discover -s data/tests -p 'test_*.py' -v
 
 sources v2·v3의 펼친 원본 및 출력 바이트 동등성, 프로필 참조·개별 값 우선 적용·명시적 `null`·객체 독립성도 검사합니다. 원본 검증 CLI는 임시 원본으로 기존 목록과 프로필 목록의 성공·파일 누락·크기·해시 오류 처리를 확인합니다.
 
+## 기존 곡 앞부분 자르기 (1227)
+
+운영 곡의 앞 N각을 새 곡으로 넣을 때 공통 악보·재생 시간표·모범 음원을 같은 지점에서 자른다(`data/src/catalog/score_prefix.py`). 음원은 원본을 PCM으로 풀어 자른 뒤 재생 생성기와 같은 `write_audio`로 다시 저장해 AAC 앞 여백이 생기지 않는다. 각 경계를 넘어 이어지는 음이 있으면 멈춘다. 이어서 `single_song_release.py`가 R2 키·해시·난이도를 묶은 release와 적재 모델을 만든다. 운영 적재는 [infra/catalog README](../infra/catalog/README.md#기존-곡-앞부분을-새-곡-하나로-적재-1227)를 따른다.
+
+```powershell
+.\data\.venv\Scripts\python -m data.src.catalog.score_prefix --score <원곡 score_json> --performance <원곡 performance.common.json> --audio <원곡 m4a> --gaks 8 --source-id <새 sourceId> --title <제목> --out data/processed/<자른 폴더>
+.\data\.venv\Scripts\python -m data.src.catalog.single_song_release --source-dir data/processed/<자른 폴더> --original-audio-row <fetch_song_source의 model-audios.json> --case-id sogeum-NNN-p1 --task <Jira Key> --cut-end-tick <report.json의 endTick> --out data/processed/<release 폴더>
+.\data\.venv\Scripts\python -m unittest data.tests.test_score_prefix data.tests.test_single_song_release
+```
+
+`case-id`는 운영 DB CHECK 때문에 세 자리 숫자여야 하고 기존 case와 겹치면 안 된다(받은 `case-names.json`으로 확인).
+
 ## 비채점 카탈로그 교정 (699)
 
 `src/scores/repair_scoring.py`는 고정한 운영 snapshot과 동일 원본 JGB를 다시 대조한 뒤 9곡 교정본을 만든다. 기존 파일이 목표와 다르면 덮어쓰지 않는다. 저장소 루트에서 다음을 실행한다. 원본 JGB의 경로는 조사 보고서 `sourcePath`에 있어야 한다.

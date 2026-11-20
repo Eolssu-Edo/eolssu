@@ -80,6 +80,10 @@ def main(argv=None):
     out = Path(args.out)
     require(not out.exists(), 'output folder must be new')
     report = json.loads((Path(args.source_dir) / 'report.json').read_text(encoding='utf-8'))
+    audio_name = CASE_ID.match(args.case_id).group(1) + '.m4a' if CASE_ID.match(args.case_id) else ''
+    require(report['endTick'] == args.cut_end_tick and audio_name and
+            report['audio']['sha256'] == sha((Path(args.source_dir) / audio_name).read_bytes()),
+            'report.json does not describe these cut files')
     (original,) = json.loads(Path(args.original_audio_row).read_text(encoding='utf-8'))
     meta = original['generation_metadata']
     derived = dict(songId=original['song_id'], scoreVersion=original['score_version'], audioSha256=original['sha256'],
