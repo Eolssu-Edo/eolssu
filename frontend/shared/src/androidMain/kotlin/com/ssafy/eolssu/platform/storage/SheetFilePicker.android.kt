@@ -14,7 +14,7 @@ import java.io.ByteArrayOutputStream
 // 사진 악보 올리기는 지원하지 않는다(S15P31E102-1225). 고를 곳이 하나라 메뉴 없이 바로 문서 선택기를 연다.
 actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files)
 
-/** 앨범은 사진 선택기(권한 없이 사진만, 최대 10장), 파일은 문서 선택기(PDF·PNG·JPEG)로 연다. */
+/** 파일은 문서 선택기로 PDF 하나만 연다. 앨범은 사진 선택기(권한 없이 사진만, 최대 10장)로 열지만 지금은 고를 곳에 없다. */
 @Composable
 actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (SheetFileSource) -> Unit {
     val context = LocalContext.current
@@ -25,12 +25,12 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
         else scope.launch { callback(withContext(Dispatchers.IO) { readSheetFiles(context, uris) }) }
     }
     val album = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_SHEET_IMAGES), receive)
-    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), receive)
+    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> receive(listOfNotNull(uri)) }
     return { source ->
         try {
             when (source) {
                 SheetFileSource.Album -> album.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                SheetFileSource.Files -> files.launch(arrayOf("application/pdf", "image/png", "image/jpeg"))
+                SheetFileSource.Files -> files.launch(arrayOf("application/pdf"))
             }
         } catch (_: Exception) { callback(SheetFileSelection.Failed) }
     }

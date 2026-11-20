@@ -23,11 +23,10 @@ sealed interface SheetFileSelection {
     data object TooLarge : SheetFileSelection
 }
 
-/** PDF 1개 또는 PNG/JPEG 1~10장, 파일 순서는 선택 결과 그대로다. */
-fun validSheetFiles(files: List<SheetFile>): Boolean = files.size in 1..10 &&
-    files.sumOf { it.bytes.size.toLong() } <= SHEET_MAX_BYTES &&
-    files.all { it.bytes.isNotEmpty() && it.contentType != null } &&
-    (files.none { it.contentType == "application/pdf" } || files.size == 1)
+/** 앱에서는 PDF 1개만 올린다(S15P31E102-1225). 서버는 사진도 받지만 앱은 사진 악보 올리기를 지원하지 않는다. */
+fun validSheetFiles(files: List<SheetFile>): Boolean = files.singleOrNull()?.let {
+    it.bytes.isNotEmpty() && it.bytes.size <= SHEET_MAX_BYTES && it.contentType == "application/pdf"
+} ?: false
 
 /**
  * 악보 파일을 고를 곳. 화면은 파일 선택 버튼 아래 메뉴에 [sheetFileSources]에 든 것만 두고, 하나뿐이면 메뉴 없이 바로 연다.
