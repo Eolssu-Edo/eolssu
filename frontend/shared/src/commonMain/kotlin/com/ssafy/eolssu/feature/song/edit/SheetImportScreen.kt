@@ -105,7 +105,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                 }
-                SheetUploadGuideCard(kind)
+                SheetUploadGuideCard()
                 UploadCard {
                     EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
                         value = state.title,

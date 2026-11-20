@@ -13,7 +13,7 @@ import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
 
-/** 브라우저는 파일 선택 창 하나가 앨범·파일을 함께 다루므로 고를 곳을 묻지 않는다. */
+/** 브라우저는 파일 선택 창 하나로 PDF 하나만 고른다(S15P31E102-1225). */
 actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files)
 
 @Composable
@@ -23,8 +23,8 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
     val input = remember {
         (document.createElement("input") as HTMLInputElement).apply {
             type = "file"
-            accept = "application/pdf,image/png,image/jpeg"
-            multiple = true
+            accept = "application/pdf"
+            multiple = false
             style.display = "none"
         }
     }
