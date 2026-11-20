@@ -11,7 +11,8 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 
-actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files, SheetFileSource.Album)
+// 사진 악보 올리기는 지원하지 않는다(S15P31E102-1225). 고를 곳이 하나라 메뉴 없이 바로 문서 선택기를 연다.
+actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files)
 
 /** 앨범은 사진 선택기(권한 없이 사진만, 최대 10장), 파일은 문서 선택기(PDF·PNG·JPEG)로 연다. */
 @Composable
