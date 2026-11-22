@@ -19,6 +19,7 @@ import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
+import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
@@ -60,6 +61,7 @@ internal fun FingeringMediumLayout(
                     )
                     BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
                 }
+                HoleLegend(Modifier.align(Alignment.End).padding(top = 2.dp, bottom = 6.dp))
             }
         }
         items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->
