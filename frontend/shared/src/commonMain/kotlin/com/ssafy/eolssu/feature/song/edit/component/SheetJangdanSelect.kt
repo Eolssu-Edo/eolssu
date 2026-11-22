@@ -39,7 +39,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuMenuItem
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPanel
 import com.ssafy.eolssu.core.ui.component.EolssuMenuPopup
 import com.ssafy.eolssu.data.song.CatalogJangdanSummary
-import com.ssafy.eolssu.feature.song.edit.defaultTempoLabel
+import com.ssafy.eolssu.feature.song.edit.menuLabel
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheet_upload_jangdan_placeholder
 import eolssu.shared.generated.resources.sheet_upload_jangdan_unsure
@@ -76,7 +76,7 @@ internal fun SheetJangdanSelect(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                if (unsure && selected != null) unsureLabel else selected?.name ?: stringResource(Res.string.sheet_upload_jangdan_placeholder),
+                if (unsure && selected != null) unsureLabel else selected?.menuLabel() ?: stringResource(Res.string.sheet_upload_jangdan_placeholder),
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 15.sp,
@@ -93,7 +93,8 @@ internal fun SheetJangdanSelect(
             Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textSub)
         }
         if (open) EolssuMenuPopup(onDismissRequest = { open = false }, gap = 6.dp) {
-            EolssuMenuPanel(width = 240.dp) {
+            // 고른 항목에 체크가 붙어도 '잘 모르겠어요(굿거리로 시작)'이 잘리지 않는 폭(S15P31E102-1234).
+            EolssuMenuPanel(width = 260.dp) {
                 Column(
                     Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -101,9 +102,8 @@ internal fun SheetJangdanSelect(
                     // 장단을 모르는 사람을 위해 맨 위에 둔다. 고르면 추천 장단 굿거리로 올린다(S15P31E102-1054).
                     if (onUnsure != null) EolssuMenuItem(unsureLabel, selected = unsure, onClick = { open = false; onUnsure() })
                     jangdans.forEach { item ->
-                        // 정간보는 장단마다 기본 빠르기가 달라 이름 옆에 얼쑤 기본 빠르기를 함께 보인다(예: 굿거리 · ♩.=66).
-                        val label = item.defaultTempoLabel()?.let { "${item.name} · $it" } ?: item.name
-                        EolssuMenuItem(label, selected = !unsure && item.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_JANGDAN_SELECT_01, { open = false; onSelect(item.jangdanId) }))
+                        // 정간보는 장단마다 기본 빠르기가 달라 이름 옆에 얼쑤 기본 빠르기를 함께 보인다(예: 굿거리(♩. 66)).
+                        EolssuMenuItem(item.menuLabel(), selected = !unsure && item.jangdanId == selectedId, onClick = UserActionLog.click(QaTarget.SHEET_JANGDAN_SELECT_01, { open = false; onSelect(item.jangdanId) }))
                     }
                 }
             }
