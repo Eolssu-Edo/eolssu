@@ -9,5 +9,5 @@
     <string name="sheet_upload_kind">악보 종류</string>
     <string name="sheet_upload_jangdan_placeholder">장단 고르기</string>
     <!-- 장단을 모를 때 고르는 항목. 추천 장단 굿거리(id 2)로 올린다. -->
-    <string name="sheet_upload_jangdan_unsure">잘 모르겠어요 · 굿거리로 시작</string>
+    <string name="sheet_upload_jangdan_unsure">잘 모르겠어요(굿거리로 시작)</string>
 </resources>

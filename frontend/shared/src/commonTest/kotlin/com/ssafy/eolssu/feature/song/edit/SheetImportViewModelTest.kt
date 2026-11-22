@@ -4,6 +4,10 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.*
 import com.ssafy.eolssu.data.song.*
 import com.ssafy.eolssu.testing.CatalogViewModelTest
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheet_upload_format
+import eolssu.shared.generated.resources.sheet_upload_input_required
+import eolssu.shared.generated.resources.sheet_upload_limit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -47,6 +51,30 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         assertEquals(1, uploads)
         assertEquals("91", model.uiState.value.acceptedId)
         assertTrue(errors().isEmpty())
+    }
+
+    @Test fun editedTitleShowsOnlyTitleErrorBeforeSubmissionAndClearsWhenFixed() = runTest {
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String) = SheetImportResult.Accepted("1")
+        }, { instruments }, { jangdans }))
+        runCurrent()
+        fun errors() = model.uiState.value.inputErrors()
+        assertTrue(errors().isEmpty())
+        model.title("곡")
+        assertTrue(errors().isEmpty())
+        model.title("")
+        assertEquals(setOf(SheetImportField.Title), errors())
+        model.title("곡2")
+        assertTrue(errors().isEmpty())
+    }
+
+    @Test fun bottomFeedbackSkipsFieldErrorsButKeepsServerErrors() {
+        assertNull(importFeedback(null, emptySet()))
+        assertNull(importFeedback("INPUT_REQUIRED", setOf(SheetImportField.Title)))
+        assertEquals(Res.string.sheet_upload_input_required, importFeedback("INPUT_REQUIRED", emptySet()))
+        assertNull(importFeedback("UNSUPPORTED_FILE_TYPE", emptySet()))
+        assertEquals(Res.string.sheet_upload_limit, importFeedback("SHEET_LIMIT_EXCEEDED", setOf(SheetImportField.Title)))
+        assertEquals(Res.string.sheet_upload_format, importFeedback("INVALID_FILE_SET", emptySet()))
     }
 
     @Test fun aFullListShowsTheLimit() = runTest {
