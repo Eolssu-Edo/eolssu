@@ -5,7 +5,6 @@
     <string name="sheet_upload_files">악보 파일</string>
     <string name="sheet_upload_instrument">연주할 악기</string>
     <string name="sheet_upload_jangdan">악보의 장단</string>
-    <string name="sheet_upload_jangdan_help">정간보 인식에 사용할 장단을 먼저 골라 주세요.</string>
     <string name="sheet_upload_pick">PDF 선택</string>
     <string name="sheet_upload_replace">다른 파일로 교체하기</string>
     <string name="sheet_upload_reading">파일 읽는 중</string>
