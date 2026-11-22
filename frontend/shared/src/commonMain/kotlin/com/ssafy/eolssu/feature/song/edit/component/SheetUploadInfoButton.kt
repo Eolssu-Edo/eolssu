@@ -36,8 +36,8 @@ import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 악보 올리기 `악보 파일` 제목 옆 ⓘ(S15P31E102-1230). 제목 위에 카드 한 장을 차지하던 안내를
- * 누를 때만 말풍선으로 보인다. 터치 화면에는 호버가 없으므로 눌러서 열고, 바깥을 누르거나 뒤로 가면 닫는다.
+ * 악보 올리기 `악보 파일` 제목 옆 ⓘ(S15P31E102-1230). 제목 위에 카드 한 장을 차지하던 안내와
+ * 카드 본문의 파일 제한(S15P31E102-1231)을 누를 때만 말풍선으로 보인다. 터치 화면에는 호버가 없으므로 눌러서 열고, 바깥을 누르거나 뒤로 가면 닫는다.
  */
 @Composable
 internal fun SheetUploadInfoButton(modifier: Modifier = Modifier) {
@@ -56,7 +56,10 @@ internal fun SheetUploadInfoButton(modifier: Modifier = Modifier) {
             Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
         }
         if (open) EolssuMenuPopup(onDismissRequest = { open = false }) {
-            InfoBubble { InfoLine(stringResource(Res.string.sheet_upload_tips_pdf)) }
+            InfoBubble {
+                InfoLine(stringResource(Res.string.sheet_upload_tips_pdf))
+                InfoLine(stringResource(Res.string.sheet_upload_limits))
+            }
         }
     }
 }
