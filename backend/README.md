@@ -113,6 +113,8 @@ V13은 라벨에 대응하는 누락 기준 음11행을 추가합니다. 기존1
 
 `AUTH_MAIL_MODE` 기본값은 `smtp`입니다. `AUTH_MAIL_HOST`·`AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD`가 모두 있으면 STARTTLS(설정 고정)로 실제 발송하고, 하나라도 없으면 서버는 기동하되 발송만 거절합니다. 발송 거절·실패 때 가입 인증 발송은 503이며, 비밀번호 재설정·계정 연결은 가입 여부를 숨기기 위해 202를 반환합니다. SMTP 시간 제한은 연결 3초·읽기/쓰기 5초입니다. `unavailable`은 항상 발송을 거절합니다. 로컬에서는 `AUTH_MAIL_MODE=memory`로 메모리 대역을 명시할 수 있습니다. 최근 100건을 프로세스 안에서만 보관하고 로그·HTTP 조회·파일 저장을 제공하지 않습니다. 번호 확인은 IDE에서 `InMemoryVerificationMailSender.messages()`로 할 수 있습니다.
 
+마이페이지 문의하기(`POST /api/users/me/inquiries`)는 같은 `AUTH_MAIL_MODE`·`AUTH_MAIL_*` 계정으로 `INQUIRY_MAIL_RECIPIENTS`(쉼표 구분, 기본값은 `application.yml`의 개발자 주소 3개)에 보냅니다. SMTP 계정이나 받는 주소가 비면 서버는 기동하고 문의만 503입니다. 형식이 틀린 주소는 기동을 막습니다. `memory`는 보내지 않고 성공 처리합니다. 문의 내용은 DB에 저장하지 않으며, 회원마다 60분에 5번까지 서버 메모리에서 셉니다.
+
 - `POST /api/auth/email-verifications`: JSON `email`(최대 100자·소문자 정규화, S15P31E102-1014)과 `purpose`(`SIGN_UP`, `PASSWORD_RESET`, `ACCOUNT_MERGE`). 202에 문자열 `verificationId`, UTC `expiresAt`, `resendAvailableAt`을 반환합니다. 같은 이메일의 모든 목적을 합산해 60초 간격·KST 날짜별 10회이며 재발송하면 같은 목적의 이전 번호·미사용 완료 토큰을 무효화합니다.
 - `POST /api/auth/email-verifications/{verificationId}/confirm`: JSON `code`는 숫자 6자리 **문자열**입니다. 3분 경과·재발송·확인 성공 뒤에는 410, 없는 ID는 404입니다. 처음 네 오답은 400과 `result.details.remainingAttempts`, 다섯 번째 오답부터는 429입니다. 네 번 틀린 뒤 다섯 번째에 맞히면 성공합니다.
 - 확인 성공 시 임의 256비트 `verificationToken`, 정규화 이메일, 성공 시각부터 30분 뒤의 `expiresAt`을 반환합니다. DB에는 번호 HMAC-SHA256과 완료 토큰 SHA-256만 저장합니다. 가입(AUTH-02)이 완료 토큰을 1회 소비합니다. 계정 연결·비밀번호 재설정의 소비는 후속 Task(S15P31E102-211·210)입니다.
@@ -198,6 +200,7 @@ $env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:8080'
 | `DB_USERNAME`, `DB_PASSWORD` | 해당 DB의 접속 정보. 기본값 없음 |
 | `AUTH_CODE_HMAC_SECRET` | 인증번호 HMAC 비밀키(Base64, 디코딩 후 32바이트 이상). `db`에서 필수 |
 | `AUTH_MAIL_MODE` | 기본 `unavailable`, 로컬 메일 대역은 `memory` |
+| `INQUIRY_MAIL_RECIPIENTS` | 문의하기를 받을 개발자 메일(쉼표 구분). 비우지 않으면 기본 주소 3개를 덮어씀 |
 | `ANALYSIS_AI_BASE_URL` | 연주 분석 AI 서비스 주소. 비우면 업로드 뒤 분석을 시작하지 않음 |
 
 ```powershell

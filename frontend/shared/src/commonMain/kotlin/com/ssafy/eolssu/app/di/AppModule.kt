@@ -89,6 +89,7 @@ import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
+import com.ssafy.eolssu.feature.profile.InquiryViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import com.ssafy.eolssu.feature.profile.ProfileImageViewModel
@@ -226,6 +227,7 @@ val appModule = module {
     single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
+    viewModelOf(::InquiryViewModel)
     viewModelOf(::ProfileImageViewModel)
     viewModelOf(::PasswordChangeViewModel)
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }

@@ -60,6 +60,7 @@ import eolssu.shared.generated.resources.my_nickname_edit
 import eolssu.shared.generated.resources.my_password_change
 import eolssu.shared.generated.resources.my_social
 import eolssu.shared.generated.resources.my_feedback_section
+import eolssu.shared.generated.resources.my_survey
 import eolssu.shared.generated.resources.my_title
 import eolssu.shared.generated.resources.my_unlink
 import eolssu.shared.generated.resources.my_unlink_confirm
@@ -71,7 +72,7 @@ import eolssu.shared.generated.resources.my_withdraw
 import org.jetbrains.compose.resources.stringResource
 
 /** MY-01에서 여는 화면. */
-enum class MyPageTarget { Nickname, ProfileImage, Password, Withdraw, Sources, Records }
+enum class MyPageTarget { Nickname, ProfileImage, Password, Withdraw, Sources, Records, Inquiry }
 
 /**
  * MY-01 마이페이지. 프로필(닉네임 · 기초부터 배우기 진도 뱃지) · 최근 연주 돌아보기 · 간편 로그인 · 의견/문의 · 계정 ·
@@ -123,9 +124,10 @@ fun MyPageScreen(
                 ProviderRow(provider, linked, onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_01, { if (linked) onUnlink(provider) else onLink(provider) }))
             }
         }
-        // 의견 폼(구글 폼) 하나로 문의와 의견을 함께 받는다.
+        // 설문하기는 팀 구글 폼을 외부 브라우저로 열고, 문의하기는 앱 안에서 써서 개발자 메일로 보낸다(S15P31E102-1240).
         Section(stringResource(Res.string.my_feedback_section)) {
-            AccountRow(stringResource(Res.string.my_inquiry), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_02, onOpenFeedback))
+            AccountRow(stringResource(Res.string.my_survey), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_02, onOpenFeedback))
+            AccountRow(stringResource(Res.string.my_inquiry), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_14, { onOpen(MyPageTarget.Inquiry) }))
         }
         Section(stringResource(Res.string.my_account)) {
             AccountRow(stringResource(Res.string.my_password_change), onClick = UserActionLog.click(QaTarget.MY_PAGE_SCREEN_03, { onOpen(MyPageTarget.Password) }))

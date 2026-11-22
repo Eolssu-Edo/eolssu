@@ -3,6 +3,9 @@ package com.ssafy.eolssu.feature.profile
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_error_password_too_long
 import eolssu.shared.generated.resources.my_error_current_password_wrong
+import eolssu.shared.generated.resources.my_error_inquiry_content_empty
+import eolssu.shared.generated.resources.my_error_inquiry_title_empty
+import eolssu.shared.generated.resources.my_error_inquiry_unavailable
 import eolssu.shared.generated.resources.my_error_nickname_empty
 import eolssu.shared.generated.resources.my_error_nickname_too_long
 import eolssu.shared.generated.resources.my_error_password_empty
@@ -45,4 +48,9 @@ enum class ProfileFieldError(val message: StringResource) {
 
     /** 탈퇴(MY-04) 간편 로그인 재인증 증명이 만료·재사용됐다(10분·1회). 다시 확인한다. */
     ProofExpired(Res.string.my_withdraw_proof_expired),
+
+    /** 문의하기(S15P31E102-1240)의 빈 제목·빈 내용과, 메일을 보내지 못한 서버 응답(503 등). */
+    InquiryTitleEmpty(Res.string.my_error_inquiry_title_empty),
+    InquiryContentEmpty(Res.string.my_error_inquiry_content_empty),
+    InquiryUnavailable(Res.string.my_error_inquiry_unavailable),
 }
