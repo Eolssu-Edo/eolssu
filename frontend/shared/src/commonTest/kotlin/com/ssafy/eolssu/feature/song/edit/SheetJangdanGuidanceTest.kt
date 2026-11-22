@@ -51,6 +51,14 @@ internal class SheetJangdanGuidanceTest {
         assertEquals("정간=48", CatalogJangdanSummary("8", "타령", 48, "JEONGGAN", 12, 4, 2).defaultTempoLabel())
     }
 
+    @Test fun jangdanMenuLabelsUseParenthesesWithoutMiddleDotOrEquals() {
+        // 장단 고르기 메뉴와 고른 뒤 칸은 '이름(단위 빠르기)'로 보인다(S15P31E102-1234).
+        assertEquals("중모리(♩ 88)", CatalogJangdanSummary("3", "중모리", 88, "QUARTER", 12, 4, 2).menuLabel())
+        assertEquals("굿거리(♩. 66)", CatalogJangdanSummary("2", "굿거리", 66, "DOTTED_QUARTER", 12, 4, 1).menuLabel())
+        assertEquals("타령(정간 48)", CatalogJangdanSummary("8", "타령", 48, "JEONGGAN", 12, 4, 2).menuLabel())
+        assertEquals("중모리", jangdan("중모리", "UNKNOWN", 12).menuLabel(), "모르는 단위는 빠르기를 추측하지 않고 이름만 보인다")
+    }
+
     private fun jangdan(name: String, unit: String, cells: Int) = CatalogJangdanSummary(name, name, 90, unit, cells, 1, when (name) { "중모리" -> 2; "세령산" -> 3; "unknown" -> null; else -> 1 })
     private fun draft(unit: String, beat: Int, cell: Int, sizes: List<Int>): SheetDraft = SheetDraft(
         title = "장단 안내 검사", jangdan = null, bpm = 90,
