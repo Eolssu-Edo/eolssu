@@ -16,10 +16,9 @@ import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.core.ui.score.HoleLegend
-import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
-/** 휴대폰 배치: 악기 · 취법 · 오른쪽 정렬 범례 아래로 운지 카드를 한 줄씩 쌓는다. */
+/** 휴대폰 배치: 취법 · 오른쪽 정렬 범례 아래로 운지 카드를 한 줄씩 쌓는다. */
 @Composable
 internal fun FingeringCompactLayout(
     state: FingeringUiState,
@@ -34,18 +33,7 @@ internal fun FingeringCompactLayout(
     ) {
         item(key = "head") {
             Column {
-                InstrumentDropdown(
-                    options = state.instrumentOptions,
-                    selected = instrument,
-                    open = state.isDropdownOpen,
-                    onToggle = actions.onToggleDropdown,
-                    onSelect = actions.onSelectInstrument,
-                    onDismiss = actions.onDismissDropdown,
-                    enabled = state.hasSelectedInstrument,
-                    loading = state.isInstrumentListLoading,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
-                )
-                BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.padding(bottom = 10.dp))
+                BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.padding(top = 4.dp, bottom = 10.dp))
                 HoleLegend(Modifier.align(Alignment.End).padding(top = 2.dp, bottom = 6.dp))
             }
         }

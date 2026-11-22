@@ -23,6 +23,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
+import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.layout.FingeringCompactLayout
@@ -39,17 +40,15 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.Blow
 
-/** 운지법 보기의 동작. 배치마다 같은 동작을 넘긴다. */
+/** 운지법 보기 본문의 동작. 배치마다 같은 동작을 넘긴다. 악기 선택은 상단 바에 있어 여기에 두지 않는다. */
 internal class FingeringActions(
-    val onToggleDropdown: () -> Unit,
-    val onDismissDropdown: () -> Unit,
-    val onSelectInstrument: (GuideInstrument) -> Unit,
     val onSelectBlow: (Blow) -> Unit,
 )
 
 /**
  * GUIDE-01 운지법 보기. 악기·취법을 고르면 그 취법의 모든 음을 낮은 음부터 운지 그림과 함께 보여준다.
- * 같은 상태를 휴대폰은 한 줄 목록, 태블릿 세로는 위 조작 + 카드 두 칸, 태블릿 가로는 왼쪽 조작 칸 + 오른쪽 카드 격자로 보여준다.
+ * 악기 선택은 곡 고르기 화면처럼 상단 바 오른쪽 알약에 두고, 제목은 알약 너비와 관계없이 가운데에 둔다(S15P31E102-1245).
+ * 본문은 휴대폰은 한 줄 목록, 태블릿 세로는 위 취법 탭 + 카드 두 칸, 태블릿 가로는 왼쪽 취법 칸 + 오른쪽 카드 격자로 보여준다.
  */
 @Composable
 fun FingeringScreen(
@@ -64,9 +63,25 @@ fun FingeringScreen(
     onRetryInstruments: () -> Unit,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
-    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow)
+    val actions = FingeringActions(onSelectBlow)
     EolssuScaffold(
-        topBar = { GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass) },
+        topBar = {
+            GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass, shrinkRight = true) {
+                // 고를 악기가 하나도 없으면 본문 안내만 두고 알약은 숨긴다.
+                if (!state.hasNoInstruments) {
+                    InstrumentDropdown(
+                        options = state.instrumentOptions,
+                        selected = state.instrument,
+                        open = state.isDropdownOpen,
+                        onToggle = onToggleDropdown,
+                        onSelect = onSelectInstrument,
+                        onDismiss = onDismissDropdown,
+                        enabled = state.hasSelectedInstrument,
+                        loading = state.isInstrumentListLoading,
+                    )
+                }
+            }
+        },
         snackbarHostState = snackbarHostState,
         containerColor = EolssuTheme.colors.groupedBackground,
         contentMaxWidth = widthClass.guidePageMaxWidth,
