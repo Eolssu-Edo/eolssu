@@ -153,7 +153,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     }
                     if (kind == ImportKind.Jeongganbo && state.jangdans.isNotEmpty()) UploadCard {
                         UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
-                        Text(stringResource(Res.string.sheet_upload_jangdan_help), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+                        // 고정 설명 없이, 고르지 않고 업로드했을 때만 카드 밑에 빨간 안내를 보인다(S15P31E102-1248).
                         SheetJangdanSelect(state.jangdans, state.jangdanId, onJangdan, enabled = editable,
                             unsure = state.jangdanUnsure, onUnsure = onJangdanUnsure.takeIf { state.canChooseJangdanUnsure },
                             isError = SheetImportField.Jangdan in inputErrors)

@@ -3,16 +3,19 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
@@ -59,6 +62,7 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import eolssu.shared.generated.resources.sheet_save_estimated_duration
 import eolssu.shared.generated.resources.sheet_editor_duration_unavailable
 import eolssu.shared.generated.resources.sheet_details_edit
+import eolssu.shared.generated.resources.sheet_details_edit_short
 import eolssu.shared.generated.resources.sheet_completion_saving
 import eolssu.shared.generated.resources.sheet_save_conflict
 import eolssu.shared.generated.resources.sheet_save_failed
@@ -112,8 +116,10 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 modifier.fillMaxWidth().heightIn(min = 40.dp).padding(bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("${draft.tempoUnitLabel} = ${draft.bpm}", style = MaterialTheme.typography.bodyMedium)
-                if (state.canEditDetails) TempoEditButton(actions.onOpenDetails, enabled = !state.saving)
+                val tempoText = "${draft.tempoUnitLabel} ${draft.bpm}"
+                // 숫자와 연필이 떨어져 보이고 연필만으로는 뜻이 모호해서, 빠르기·연필·'수정'을 한 버튼으로 묶는다.
+                if (state.canEditDetails) TempoEditChip(tempoText, actions.onOpenDetails, enabled = !state.saving)
+                else Text(tempoText, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
                 val estimate = draft.estimatedDurationSeconds(draft.bpm)
                 Text(if (estimate != null) stringResource(Res.string.sheet_save_estimated_duration, formatClock(estimate))
@@ -160,22 +166,41 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
     }
 }
 
-/** 빠르기 옆 작은 연필(아이콘 16dp, 보이는 칸 36dp, 누르는 영역 48dp). 누르면 제목·빠르기 변경 창을 연다. */
+/**
+ * 빠르기 값('♩ 72')과 '연필 수정'을 세로선으로 나눠 한 회색 알약(높이 32dp, 누르는 영역 48dp)으로 묶은 버튼. 누르면 빠르기 변경 창을 연다.
+ * 연필만 따로 두면 48dp 터치 여백 때문에 숫자와 멀어 보이고 뜻도 모호했다.
+ */
 @Composable
-private fun TempoEditButton(onClick: () -> Unit, enabled: Boolean) {
+private fun TempoEditChip(tempoText: String, onClick: () -> Unit, enabled: Boolean) {
+    val colors = EolssuTheme.colors
     val label = stringResource(Res.string.sheet_details_edit)
     Box(
         Modifier
-            .padding(start = 2.dp)
-            .minimumInteractiveComponentSize()
-            .size(36.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_EDIT_SCREEN_01, onClick))
-            .semantics { contentDescription = label }
+            .semantics(mergeDescendants = true) { contentDescription = "$label, $tempoText" }
             .alpha(if (enabled) 1f else 0.45f),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(16.dp), tint = EolssuTheme.colors.textSub)
+        Row(
+            Modifier
+                .height(32.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.groupedBackground)
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(tempoText, style = MaterialTheme.typography.bodyMedium, color = colors.text)
+            // 빠르기 값과 '연필 수정' 사이 세로 구분선.
+            Box(Modifier.width(1.dp).height(14.dp).background(colors.line))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(EolssuIcons.Pencil, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.textSub)
+                Text(stringResource(Res.string.sheet_details_edit_short), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textSub)
+            }
+        }
     }
 }
 

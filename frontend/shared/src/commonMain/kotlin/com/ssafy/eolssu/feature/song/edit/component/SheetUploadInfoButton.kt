@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,9 +44,11 @@ internal fun SheetUploadInfoButton(modifier: Modifier = Modifier) {
     val label = stringResource(Res.string.sheet_upload_files_info)
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
+        // 48dp 최소 크기를 레이아웃에 잡으면 `악보 파일` 제목 줄만 위아래로 넓어진다. 보이는 크기는 제목 글자 높이(20dp)에 맞추고,
+        // 터치는 Compose가 작은 터치 대상을 48dp까지 넓혀 받는 동작에 맡긴다.
         Box(
             Modifier
-                .minimumInteractiveComponentSize()
+                .size(20.dp)
                 .clip(CircleShape)
                 .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.SHEET_UPLOAD_INFO_01, { open = !open }))
                 .semantics { contentDescription = label },
