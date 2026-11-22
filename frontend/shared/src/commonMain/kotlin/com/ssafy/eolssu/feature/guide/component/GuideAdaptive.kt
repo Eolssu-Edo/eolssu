@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,7 +46,7 @@ internal val WindowWidthClass.guidePageMaxWidth: Dp
         WindowBreakpoints.ContentMaxWidth + GuideTabletSidePadding * 2
     }
 
-/** 창 너비에 맞춘 상단 바. 태블릿은 뒤로 가기 버튼을 본문 왼쪽 끝(40dp)에 맞춘다. */
+/** 창 너비에 맞춘 상단 바. 태블릿은 뒤로 가기 버튼을 본문 왼쪽 끝(40dp)에 맞춘다. [right]는 오른쪽 자리이며, 제목은 그 너비와 관계없이 가운데에 있다. */
 @Composable
 internal fun GuideTopBar(
     title: String,
@@ -53,9 +54,10 @@ internal fun GuideTopBar(
     widthClass: WindowWidthClass,
     subtitle: String? = null,
     titleFontSize: TextUnit = TextUnit.Unspecified,
+    right: @Composable RowScope.() -> Unit = {},
 ) {
     if (widthClass == WindowWidthClass.Compact) {
-        EolssuTopBar(title, onBack = onBack, subtitle = subtitle, titleFontSize = titleFontSize)
+        EolssuTopBar(title, onBack = onBack, subtitle = subtitle, titleFontSize = titleFontSize, right = right)
     } else {
         // EolssuTopBar 안쪽 여백 20dp에 바깥 20dp를 더해 40dp, 내용 최대 1120dp가 되게 한다.
         EolssuTopBar(
@@ -65,6 +67,7 @@ internal fun GuideTopBar(
             subtitle = subtitle,
             maxWidth = WindowBreakpoints.ContentMaxWidth + 40.dp,
             titleFontSize = titleFontSize,
+            right = right,
         )
     }
 }
