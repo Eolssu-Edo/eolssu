@@ -1,0 +1,5 @@
+// Jenkins 에이전트는 실행 중인 JVM과 디스크의 JDK 버전이 다르면 git 등 외부 명령을 띄우지 못한다.
+// JDK는 자동 업데이트에서 빼고, 빌드가 없을 때 직접 올린 뒤 에이전트를 재시작한다.
+Unattended-Upgrade::Package-Blacklist {
+    "openjdk-";
+};

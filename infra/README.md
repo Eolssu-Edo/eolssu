@@ -25,7 +25,7 @@
 | 부하 확인 | [시연 규모 동시 접속 리허설](loadtest/README.md) |
 | 점검·알림·관측 | [Mattermost 점검 중계·상태 변화 알림](edo-check/README.md) · [Jenkins 실패 알림](jenkins/notifications/README.md) · [Grafana·Prometheus](monitoring/README.md) · [운영 MySQL 웹 조회](mysql-admin/README.md) |
 | 저장공간·로그 | [배포 산출물 보존 정리](retention/README.md) · [Docker 기본 로그 회전](docker/README.md) |
-| 서버 업데이트 | [자동 보안 업데이트 뒤 Jenkins 에이전트 재시작 미루기](needrestart/README.md) |
+| 서버 업데이트 | [자동 보안 업데이트 뒤 Jenkins 에이전트 재시작 미루기와 JDK 수동 업데이트](needrestart/README.md) |
 | 데이터·파일 | [R2 파일·폴더 업로드](r2/README.md) · [기본음·시김새 카탈로그 적재](catalog/README.md) · [국내 비공개 녹음 저장 전환](storage/README.md) |
 | 약관·개인정보 | [약관 본문 공개와 버전 등록](terms/README.md) · [개인정보 보유기간과 관리자 처리 기록](privacy/README.md) |
 | QA·팀 도구 | [실제 Android 기기 QA 웹](qa-phone/README.md) · [Eolssu Updates 앱](tool-updates/README.md) |

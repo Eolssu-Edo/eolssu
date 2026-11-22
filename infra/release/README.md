@@ -80,7 +80,7 @@ ssh edo1 "sudo docker inspect --format '{{index .Config.Labels \"org.opencontain
 - 병합을 막기 어렵다면 배포 잡 **4개를 모두** 일시 중지(Disable)한다: `eolssu-backend`, `eolssu-ai`, `eolssu-omr`, `eolssu-playback`. backend만 멈추면 채점·악보 인식·음원 서비스는 계속 자동 교체된다. 진행 중인 빌드가 있으면 끝난 뒤 멈춘다. 재개 후 첫 빌드가 동결 중 쌓인 변경을 한꺼번에 배포하므로 발표 후 병합 순서를 확인하고 재개한다.
 - 웹은 수동 잡이라 자동 배포되지 않는다. 동결 중에는 `eolssu-frontend-web-수동배포용`을 실행하지 않는다.
 - ai·omr·playback 수동 이미지 재빌드, Flyway 수동 적용, Nginx·Compose·Jenkins 설정 변경, 서버 패키지 업데이트, 재부팅을 하지 않는다.
-- edo1 자동 보안 업데이트는 동결 중에도 매일 15:00~16:00 KST에 실행된다(11-17은 15:42 예정으로 RC 반영 시간과 겹친다). Jenkins 에이전트는 자동 재시작하지 않도록 설정했으므로 빌드는 끊기지 않는다. 새 Java를 적용하는 에이전트 재시작은 발표 후에 한다([needrestart 설정](../needrestart/README.md)).
+- edo1 자동 보안 업데이트는 동결 중에도 매일 15:00~16:00 KST에 실행된다(11-17은 15:42 예정으로 RC 반영 시간과 겹친다). Jenkins 에이전트는 자동 재시작하지 않도록 설정했으므로 빌드는 끊기지 않는다. JDK는 자동 업데이트에서 제외했으므로(S15P31E102-1229) 동결 중에 Java가 바뀌지 않는다. JDK 업데이트와 에이전트 재시작은 발표 후에 함께 한다([needrestart 설정](../needrestart/README.md#jdk-업데이트하기-사람이-할-일)).
 - **운영 카탈로그를 직접 바꾸지 않는다.** 곡 게시·숨김, 채점 켜기, 모범 음원·판본 교체는 코드 병합 없이 운영 DB·R2에 바로 반영된다([infra/catalog](../catalog/README.md) 도구, 수동 SQL). 동결 시작 전에 진행 중인 카탈로그 작업 담당자에게 알린다.
 - 예외: 시연을 막는 결함만 수정한다. 팀원 2명 이상 승인 → develop 병합 → 새 RC로 영수증 전체를 다시 작성한다. 시간이 부족하면 수정 대신 [녹화 영상](#장애-판단과-전환)으로 대체한다.
 
