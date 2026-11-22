@@ -8,16 +8,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.guide.FingeringActions
 import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
+import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
-/** 휴대폰 배치: 악기 · 취법 아래로 운지 카드를 한 줄씩 쌓는다. */
+/** 휴대폰 배치: 악기 · 취법 · 오른쪽 정렬 범례 아래로 운지 카드를 한 줄씩 쌓는다. */
 @Composable
 internal fun FingeringCompactLayout(
     state: FingeringUiState,
@@ -44,6 +46,7 @@ internal fun FingeringCompactLayout(
                     modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                 )
                 BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.padding(bottom = 10.dp))
+                HoleLegend(Modifier.align(Alignment.End).padding(top = 2.dp, bottom = 6.dp))
             }
         }
         items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->
