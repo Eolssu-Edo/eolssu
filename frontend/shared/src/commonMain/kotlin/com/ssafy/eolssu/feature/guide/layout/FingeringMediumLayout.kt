@@ -3,8 +3,8 @@ package com.ssafy.eolssu.feature.guide.layout
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -20,11 +20,10 @@ import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.core.ui.score.HoleLegend
-import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
- * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 악기와 취법 탭을 한 줄로 놓고,
+ * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 취법 탭을 놓고(악기는 상단 바 오른쪽),
  * 운지 카드는 두 칸 격자로 보여준다.
  */
 @Composable
@@ -43,24 +42,7 @@ internal fun FingeringMediumLayout(
     ) {
         item(key = "head", span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                Row(
-                    Modifier.padding(top = 4.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    InstrumentDropdown(
-                        options = state.instrumentOptions,
-                        selected = instrument,
-                        open = state.isDropdownOpen,
-                        onToggle = actions.onToggleDropdown,
-                        onSelect = actions.onSelectInstrument,
-                        onDismiss = actions.onDismissDropdown,
-                        enabled = state.hasSelectedInstrument,
-                        loading = state.isInstrumentListLoading,
-                        modifier = Modifier.weight(1f),
-                    )
-                    BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
-                }
+                BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp), large = true)
                 HoleLegend(Modifier.align(Alignment.End).padding(top = 2.dp, bottom = 6.dp))
             }
         }

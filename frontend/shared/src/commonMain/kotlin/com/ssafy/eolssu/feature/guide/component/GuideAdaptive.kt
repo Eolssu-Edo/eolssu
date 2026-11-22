@@ -46,7 +46,10 @@ internal val WindowWidthClass.guidePageMaxWidth: Dp
         WindowBreakpoints.ContentMaxWidth + GuideTabletSidePadding * 2
     }
 
-/** 창 너비에 맞춘 상단 바. 태블릿은 뒤로 가기 버튼을 본문 왼쪽 끝(40dp)에 맞춘다. [right]는 오른쪽 자리이며, 제목은 그 너비와 관계없이 가운데에 있다. */
+/**
+ * 창 너비에 맞춘 상단 바. 태블릿은 뒤로 가기 버튼을 본문 왼쪽 끝(40dp)에 맞춘다. [right]는 오른쪽 자리이며, 제목은 그 너비와 관계없이 가운데에 있다.
+ * [shrinkRight]가 true면 제목 자리가 모자랄 때 오른쪽 자리를 좁혀 그 안 글자(운지법 보기의 악기 이름)를 말줄임한다([EolssuTopBar]).
+ */
 @Composable
 internal fun GuideTopBar(
     title: String,
@@ -54,10 +57,11 @@ internal fun GuideTopBar(
     widthClass: WindowWidthClass,
     subtitle: String? = null,
     titleFontSize: TextUnit = TextUnit.Unspecified,
+    shrinkRight: Boolean = false,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     if (widthClass == WindowWidthClass.Compact) {
-        EolssuTopBar(title, onBack = onBack, subtitle = subtitle, titleFontSize = titleFontSize, right = right)
+        EolssuTopBar(title, onBack = onBack, subtitle = subtitle, titleFontSize = titleFontSize, shrinkRight = shrinkRight, right = right)
     } else {
         // EolssuTopBar 안쪽 여백 20dp에 바깥 20dp를 더해 40dp, 내용 최대 1120dp가 되게 한다.
         EolssuTopBar(
@@ -67,6 +71,7 @@ internal fun GuideTopBar(
             subtitle = subtitle,
             maxWidth = WindowBreakpoints.ContentMaxWidth + 40.dp,
             titleFontSize = titleFontSize,
+            shrinkRight = shrinkRight,
             right = right,
         )
     }
