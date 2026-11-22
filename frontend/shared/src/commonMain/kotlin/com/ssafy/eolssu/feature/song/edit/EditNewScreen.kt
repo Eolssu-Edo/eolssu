@@ -34,9 +34,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_sheet_count
 import eolssu.shared.generated.resources.mysongs_sheet_limit_note
 import eolssu.shared.generated.resources.sheetedit_new_question
-import eolssu.shared.generated.resources.sheetedit_new_eolssu_caption
 import eolssu.shared.generated.resources.sheetedit_new_eolssu_title
-import eolssu.shared.generated.resources.sheetedit_new_upload_caption
 import eolssu.shared.generated.resources.sheetedit_new_upload_title
 import eolssu.shared.generated.resources.sheetedit_new_title
 import org.jetbrains.compose.resources.stringResource
@@ -92,7 +90,6 @@ fun EditNewScreen(
             // 내 기기의 사진·PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 바로 악보 올리기 화면으로 간다(S15P31E102-997).
             KindCard(
                 stringResource(Res.string.sheetedit_new_upload_title),
-                stringResource(Res.string.sheetedit_new_upload_caption),
                 SheetEditIcons.Folder,
                 onClick = UserActionLog.click(QaTarget.EDIT_NEW_SCREEN_01, onUpload),
                 emphasized = true,
@@ -100,7 +97,6 @@ fun EditNewScreen(
             // 얼쑤가 주는 곡이나 이미 만든 내 악보를 복사해 온다.
             KindCard(
                 stringResource(Res.string.sheetedit_new_eolssu_title),
-                stringResource(Res.string.sheetedit_new_eolssu_caption),
                 SheetEditIcons.MySheet,
                 onClick = UserActionLog.click(QaTarget.EDIT_NEW_SCREEN_02, onLoadExisting),
             )
