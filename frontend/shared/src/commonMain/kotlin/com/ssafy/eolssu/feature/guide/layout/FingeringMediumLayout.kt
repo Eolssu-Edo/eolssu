@@ -1,16 +1,20 @@
 package com.ssafy.eolssu.feature.guide.layout
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,8 +28,8 @@ import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
- * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 악기와 취법 탭을 한 줄로 놓고,
- * 운지 카드는 두 칸 격자로 보여준다.
+ * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 악기와 취법 탭을 한 줄로 고정하고,
+ * 그 아래 범례와 두 칸 운지 카드 격자만 스크롤한다(S15P31E102-1242). 악기나 취법을 바꾸면 격자를 맨 위로 되돌린다.
  */
 @Composable
 internal fun FingeringMediumLayout(
@@ -34,40 +38,44 @@ internal fun FingeringMediumLayout(
     noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val instrument = state.instrument
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = GuideTabletSidePadding, end = GuideTabletSidePadding, bottom = 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "head", span = { GridItemSpan(maxLineSpan) }) {
-            Column {
-                Row(
-                    Modifier.padding(top = 4.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    InstrumentDropdown(
-                        options = state.instrumentOptions,
-                        selected = instrument,
-                        open = state.isDropdownOpen,
-                        onToggle = actions.onToggleDropdown,
-                        onSelect = actions.onSelectInstrument,
-                        onDismiss = actions.onDismissDropdown,
-                        enabled = state.hasSelectedInstrument,
-                        loading = state.isInstrumentListLoading,
-                        modifier = Modifier.weight(1f),
-                    )
-                    BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
+    val gridState = rememberSaveable(instrument, state.shownBlow, saver = LazyGridState.Saver) { LazyGridState() }
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.padding(start = GuideTabletSidePadding, end = GuideTabletSidePadding, top = 4.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            InstrumentDropdown(
+                options = state.instrumentOptions,
+                selected = instrument,
+                open = state.isDropdownOpen,
+                onToggle = actions.onToggleDropdown,
+                onSelect = actions.onSelectInstrument,
+                onDismiss = actions.onDismissDropdown,
+                enabled = state.hasSelectedInstrument,
+                loading = state.isInstrumentListLoading,
+                modifier = Modifier.weight(1f),
+            )
+            BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            state = gridState,
+            contentPadding = PaddingValues(start = GuideTabletSidePadding, end = GuideTabletSidePadding, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(key = "legend", span = { GridItemSpan(maxLineSpan) }) {
+                Box(Modifier.fillMaxWidth()) {
+                    HoleLegend(Modifier.align(Alignment.CenterEnd).padding(top = 2.dp, bottom = 6.dp))
                 }
-                HoleLegend(Modifier.align(Alignment.End).padding(top = 2.dp, bottom = 6.dp))
             }
-        }
-        items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->
-            FingeringCard(instrument, note, audioContent = { noteAudioContent(note) })
-        }
-        item(key = "source", span = { GridItemSpan(maxLineSpan) }) {
+            items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->
+                FingeringCard(instrument, note, audioContent = { noteAudioContent(note) })
+            }
+            item(key = "source", span = { GridItemSpan(maxLineSpan) }) {
+            }
         }
     }
 }
