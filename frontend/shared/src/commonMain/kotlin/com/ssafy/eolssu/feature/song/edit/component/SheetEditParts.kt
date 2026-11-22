@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import com.ssafy.eolssu.core.ui.component.CenteredTitleRow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -167,6 +168,8 @@ internal fun RadioDot(selected: Boolean, modifier: Modifier = Modifier, size: Dp
 /**
  * 알약 칩(34dp · 13sp 600): 테두리 없이 고르면 연두, 아니면 [containerColor](기본 회색 채움, 흰 카드 안용)(S15P31E102-768).
  * 회색 바탕 위에 둘 때는 [containerColor]로 흰색을 준다.
+ * 여러 줄로 쌓을 때는 [minHeight]를 최소 터치 영역(48dp) 이상으로 준다. 그보다 낮으면 칩 위아래에 보이지 않는 터치 여백이 붙어
+ * 줄 사이가 지정한 간격보다 넓어 보인다(S15P31E102-1233).
  */
 @Composable
 internal fun PillChip(
@@ -178,13 +181,15 @@ internal fun PillChip(
     enabled: Boolean = true,
     containerColor: Color? = null,
     leading: (@Composable () -> Unit)? = null,
+    shape: Shape = CircleShape,
+    minHeight: Dp = 34.dp,
 ) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_02, onClick),
         enabled = enabled,
-        modifier = modifier.heightIn(min = 34.dp).semantics { this.selected = selected },
-        shape = CircleShape,
+        modifier = modifier.heightIn(min = minHeight).semantics { this.selected = selected },
+        shape = shape,
         color = if (selected) colors.primary else containerColor ?: colors.groupedBackground,
         contentColor = if (selected) colors.onPrimary else if (enabled) colors.text else colors.textDisabled,
     ) {

@@ -130,6 +130,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     UploadLabel(stringResource(Res.string.sheet_upload_instrument))
                     // 앱의 다른 악기 선택처럼 이름 앞에 악기 그림을 둔다. 모르는 악기 코드는 그림 없이 이름만 보인다(S15P31E102-1079).
                     // 그림이 들어가 휴대폰 폭에 네 칩이 한 줄에 들어가지 않으므로, 한 칩만 다음 줄에 남지 않게 두 칸씩 같은 폭으로 놓는다.
+                    // 칩 높이를 최소 터치 영역(48dp)에 맞춰 줄 사이도 좌우와 같은 8dp로 보이게 하고, 모서리는 같은 화면 입력칸과 같은 12dp로 둔다(S15P31E102-1233).
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.instruments.chunked(2).forEach { pair ->
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -137,7 +138,8 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                                     val picture = instrumentOfServerCode(item.code)
                                     PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }),
                                         modifier = Modifier.weight(1f), enabled = editable,
-                                        leading = picture?.let { { InstrumentPicture(it, size = InstrumentPictureCompactSize) } })
+                                        leading = picture?.let { { InstrumentPicture(it) } },
+                                        shape = RoundedCornerShape(12.dp), minHeight = 48.dp)
                                 }
                                 if (pair.size == 1) Spacer(Modifier.weight(1f))
                             }
