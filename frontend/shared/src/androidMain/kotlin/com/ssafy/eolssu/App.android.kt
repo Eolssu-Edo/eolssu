@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import com.ssafy.eolssu.core.browser.IncomingLinks
 import com.ssafy.eolssu.platform.androidPlatformModule
 import com.ssafy.eolssu.platform.permission.AndroidMicPermission
+import com.ssafy.eolssu.platform.update.AndroidStoreUpdates
 import com.ssafy.eolssu.core.network.ServerAddress
 
 /**
@@ -21,7 +22,10 @@ fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Productio
     // TEMP S15P31E102-309: remove parameter and forwarding after consent recovery.
     qaSkipConsent: Boolean = false,
 ) {
-    val platformModule = remember(context, serverAddress.baseUrl, incomingLinks) { androidPlatformModule(context, serverAddress, incomingLinks) }
+    val storeUpdates = remember(context) { AndroidStoreUpdates(context) }
+    val platformModule = remember(context, serverAddress.baseUrl, incomingLinks, storeUpdates) {
+        androidPlatformModule(context, serverAddress, incomingLinks, storeUpdates)
+    }
     // 마이크 권한 창은 화면에 등록한 요청으로만 띄울 수 있어 여기서 등록해 넘긴다.
     val micPermission = remember(context) { AndroidMicPermission.of(context) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), micPermission::onResult)
@@ -37,6 +41,11 @@ fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Productio
                 micPermission.shouldShowRationale = null
             }
         }
+    }
+    // Play 즉시 업데이트 화면도 Activity가 있어야 띄울 수 있다. 화면을 그리는 동안만 넘긴다.
+    DisposableEffect(storeUpdates, activity) {
+        storeUpdates.activity = activity
+        onDispose { if (storeUpdates.activity === activity) storeUpdates.activity = null }
     }
     App(platformModule = platformModule, qaSkipConsent = qaSkipConsent)
 }

@@ -670,6 +670,8 @@ fun EolssuNavHost(
                 }
             },
         )
+        // 보내지 못한 녹음 안내와 함께 뜨면 업데이트 안내가 위에 온다. 닫으면 아래 안내가 그대로 남는다.
+        StoreUpdateNotice()
     }
     OAuthReturnEffect(navController)
     LaunchedEffect(navController) {

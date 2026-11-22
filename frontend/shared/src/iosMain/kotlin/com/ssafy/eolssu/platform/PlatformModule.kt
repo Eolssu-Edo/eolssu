@@ -18,6 +18,7 @@ import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import com.ssafy.eolssu.core.storage.SecureStore
+import com.ssafy.eolssu.core.update.StoreUpdates
 import com.ssafy.eolssu.data.user.IosDevOAuthRelay
 import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.platform.audio.IosAudioPlayer
@@ -31,6 +32,8 @@ import com.ssafy.eolssu.platform.browser.IosExternalBrowser
 import com.ssafy.eolssu.platform.permission.IosMicPermission
 import com.ssafy.eolssu.platform.storage.IosKeyValueStore
 import com.ssafy.eolssu.platform.storage.IosSecureStore
+import com.ssafy.eolssu.platform.update.IosStoreUpdates
+import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.darwin.Darwin
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -112,4 +115,14 @@ internal fun iosPlatformModule(): Module = module {
     factory<JangdanVolumeLimit> { IosJangdanVolumeLimit() }
     single<RecordingFiles> { IosRecordingFiles() }
     single<SoundPlayer> { IosSoundPlayer() }
+    // 앱을 켤 때 App Store의 새 버전을 안내한다(S15P31E102-1237). Apple 서버에는 앱 서버의 로그인 쿠키를 보내지 않는다.
+    single<StoreUpdates> {
+        IosStoreUpdates(HttpClient(Darwin.create {
+            configureSession {
+                HTTPShouldSetCookies = false
+                HTTPCookieStorage = null
+                URLCache = null
+            }
+        }))
+    }
 }

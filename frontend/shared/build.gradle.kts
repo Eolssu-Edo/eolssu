@@ -58,6 +58,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.media3.common)
+            // 스토어 새 버전 확인과 Play 즉시 업데이트 화면(S15P31E102-1237). Android 전용이라 commonMain에 넣지 않는다.
+            implementation(libs.play.appUpdate)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

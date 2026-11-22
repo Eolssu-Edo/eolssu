@@ -25,6 +25,7 @@ import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import com.ssafy.eolssu.core.storage.SecureStore
+import com.ssafy.eolssu.core.update.StoreUpdates
 import com.ssafy.eolssu.platform.audio.AndroidAudioRecorder
 import com.ssafy.eolssu.platform.audio.AndroidRecordingFiles
 import com.ssafy.eolssu.platform.audio.AndroidSoundPlayer
@@ -32,6 +33,7 @@ import com.ssafy.eolssu.platform.browser.AndroidExternalBrowser
 import com.ssafy.eolssu.platform.permission.AndroidMicPermission
 import com.ssafy.eolssu.platform.storage.AndroidKeyValueStore
 import com.ssafy.eolssu.platform.storage.AndroidSecureStore
+import com.ssafy.eolssu.platform.update.AndroidStoreUpdates
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +44,11 @@ import org.koin.dsl.module
 /**
  * Android 구현 등록. `MainActivity`가 넘긴 Context로 만든다(`App(context)`).
  * [incomingLinks]는 `MainActivity`가 App Links 복귀 주소를 넣는 곳이다.
+ * [storeUpdates]에는 `App(context)`가 Play 업데이트 화면을 띄울 Activity를 넣는다.
  */
-internal fun androidPlatformModule(context: Context, serverAddress: ServerAddress, incomingLinks: IncomingLinks): Module {
+internal fun androidPlatformModule(
+    context: Context, serverAddress: ServerAddress, incomingLinks: IncomingLinks, storeUpdates: AndroidStoreUpdates,
+): Module {
     val appContext = context.applicationContext
     return module {
         single<KeyValueStore> { AndroidKeyValueStore(appContext) }
@@ -91,5 +96,7 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
         single<SoundPlayer> { AndroidSoundPlayer() }
+        // 앱을 켤 때 Play 스토어의 새 버전을 안내한다(S15P31E102-1237).
+        single<StoreUpdates> { storeUpdates }
     }
 }
