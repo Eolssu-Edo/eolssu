@@ -17,7 +17,7 @@ import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * `PDF·이미지 선택` 버튼 아래로 펼쳐지는 가져올 곳 메뉴(S15P31E102-997). 악기 선택 드롭다운과 같은 공통 메뉴를 쓴다.
+ * `PDF 선택` 버튼 아래로 펼쳐지는 가져올 곳 메뉴(S15P31E102-997). 악기 선택 드롭다운과 같은 공통 메뉴를 쓴다.
  * `파일`은 문서 선택기(드라이브), `갤러리`는 휴대폰 사진첩을 연다. 사진 촬영(S15P31E102-1003)은 [SheetFileSource]에 항목을 더해 붙인다.
  * 고르는 즉시 선택 창을 여는 동작이라 고른 표시는 두지 않는다.
  */

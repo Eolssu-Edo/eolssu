@@ -39,7 +39,7 @@ object SheetEditDestination {
     /** 악보 추가. */
     fun new(): String = NEW
 
-    /** 파일·악기·장단 선택. 기기 파일 선택 창은 화면의 'PDF·이미지 선택'을 눌렀을 때만 연다(S15P31E102-889). */
+    /** 파일·악기·장단 선택. 기기 파일 선택 창은 화면의 'PDF 선택'을 눌렀을 때만 연다(S15P31E102-889). */
     fun import(kind: ImportKind, hwang: HwangPitch) = "sheet-edit/import/${kind.routeId}?hwang=${hwang.name}"
 
     fun importResult(kind: ImportKind, hwang: HwangPitch) = "sheet-edit/import/${kind.routeId}/result?hwang=${hwang.name}"

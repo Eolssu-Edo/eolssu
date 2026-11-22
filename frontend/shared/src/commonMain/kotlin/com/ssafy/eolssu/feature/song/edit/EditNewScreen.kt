@@ -87,7 +87,7 @@ fun EditNewScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel(stringResource(Res.string.sheetedit_new_question))
-            // 내 기기의 사진·PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 바로 악보 올리기 화면으로 간다(S15P31E102-997).
+            // 내 기기의 PDF를 올린다. 주 행동이라 연두로 칠하고, 누르면 바로 악보 올리기 화면으로 간다(S15P31E102-997).
             KindCard(
                 stringResource(Res.string.sheetedit_new_upload_title),
                 SheetEditIcons.Folder,
