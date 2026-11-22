@@ -57,7 +57,7 @@ class SheetImportViewModel(
 
     private fun editable() = !state.value.busy && !state.value.expired && state.value.acceptedId == null
     private fun edit(value: SheetImportUiState) { key = null; state.value = value.copy(error = null) }
-    fun title(value: String) { if (editable() && value != state.value.title) edit(state.value.copy(title = value)) }
+    fun title(value: String) { if (editable() && value != state.value.title) edit(state.value.copy(title = value, titleEdited = true)) }
     /** 올리기 화면 위 '악보 종류'. 고른 장단은 오선보로 바꿔도 남겨 두고, 접수할 때만 정간보에 싣는다. */
     fun kind(value: ImportKind) {
         if (!editable() || value == state.value.kind) return

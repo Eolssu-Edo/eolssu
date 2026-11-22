@@ -57,11 +57,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
     val startPick = { sources.singleOrNull()?.let(onPick) ?: run { sourceMenuOpen = true } }
     val kind = state.kind
     val inputErrors = state.inputErrors()
-    // 서버/파일 실패는 누락 필드로 추측하지 않고, 입력 오류는 첫 미해결 항목을 안내한다.
-    val feedback = state.error?.takeIf { it != "INPUT_REQUIRED" && fileProblem(it) == null }
-        ?.let { stringResource(importErrorText(it)) }
-        ?: SheetImportField.entries.firstOrNull { it in inputErrors }?.let { stringResource(fieldErrorText(it)) }
-        ?: state.error?.takeIf { it == "INPUT_REQUIRED" }?.let { stringResource(importErrorText(it)) }
+    val feedback = importFeedback(state.error, inputErrors)?.let { stringResource(it) }
     val showListAction = state.error in setOf("CONVERSION_IN_PROGRESS", "SHEET_LIMIT_EXCEEDED", "IDEMPOTENCY_CONFLICT")
     // 악보 추가 화면처럼 회색 바탕 위 흰 카드로 묶는다(S15P31E102-768).
     val contentMaxWidth = sheetAddContentMaxWidth()
@@ -116,6 +112,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         containerColor = colors.groupedBackground,
                         imeAction = ImeAction.Done,
                         error = if (SheetImportField.Title in inputErrors) stringResource(fieldErrorText(SheetImportField.Title)) else null,
+                        errorColor = colors.recText,
                     )
                 }
                 if (state.loading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.text) }
@@ -223,7 +220,17 @@ private fun fieldErrorText(field: SheetImportField): StringResource = when (fiel
     SheetImportField.Files -> Res.string.sheet_upload_choose_files
 }
 
-/** 스크롤과 무관한 하단 요약과 필드 아래에서 같은 오류 안내를 사용한다. */
+/**
+ * 업로드 버튼 위 하단 안내. 칸에 속하지 않는 서버 오류만 보이고, 칸 입력 오류는 해당 칸 아래에서만 한 번 보인다(S15P31E102-1232).
+ * 안내 창으로 보이는 파일 오류도 뺀다. 입력 오류인데 표시할 칸이 없을 때만 일반 입력 안내를 보인다.
+ */
+internal fun importFeedback(error: String?, inputErrors: Set<SheetImportField>): StringResource? = when {
+    error == null || fileProblem(error) != null -> null
+    error == "INPUT_REQUIRED" -> if (inputErrors.isEmpty()) importErrorText(error) else null
+    else -> importErrorText(error)
+}
+
+/** 카드 안 칸 아래에 보이는 빨간 입력 오류 안내. */
 @Composable
 private fun UploadError(message: String) {
     val color = EolssuTheme.colors.recText
