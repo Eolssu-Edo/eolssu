@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.feature.profile.DataSourcesRoute
+import com.ssafy.eolssu.feature.profile.InquiryRoute
 import com.ssafy.eolssu.feature.profile.LegalDocumentRoute
 import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
@@ -26,6 +27,7 @@ object ProfileDestination {
     const val PASSWORD = "my/password"
     const val WITHDRAW = "my/withdraw"
     const val SOURCES = "my/sources"
+    const val INQUIRY = "my/inquiry"
     const val LINK = "my/link/{provider}"
     const val LEGAL = "my/legal/{document}"
 
@@ -56,6 +58,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController, onLogOutStarted: 
                         MyPageTarget.Withdraw -> ProfileDestination.WITHDRAW
                         MyPageTarget.Sources -> ProfileDestination.SOURCES
                         MyPageTarget.Records -> EolssuDestination.records()
+                        MyPageTarget.Inquiry -> ProfileDestination.INQUIRY
                     },
                 )
             },
@@ -85,6 +88,12 @@ fun NavGraphBuilder.profileGraph(navController: NavController, onLogOutStarted: 
         PasswordChangeRoute(
             onBack = { navController.popBackStackFrom(entry) },
             onChanged = { navController.popWithNotice(StartNotice.MyPasswordChanged) },
+        )
+    }
+    composable(ProfileDestination.INQUIRY) { entry ->
+        InquiryRoute(
+            onBack = { navController.popBackStackFrom(entry) },
+            onSent = { navController.popWithNotice(StartNotice.InquirySent) },
         )
     }
     composable(ProfileDestination.SOURCES) { entry ->

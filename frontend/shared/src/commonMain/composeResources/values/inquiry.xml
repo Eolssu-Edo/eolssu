@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="my_inquiry_title_label">제목</string>
+    <string name="my_inquiry_title_placeholder">어떤 내용인지 짧게 적어 주세요</string>
+    <string name="my_inquiry_content_label">내용</string>
+    <string name="my_inquiry_content_placeholder">불편했던 점이나 궁금한 점을 자세히 적어 주세요</string>
+    <string name="my_inquiry_help">보내 주신 문의는 얼쑤 개발팀 메일로 전달돼요. 가입한 이메일이 있으면 그 주소로 답장드려요.</string>
+    <string name="my_inquiry_send">보내기</string>
+    <string name="my_inquiry_sent">문의를 보냈어요. 확인한 뒤 답장드릴게요.</string>
+    <string name="my_error_inquiry_title_empty">제목을 입력해 주세요.</string>
+    <string name="my_error_inquiry_content_empty">내용을 입력해 주세요.</string>
+    <string name="my_error_inquiry_unavailable">문의를 보내지 못했어요. 잠시 후 다시 시도해 주세요.</string>
+</resources>
