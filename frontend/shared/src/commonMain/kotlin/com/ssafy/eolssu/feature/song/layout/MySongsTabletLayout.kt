@@ -1,9 +1,6 @@
 package com.ssafy.eolssu.feature.song.layout
 
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -39,10 +36,9 @@ internal fun MySongsTabletLayout(
         MySongsBody(
             state,
             actions,
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = gutter, end = gutter, bottom = 32.dp),
+            Modifier.fillMaxSize(),
+            gutter = gutter,
+            bottomPadding = 32.dp,
             columns = if (expanded) 2 else 1,
             rowGap = if (expanded) 12.dp else 8.dp,
         )
