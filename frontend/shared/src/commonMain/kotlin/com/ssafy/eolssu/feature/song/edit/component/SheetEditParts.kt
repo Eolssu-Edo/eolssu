@@ -162,8 +162,10 @@ internal fun RadioDot(selected: Boolean, modifier: Modifier = Modifier, size: Dp
 }
 
 /**
- * 알약 칩(34dp · 13sp 600): 테두리 없이 고르면 연두, 아니면 [containerColor](기본 회색 채움, 흰 카드 안용)(S15P31E102-768).
+ * 알약 칩(40dp · 13sp 600): 테두리 없이 고르면 연두, 아니면 [containerColor](기본 회색 채움, 흰 카드 안용)(S15P31E102-768).
  * 회색 바탕 위에 둘 때는 [containerColor]로 흰색을 준다.
+ * 최소 터치 영역(48dp)이 칩 위아래에 보이지 않는 여백 [PillChipTouchInset]을 붙이므로, 여러 줄로 쌓을 때는
+ * 줄 간격에서 그 두 배를 빼야 보이는 간격이 지정한 값과 같다(S15P31E102-1233).
  */
 @Composable
 internal fun PillChip(
@@ -180,7 +182,7 @@ internal fun PillChip(
     Surface(
         onClick = UserActionLog.click(QaTarget.SHEET_EDIT_PARTS_02, onClick),
         enabled = enabled,
-        modifier = modifier.heightIn(min = 34.dp).semantics { this.selected = selected },
+        modifier = modifier.heightIn(min = PillChipHeight).semantics { this.selected = selected },
         shape = CircleShape,
         color = if (selected) colors.primary else containerColor ?: colors.groupedBackground,
         contentColor = if (selected) colors.onPrimary else if (enabled) colors.text else colors.textDisabled,
@@ -204,6 +206,11 @@ internal fun PillChip(
         }
     }
 }
+
+private val PillChipHeight = 40.dp
+
+/** [PillChip] 위아래 한쪽에 붙는 보이지 않는 터치 여백: (최소 터치 영역 48dp - 칩 높이) / 2. */
+internal val PillChipTouchInset: Dp = (48.dp - PillChipHeight) / 2
 
 /** 작은 회색 안내 문구(11~12sp). */
 @Composable
