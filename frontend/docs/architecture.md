@@ -63,6 +63,7 @@ com/ssafy/eolssu/
     audio/                    # 녹음·재생의 공통 인터페이스
     storage/                  # 로컬 저장의 공통 인터페이스(KeyValueStore, 민감한 값은 SecureStore)
     model/                    # 여러 기능이 함께 쓰는 앱 모델 (예: Song, Note)
+    update/                   # 스토어 새 버전 확인의 공통 인터페이스(StoreUpdates)와 '나중에' 판단
 
   data/
     song/                     # 곡 목록·상세 API, DTO, Repository
@@ -100,10 +101,12 @@ shared/src/commonMain/composeResources/
 
 shared/src/androidMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 Android API로 구현
+  update/                           # Play In-App Updates로 스토어 새 버전 확인
   PlatformModule.kt                 # Android 구현을 Koin에 등록(8절)
 
 shared/src/iosMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 iOS API로 구현
+  update/                           # iTunes Lookup으로 App Store 새 버전 확인
   PlatformModule.kt
 
 shared/src/webMain/kotlin/com/ssafy/eolssu/platform/

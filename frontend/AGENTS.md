@@ -16,7 +16,7 @@
 | `app/` | 앱 최상위 구성, 화면 이동(`navigation`), 객체 생성·연결(`di`) | 기능별 API 처리, 화면 세부 로직 |
 | `feature/<기능>/` | 기능별 Route·Screen·ViewModel·UiState, 해당 기능 전용 `component/`·`layout/` | HTTP 클라이언트·플랫폼 API 직접 호출, 다른 feature의 내부 구현 참조 |
 | `data/<영역>/` (`song`·`practice`·`user`) | API 요청, 응답 DTO, 변환, Repository, 로컬 데이터 처리. feature와 1:1이 아니며 대응은 아키텍처 문서의 표를 따른다 | Compose 화면·ViewModel 의존 |
-| `core/` | 여러 기능이 공유하는 UI(`ui/component`·`ui/score`·`ui/adaptive`), `theme`, `network`, `audio`, `storage`, 공유 모델(`model`) | 특정 feature·data·app 의존 |
+| `core/` | 여러 기능이 공유하는 UI(`ui/component`·`ui/score`·`ui/adaptive`), `theme`, `network`, `audio`, `storage`, 스토어 업데이트 확인(`update`), 공유 모델(`model`) | 특정 feature·data·app 의존 |
 
 - 기능 폴더명은 `home`, `guide`, `auth`, `song`, `practice`, `result`, `history`, `profile`을 사용하고, 기능 내부 UI 폴더명은 `component`로 통일한다. `pages`, `hooks`, `store`, `styles`, `utils`, `shared` 같은 최상위 패키지를 추가하지 않는다.
 - 의존 방향은 `app → feature, data, core`, `feature → data, core`, `data → core`만 허용한다. `core`는 `feature`·`data`·`app`을 참조하지 않고, feature끼리의 연결은 `app`에서 조정한다. `domain` 계층·UseCase는 만들지 않으며 필요해지면 구조 변경 절차로 다룬다.
