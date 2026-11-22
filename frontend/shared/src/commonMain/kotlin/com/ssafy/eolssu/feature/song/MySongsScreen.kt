@@ -56,7 +56,6 @@ import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
-import eolssu.shared.generated.resources.mysongs_sheet_limit_note
 import com.ssafy.eolssu.feature.song.edit.MY_SHEET_LIMIT
 import eolssu.shared.generated.resources.mysongs_title
 import eolssu.shared.generated.resources.mysongs_other_instrument
@@ -210,11 +209,8 @@ private fun MySongsList(state: MySongsUiState, actions: MySongsActions, columns:
             }
             if (state.visibleSheets.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 나누거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052).
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        ListNote(stringResource(Res.string.mysongs_sheet_count, state.sheetCount, MY_SHEET_LIMIT))
-                        ListNote(stringResource(Res.string.mysongs_sheet_limit_note, MY_SHEET_LIMIT))
-                    }
+                    // 나누거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052). 한도 안내 문장은 두지 않는다(S15P31E102-1250).
+                    ListNote(stringResource(Res.string.mysongs_sheet_count, state.sheetCount, MY_SHEET_LIMIT))
                     MySheetGroups(state, actions, columns, rowGap, searching)
                 }
             }
