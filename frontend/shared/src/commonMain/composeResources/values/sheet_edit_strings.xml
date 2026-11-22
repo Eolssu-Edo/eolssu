@@ -8,9 +8,7 @@
     <string name="sheetedit_new_title">악보 추가</string>
     <string name="sheetedit_new_question">어떻게 추가할까요?</string>
     <string name="sheetedit_new_upload_title">내 악보 가져오기</string>
-    <string name="sheetedit_new_upload_caption">PDF 올리기</string>
     <string name="sheetedit_new_eolssu_title">얼쑤에서 가져오기</string>
-    <string name="sheetedit_new_eolssu_caption">제공 곡·내 악보 복사</string>
     <string name="sheetedit_new_kind_jeongganbo">정간보</string>
     <string name="sheetedit_new_kind_staff">오선보</string>
 

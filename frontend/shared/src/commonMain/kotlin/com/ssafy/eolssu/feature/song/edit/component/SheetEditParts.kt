@@ -104,13 +104,13 @@ internal fun SegmentTabs(
 }
 
 /**
- * EDIT-01 가져오기 카드. 위아래로 쌓아 폭을 다 쓰고, 왼쪽 아이콘 원 · 이름과 한 줄 설명([caption]) · 오른쪽 [trailing] 화살표를 둔다.
+ * EDIT-01 가져오기 카드. 위아래로 쌓아 폭을 다 쓰고, 왼쪽 아이콘 원 · 이름 · 오른쪽 [trailing] 화살표를 둔다.
+ * 이름 밑 보조 설명은 두지 않고, 높이는 아이콘 원 기준 최소 84dp로 유지해 이름을 세로 가운데에 둔다(S15P31E102-1236).
  * [emphasized]면 주 행동처럼 연두 바탕에 먹색 글자로 눈에 띄게 한다(S15P31E102-997).
  */
 @Composable
 internal fun KindCard(
     title: String,
-    caption: String,
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -137,16 +137,13 @@ internal fun KindCard(
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
             }
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold), color = ink, maxLines = 2)
-                Text(
-                    caption,
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                    color = if (emphasized) colors.onPrimary.copy(alpha = 0.75f) else colors.textMuted,
-                    maxLines = 2,
-                )
-            }
+            Text(
+                title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                color = ink,
+                maxLines = 2,
+            )
             Icon(trailing, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (emphasized) ink else colors.textDisabled)
         }
     }
