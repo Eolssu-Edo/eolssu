@@ -15,7 +15,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,7 +33,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -179,7 +186,10 @@ internal fun learnStageTitle(stage: LearnStage): String = stringResource(Res.str
 internal fun learnStageSubtitle(stage: LearnStage): String? =
     if (stage.optional) stringResource(Res.string.learn_stage_subtitle_optional) else null
 
-/** 단계 상세 본문. 세로로 스크롤하며, [scrollState]를 단계마다 새로 주면 단계를 바꿀 때 맨 위에서 시작한다. */
+/**
+ * 단계 상세 본문. 위쪽 단계 머리(지금 악기 · 단계 그림·이름·목표 · '할 일 n / 전체' 진행 막대)는 고정하고,
+ * 그 아래 할 일 박스와 버튼만 세로로 스크롤한다(S15P31E102-1244). [scrollState]를 단계마다 새로 주면 단계를 바꿀 때 맨 위에서 시작한다.
+ */
 @Composable
 internal fun LearnStageContent(
     state: LearnUiState,
@@ -197,21 +207,37 @@ internal fun LearnStageContent(
     if (stage.number == 1) LearnTourDoneDialog(tour) { actions.onConfirm(stage.number) }
     // 2단계 따라 배우기도 같은 창을 띄우고 완료 표시 뒤 3단계로 간다(3단계는 마지막 칸에서 바로 '연습 시작').
     if (stage.number == 2) LearnTourDoneDialog(tour, Res.string.learn_tour_done_body_posture) { actions.onConfirm(stage.number) }
-    Column(
-        modifier
-            .verticalScroll(scrollState)
-            .padding(contentPadding),
-    ) {
-        when (val load = state.detail(stage.number)) {
-            is LearnDetailLoad.Loaded -> {
-                val detail = load.detail
+    when (val load = state.detail(stage.number)) {
+        is LearnDetailLoad.Loaded -> Column(modifier) {
+            val detail = load.detail
+            val stepCount = learnStepCount(stage.number, detail, state.instrument)
+            val direction = LocalLayoutDirection.current
+            val sides = PaddingValues(start = contentPadding.calculateStartPadding(direction), end = contentPadding.calculateEndPadding(direction))
+            Column(Modifier.fillMaxWidth().padding(sides).padding(top = contentPadding.calculateTopPadding())) {
                 // 단계 위치(점 · n / 전체)는 아래 넘김 줄 가운데로 옮기고 위에는 지금 악기만 둔다(S15P31E102-877).
                 Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.End) { StageInstrument(state.instrument) }
                 StageHero(stage, detail)
-                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
-                StagePrimary(stage, learnStepCount(stage.number, detail, state.instrument), actions, tour)
+                val total = stepTotal(stepCount, practice)
+                if (total > 0) StepProgress(done = tour.doneCount.coerceAtMost(total), total = total, modifier = Modifier.padding(bottom = 12.dp))
             }
-            else -> LearnLoadStatus(
+            // 본문이 머리 밑으로 올라가 있을 때만 경계에 옅은 줄이 보인다. 높이는 늘 1dp라 스크롤해도 본문이 들썩이지 않는다.
+            val scrolled by remember(scrollState) { derivedStateOf { scrollState.value > 0 } }
+            val divider by animateColorAsState(if (scrolled) EolssuTheme.colors.lineSoft else Color.Transparent, label = "stageHeadDivider")
+            Box(Modifier.fillMaxWidth().height(1.dp).background(divider))
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(sides)
+                    .padding(bottom = contentPadding.calculateBottomPadding()),
+            ) {
+                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
+                StagePrimary(stage, stepCount, actions, tour)
+            }
+        }
+        else -> Column(modifier.verticalScroll(scrollState).padding(contentPadding)) {
+            LearnLoadStatus(
                 failed = load == LearnDetailLoad.Failed,
                 failedMessage = Res.string.learn_detail_failed,
                 onRetry = { actions.onRetryDetail(stage.number) },
