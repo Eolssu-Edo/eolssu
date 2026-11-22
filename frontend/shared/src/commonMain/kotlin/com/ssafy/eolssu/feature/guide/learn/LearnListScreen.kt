@@ -4,7 +4,7 @@ import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,16 +12,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -89,7 +91,9 @@ fun LearnListScreen(
 ) {
     EolssuScaffold(
         topBar = {
-            GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass)
+            GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass) {
+                LearnResetAction(state, actions.onResetDone)
+            }
         },
         snackbarHostState = snackbarHostState,
         containerColor = EolssuTheme.colors.groupedBackground,
@@ -130,9 +134,6 @@ internal fun LearnListContent(
     // 단계 카드를 화살표·키보드로 넘겨 가고 있는 단계. 카드가 자리 잡기 전에 지도 호랑이가 먼저 따라가는 데만 쓴다.
     // 손으로 끌거나 바깥에서 다른 단계를 고르면 카드 넘기기가 null로 되돌린다.
     var aimedStage by remember(state.instrument) { mutableStateOf<Int?>(null) }
-    // '초기화하기'는 진도를 모두 지우므로 바로 지우지 않고 한 번 묻는다(S15P31E102-845).
-    var confirmingReset by rememberSaveable { mutableStateOf(false) }
-    if (confirmingReset) LearnResetDialog(onConfirm = { confirmingReset = false; actions.onResetDone() }, onCancel = { confirmingReset = false })
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
         val cardMaxSize = if (constraints.hasBoundedHeight && contentHeight > 0 && cardHeight > 0) {
@@ -171,26 +172,8 @@ internal fun LearnListContent(
                 return@Column
             }
             // 호랑이는 카드가 자리 잡기를 기다리지 않고, 아래 카드가 가고 있는 단계로 바로 건너간다(S15P31E102-1102).
-            LearnTrailMap(state, viewedStage = aimedStage ?: currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = 6.dp))
-            // 진도를 모두 지우는 버튼임이 드러나도록 둥근 화살표와 '초기화하기'로 둔다(S15P31E102-749).
-            Row(
-                Modifier
-                    .align(Alignment.End)
-                    // 보이는 알약(약 28dp)은 그대로, 누르는 영역은 48dp. 늘어난 위아래 10dp가 아래 여백을 대신한다(S15P31E102-971).
-                    .minimumInteractiveComponentSize()
-                    .clip(RoundedCornerShape(50))
-                    .clickable(role = Role.Button, onClick = UserActionLog.click(QaTarget.LEARN_LIST_SCREEN_01, { confirmingReset = true }))
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(EolssuIcons.Restart, contentDescription = null, Modifier.size(14.dp), tint = EolssuTheme.colors.textMuted)
-                Text(
-                    stringResource(Res.string.learn_reset),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-                    color = EolssuTheme.colors.textMuted,
-                )
-            }
+            // '초기화하기'는 상단 바 오른쪽 화살표로 옮겼다([LearnResetAction], S15P31E102-1238). 그 줄(48dp)이 빠진 만큼 카드가 커지고, 지도와 카드 사이에는 여백만 둔다.
+            LearnTrailMap(state, viewedStage = aimedStage ?: currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = 16.dp))
             LearnStageCarousel(
                 state,
                 currentStage,
@@ -205,6 +188,37 @@ internal fun LearnListContent(
         }
     }
 }
+
+/**
+ * 상단 바 오른쪽의 '초기화하기'(S15P31E102-1238): 글자 없이 기존 둥근 화살표만 두고, 누르면 바로 확인 창을 띄운다.
+ * 진도를 모두 지우므로 바로 지우지 않고 한 번 묻는다(S15P31E102-845). 단계 목록을 받기 전·받지 못했으면 지울 진도가 없어 두지 않는다.
+ * 휴대폰·태블릿 세로 상단 바와 태블릿 가로 왼쪽 칸 상단 바가 함께 쓴다. 제목은 [com.ssafy.eolssu.core.ui.component.EolssuTopBar]가 이 자리 너비와 관계없이 가운데에 둔다.
+ */
+@Composable
+internal fun LearnResetAction(state: LearnUiState, onReset: () -> Unit) {
+    if (state.track !is LearnTrackLoad.Loaded) return
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    if (confirming) LearnResetDialog(onConfirm = { confirming = false; onReset() }, onCancel = { confirming = false })
+    val label = stringResource(Res.string.learn_reset)
+    Box(
+        Modifier
+            // 뒤로 가기 꺽쇠처럼 화살표 오른쪽 끝을 본문 오른쪽 끝에 맞춘다. 누르는 영역(48dp)과 제목 자리는 그대로다.
+            .offset(x = LearnResetIconPull)
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = UserActionLog.click(QaTarget.LEARN_LIST_SCREEN_01, { confirming = true }))
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(EolssuIcons.Restart, contentDescription = null, Modifier.size(LearnResetIconSize), tint = EolssuTheme.colors.textMuted)
+    }
+}
+
+/** '초기화하기' 화살표 크기. 예전 알약 버튼의 화살표 그대로다. */
+private val LearnResetIconSize = 14.dp
+
+/** 48dp 누르는 칸 가운데 화살표를 오른쪽으로 밀어 화살표 오른쪽 끝을 본문 끝에 맞추는 거리. */
+private val LearnResetIconPull = (48.dp - LearnResetIconSize) / 2
 
 /** '초기화하기' 확인 창: '진행 과정을 초기화할까요?'와 확인·취소. 바깥을 누르거나 뒤로 가면 취소다. */
 @Composable
