@@ -31,7 +31,7 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetFileSourceMenu
 import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.core.storage.SheetFileSource
 import com.ssafy.eolssu.core.storage.sheetFileSources
-import com.ssafy.eolssu.feature.song.edit.component.SheetUploadGuideCard
+import com.ssafy.eolssu.feature.song.edit.component.SheetUploadInfoButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.*
@@ -105,7 +105,6 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                 }
-                SheetUploadGuideCard()
                 UploadCard {
                     EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
                         value = state.title,
@@ -155,7 +154,11 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
                 }
                 UploadCard {
-                    UploadLabel(stringResource(Res.string.sheet_upload_files))
+                    // 잘 읽히는 악보 안내는 제목 위 카드 대신 ⓘ 말풍선으로 보인다(S15P31E102-1230).
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        UploadLabel(stringResource(Res.string.sheet_upload_files))
+                        SheetUploadInfoButton()
+                    }
                     Text(stringResource(Res.string.sheet_upload_limits), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
                     state.files.forEachIndexed { index, file ->
                         Row(
