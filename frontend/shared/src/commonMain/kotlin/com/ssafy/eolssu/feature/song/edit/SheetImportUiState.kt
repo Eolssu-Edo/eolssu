@@ -18,15 +18,21 @@ data class SheetImportUiState(
     val error: String? = null, val catalogFailed: Boolean = false,
     val acceptedId: String? = null, val expired: Boolean = false,
     val validationRequested: Boolean = false,
+    /** 사용자가 제목 칸을 고친 적이 있음. 고친 뒤 비우면 제출 전이라도 제목 칸에 규칙 안내를 보인다(S15P31E102-1232). */
+    val titleEdited: Boolean = false,
 ) {
     /** 추천 장단(굿거리)이 목록에 있을 때만 '잘 모르겠어요'를 보인다. */
     val canChooseJangdanUnsure: Boolean get() = jangdans.any { it.jangdanId == RECOMMENDED_JANGDAN_ID }
 
-    /** 제출을 시도한 뒤에는 남은 필드 오류만 입력값에 따라 갱신한다. */
+    /**
+     * 규칙을 어긴 칸. 처음 화면에서는 비어 있고, 제출을 시도한 뒤에는 남은 필드 오류만 입력값에 따라 갱신한다.
+     * 제출 전에는 고친 제목 칸만 검사한다(S15P31E102-1232).
+     */
     fun inputErrors(kind: ImportKind = this.kind): Set<SheetImportField> {
-        if (!validationRequested || expired || acceptedId != null) return emptySet()
-        return SheetImportInput(title, if (kind == ImportKind.Jeongganbo) "JEONGGANBO" else "STAFF",
+        if (expired || acceptedId != null || (!validationRequested && !titleEdited)) return emptySet()
+        val invalid = SheetImportInput(title, if (kind == ImportKind.Jeongganbo) "JEONGGANBO" else "STAFF",
             instrumentId.orEmpty(), jangdanId.takeIf { kind == ImportKind.Jeongganbo }, null, files).invalidFields()
+        return if (validationRequested) invalid else invalid.filterTo(mutableSetOf()) { it == SheetImportField.Title }
     }
 }
 

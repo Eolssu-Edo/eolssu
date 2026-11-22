@@ -66,6 +66,7 @@ enum class TextFieldType { Text, Email, Password, Number }
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 도움말 대신 오류를 보이고, 테두리 있는 칸([bordered])은 빨간 테두리를 두른다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
+ * 오류 문구는 기본 글자색이고, [errorColor]를 주면 그 색으로 보인다(악보 올리기의 빨간 칸 안내, S15P31E102-1232).
  * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다.
  * [maxLength]가 있으면 그 글자 수(코드 포인트)를 넘는 입력은 칸에 남기지 않고, 넘겨 치려다 막히면 칸 아래에 'n자까지 입력할 수 있어요'를 보인다
  * ([InputLimit.limit], S15P31E102-996). 비밀번호 칸은 오른쪽 눈 버튼으로 입력한 글자를 보이거나 다시 가린다.
@@ -91,6 +92,7 @@ fun EolssuTextField(
     labelInside: Boolean = false,
     maxLength: Int? = null,
     qaTarget: QaTarget = QaTarget.TEXT_FIELD,
+    errorColor: Color? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -222,8 +224,8 @@ fun EolssuTextField(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = colors.text)
-                            Text(error, style = helpStyle.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+                            Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = errorColor ?: colors.text)
+                            Text(error, style = helpStyle.copy(fontWeight = FontWeight.SemiBold), color = errorColor ?: colors.text)
                         }
                         limitNotice != null -> Text(
                             limitNotice,
