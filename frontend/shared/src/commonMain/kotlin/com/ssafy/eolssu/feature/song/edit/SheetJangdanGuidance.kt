@@ -38,12 +38,17 @@ internal fun SheetDraft.jangdanTiming(): SheetJangdanTiming? {
  * 장단 고르기에 보이는 얼쑤 기본 빠르기(예: 굿거리 "♩.=66"). 오선보식 4분음표 박으로 환산하지 않고
  * 카탈로그 defaultBpm·bpmUnit을 그대로 보인다(S15P31E102-1054). 모르는 단위는 추측하지 않는다.
  */
-internal fun CatalogJangdanSummary.defaultTempoLabel(): String? {
-    val unit = when (bpmUnit) {
-        "QUARTER" -> "♩"; "DOTTED_QUARTER" -> "♩."; "JEONGGAN" -> "정간"; "JANGDAN_BEAT" -> "장단박"
-        else -> return null
-    }
-    return "$unit=$defaultBpm"
+internal fun CatalogJangdanSummary.defaultTempoLabel(): String? = tempoUnitSymbol()?.let { "$it=$defaultBpm" }
+
+/**
+ * 장단 고르기 메뉴와 고른 뒤 칸에 보이는 표기(예: "중모리(♩ 88)", "굿거리(♩. 66)"). 가운뎃점·등호 없이
+ * 단위와 빠르기를 공백으로 띄워 괄호에 넣는다(S15P31E102-1234). 모르는 단위는 이름만 보인다.
+ */
+internal fun CatalogJangdanSummary.menuLabel(): String = tempoUnitSymbol()?.let { "$name($it $defaultBpm)" } ?: name
+
+private fun CatalogJangdanSummary.tempoUnitSymbol(): String? = when (bpmUnit) {
+    "QUARTER" -> "♩"; "DOTTED_QUARTER" -> "♩."; "JEONGGAN" -> "정간"; "JANGDAN_BEAT" -> "장단박"
+    else -> null
 }
 
 /** data/reference/jangdans.json의 장구 패턴 한 칸 음가. 호환 판정과 안내가 같은 값을 쓴다. */
