@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -43,10 +44,21 @@ import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /**
- * 앱 공통 드롭다운 메뉴 모양(S15P31E102-768): 테두리·구분선 없는 흰 카드(모서리 16dp)에 옅은 그림자,
+ * 앱 공통 드롭다운 메뉴 모양(S15P31E102-768): 구분선 없는 흰 카드(모서리 16dp)에 옅은 그림자,
  * 안쪽 여백 6dp. 고른 줄은 마이페이지 '연결'과 같은 연한 연두 바탕(`accentTint`)·짙은 연두 글자·확인 표시다.
  */
 val EolssuMenuShape = RoundedCornerShape(16.dp)
+
+/**
+ * 드롭다운·말풍선 카드의 겉모양: 옅은 그림자, 흰 바탕, 연두 1.5dp 테두리(S15P31E102-1235).
+ * 테두리는 입력칸을 눌렀을 때(포커스)의 테두리([EolssuTextField])와 같은 색·두께다.
+ */
+@Composable
+fun Modifier.eolssuMenuCard(): Modifier = this
+    .shadow(16.dp, EolssuMenuShape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.12f))
+    .clip(EolssuMenuShape)
+    .background(EolssuTheme.colors.surface)
+    .border(1.5.dp, EolssuTheme.colors.primary, EolssuMenuShape)
 
 /** 메뉴 카드. 팝업 안에 두고 [EolssuMenuItem]을 넣는다. [width]를 정하지 않으면 주어진 폭을 채운다. */
 @Composable
@@ -54,9 +66,7 @@ fun EolssuMenuPanel(width: Dp = Dp.Unspecified, modifier: Modifier = Modifier, c
     Column(
         modifier
             .then(if (width == Dp.Unspecified) Modifier.fillMaxWidth() else Modifier.width(width))
-            .shadow(16.dp, EolssuMenuShape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.12f))
-            .clip(EolssuMenuShape)
-            .background(EolssuTheme.colors.surface)
+            .eolssuMenuCard()
             .padding(6.dp)
             .selectableGroup(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
