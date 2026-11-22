@@ -21,6 +21,22 @@ class LearnTaskTourTest {
         assertEquals(listOf(TaskVisual.Mouth, TaskVisual.Blow, TaskVisual.FirstNote), (0..2).map { taskVisual(3, it) })
     }
 
+    /**
+     * 고정된 단계 머리의 '할 일 n / 전체'(S15P31E102-1244): 연습 박스는 하나로 더하고, 박스 안에서 듣는 연습은 더하지 않는다.
+     * 할 일 박스가 없으면 박스 안 듣기도 연습 박스 하나로 센다.
+     */
+    @Test
+    fun stepTotalCountsPracticeBoxOnce() {
+        val box = StepPractice(title = "연습") {}
+        val inline = StepPractice(title = "연습", segment = { _, _ -> }) {}
+        assertEquals(4, stepTotal(4, null))
+        assertEquals(4, stepTotal(3, box))
+        assertEquals(2, stepTotal(2, inline))
+        assertEquals(1, stepTotal(0, inline))
+        assertEquals(1, stepTotal(0, box))
+        assertEquals(0, stepTotal(0, null))
+    }
+
     /** 서버가 할 일을 더 주면 남는 칸은 그 단계 그림으로 보인다. */
     @Test
     fun extraTasksFallBackToStageArt() {
