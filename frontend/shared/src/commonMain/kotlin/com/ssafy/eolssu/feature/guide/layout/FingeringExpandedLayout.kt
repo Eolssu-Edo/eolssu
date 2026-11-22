@@ -22,12 +22,11 @@ import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
-import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
- * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-GuideFing-Land`): 왼쪽 300dp 칸에 악기 · 세로 취법 탭 · 범례,
+ * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-GuideFing-Land`): 왼쪽 300dp 칸에 악기 · 세로 취법 탭,
  * 맨 아래에 출처를 두고, 오른쪽 카드 격자만 따로 스크롤한다.
  * 카드 칸은 최소 300dp로, 내용 너비 1120dp에서는 와이어프레임처럼 두 칸, 좁은 창에서는 한 칸이 된다.
  */
@@ -62,7 +61,6 @@ internal fun FingeringExpandedLayout(
                     large = true,
                     vertical = true,
                 )
-                HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
             }
         }
         LazyVerticalGrid(
