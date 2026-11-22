@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,11 +23,10 @@ import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.core.ui.score.HoleLegend
-import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
- * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 악기와 취법 탭을 한 줄로 고정하고,
+ * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 취법 탭을 고정하고(악기는 상단 바 오른쪽),
  * 그 아래 범례와 두 칸 운지 카드 격자만 스크롤한다(S15P31E102-1242). 악기나 취법을 바꾸면 격자를 맨 위로 되돌린다.
  */
 @Composable
@@ -40,24 +38,12 @@ internal fun FingeringMediumLayout(
     val instrument = state.instrument
     val gridState = rememberSaveable(instrument, state.shownBlow, saver = LazyGridState.Saver) { LazyGridState() }
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.padding(start = GuideTabletSidePadding, end = GuideTabletSidePadding, top = 4.dp, bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            InstrumentDropdown(
-                options = state.instrumentOptions,
-                selected = instrument,
-                open = state.isDropdownOpen,
-                onToggle = actions.onToggleDropdown,
-                onSelect = actions.onSelectInstrument,
-                onDismiss = actions.onDismissDropdown,
-                enabled = state.hasSelectedInstrument,
-                loading = state.isInstrumentListLoading,
-                modifier = Modifier.weight(1f),
-            )
-            BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
-        }
+        BlowTabs(
+            state.blowTabs,
+            actions.onSelectBlow,
+            Modifier.fillMaxWidth().padding(start = GuideTabletSidePadding, end = GuideTabletSidePadding, top = 4.dp, bottom = 10.dp),
+            large = true,
+        )
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxWidth().weight(1f),
