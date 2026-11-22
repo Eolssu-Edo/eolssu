@@ -154,12 +154,11 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
                 }
                 UploadCard {
-                    // 잘 읽히는 악보 안내는 제목 위 카드 대신 ⓘ 말풍선으로 보인다(S15P31E102-1230).
+                    // 잘 읽히는 악보 안내와 파일 제한은 카드 본문 대신 ⓘ 말풍선으로 보인다(S15P31E102-1230·1231).
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         UploadLabel(stringResource(Res.string.sheet_upload_files))
                         SheetUploadInfoButton()
                     }
-                    Text(stringResource(Res.string.sheet_upload_limits), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
                     state.files.forEachIndexed { index, file ->
                         Row(
                             Modifier.fillMaxWidth().background(colors.groupedBackground, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
