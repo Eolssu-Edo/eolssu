@@ -88,11 +88,21 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://k15e102.p.ssafy.io\"")
             isDebuggable = false
             if (!releaseStore.isNullOrBlank()) signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            // R8 shrink/obfuscate (S15P31E102-1120). The AAB carries mapping.txt for Play crash retrace.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        // Same R8 setup as release, debug-signed and installable next to the Play app to check and time it locally.
+        create("benchmark") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".benchmark"
+            versionNameSuffix = "-benchmark"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {

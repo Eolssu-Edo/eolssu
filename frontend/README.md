@@ -122,6 +122,7 @@ Android Studio 밖에서 실행할 때는 `JAVA_HOME`이 JDK 17 이상을 가리
 | --- | --- | --- |
 | Android 디버그 APK 빌드 | `./gradlew :androidApp:assembleDebug` | `androidApp/build/outputs/apk/debug/androidApp-debug.apk` |
 | 연결된 기기·에뮬레이터에 설치 | `./gradlew :androidApp:installDebug` | 설치만 합니다. 앱 아이콘을 눌러 실행합니다 |
+| 출시와 같은 R8 빌드를 기기에서 확인 | `./gradlew :androidApp:installBenchmark` | debug 키로 서명한 `com.ssafy.eolssu.benchmark`를 설치합니다. Play 앱과 나란히 설치되며 간편 로그인은 되지 않습니다([R8 기록](../docs/knowledge/frontend/android-r8-release-build.md)) |
 | Web 개발 서버 (Wasm, 권장) | `./gradlew :webApp:wasmJsBrowserDevelopmentRun` | `http://localhost:8080/`에 개발 서버를 띄웁니다 |
 | Web 개발 서버 (JS) | `./gradlew :webApp:jsBrowserDevelopmentRun` | 로컬 개발 서버를 띄웁니다. 운영에는 배포하지 않습니다 |
 | Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 13MB) |
