@@ -62,7 +62,7 @@ internal class IosStoreUpdates(private val client: HttpClient, private val bundl
         // 먼저 띄우고 불러온다. 불러오는 동안 시트가 로딩 표시를 보인다.
         presenter.presentViewController(sheet, animated = true, completion = null)
         sheet.loadProductWithParameters(
-            mapOf<Any?, Any?>(SKStoreProductParameterITunesItemIdentifier to NSNumber.numberWithLongLong(id)),
+            mapOf<Any?, Any?>(SKStoreProductParameterITunesItemIdentifier to NSNumber(longLong = id)),
         ) { loaded, _ ->
             if (!loaded) dispatch_async(dispatch_get_main_queue()) {
                 sheet.dismissViewControllerAnimated(true) { openPage() }
