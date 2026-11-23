@@ -226,7 +226,7 @@
     <string name="pending_recording_later">나중에</string>
     <string name="store_update_title">새 버전이 나왔어요</string>
     <string name="store_update_body">스토어에 얼쑤 새 버전이 올라왔어요. 지금 업데이트할까요?</string>
-    <string name="store_update_now">업데이트</string>
+    <string name="store_update_now">업데이트하기</string>
     <string name="store_update_later">나중에</string>
     <string name="analysis_resend">녹음 다시 보내기</string>
 

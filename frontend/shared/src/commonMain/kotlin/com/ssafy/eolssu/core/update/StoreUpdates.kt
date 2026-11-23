@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.core.update
 
-import com.ssafy.eolssu.core.storage.KeyValueStore
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -20,34 +19,23 @@ interface StoreUpdates {
 data class StoreUpdate(val version: String)
 
 /**
- * 앱을 켤 때 띄울 선택 업데이트 안내를 고른다. '나중에'를 누른 스토어 버전은 다시 묻지 않고,
- * 그보다 새 버전이 스토어에 올라오면 다시 안내한다.
+ * 앱을 켜거나 다시 앞으로 가져올 때 띄울 업데이트 안내를 고른다(S15P31E102-1257).
+ * '나중에'는 그 순간만 닫는다. 구버전을 쓰는 동안에는 다음에 켤 때 다시 안내한다.
  */
-class StoreUpdateCheck(private val updates: StoreUpdates, private val store: KeyValueStore) {
-    /** 안내할 새 버전. 없거나, '나중에'를 고른 버전이거나, 확인에 실패하면 null이다. */
-    suspend fun pending(): StoreUpdate? {
-        val update = try {
+class StoreUpdateCheck(private val updates: StoreUpdates) {
+    /** 안내할 새 버전. 없거나 확인에 실패하면 null이다. */
+    suspend fun pending(): StoreUpdate? =
+        try {
             updates.latest()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             // 스토어 확인은 앱 사용을 막지 않는다. 실패하면 안내 없이 평소대로 시작한다.
             null
-        } ?: return null
-        return update.takeIf { it.version != store.getString(LATER_KEY) }
-    }
-
-    /** '나중에': 이 버전은 다시 묻지 않는다. */
-    fun later(update: StoreUpdate) {
-        store.putString(LATER_KEY, update.version)
-    }
+        }
 
     fun open(update: StoreUpdate) {
         updates.open(update)
-    }
-
-    private companion object {
-        const val LATER_KEY = "store_update_later_version"
     }
 }
 

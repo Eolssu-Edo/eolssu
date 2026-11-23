@@ -13,8 +13,17 @@ class AppStoreLookupTest {
         """.trimIndent()
 
         assertEquals(
-            AppStoreRelease("1.0.1", "https://apps.apple.com/kr/app/id6700000000?uo=4"),
+            AppStoreRelease("1.0.1", "https://apps.apple.com/kr/app/id6700000000?uo=4", 6700000000),
             parseAppStoreLookup(body),
+        )
+    }
+
+    @Test
+    fun missingAppNumberStillHasRelease() {
+        // 앱 번호가 없으면 앱 안 시트 대신 App Store 앱 페이지를 연다.
+        assertEquals(
+            AppStoreRelease("1.0.1", "https://apps.apple.com/kr/app/id1"),
+            parseAppStoreLookup("""{"results":[{"version":"1.0.1","trackViewUrl":"https://apps.apple.com/kr/app/id1"}]}"""),
         )
     }
 

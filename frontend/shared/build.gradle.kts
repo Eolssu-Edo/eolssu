@@ -60,6 +60,8 @@ kotlin {
             implementation(libs.androidx.media3.common)
             // 스토어 새 버전 확인과 Play 즉시 업데이트 화면(S15P31E102-1237). Android 전용이라 commonMain에 넣지 않는다.
             implementation(libs.play.appUpdate)
+            // 새 버전 푸시(FCM 토픽, S15P31E102-1257). Android 전용이다. iOS는 iosApp이 Firebase iOS SDK(SPM)로 받는다.
+            implementation(libs.firebase.messaging)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

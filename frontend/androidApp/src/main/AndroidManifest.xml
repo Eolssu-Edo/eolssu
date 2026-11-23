@@ -3,6 +3,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 새 버전 푸시 배너(S15P31E102-1257). Android 13부터는 실행 중에 한 번 묻는다. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <queries>
         <intent>
@@ -52,6 +54,23 @@
                 <data android:path="/auth/android/oauth/naver/callback" />
             </intent-filter>
         </activity>
+
+        <!-- 새 버전 푸시(FCM 토픽, S15P31E102-1257). 백그라운드에서는 Firebase가 아래 기본 아이콘·채널로 배너를 띄우고,
+             앱을 쓰는 중에는 UpdateNotificationService가 같은 채널로 띄운다. 채널 ID는 AndroidUpdatePush.CHANNEL_ID와 같아야 한다.
+             Firebase 프로젝트 설정은 res/values/firebase.xml에 있다. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="app_update" />
+        <service
+            android:name="com.ssafy.eolssu.platform.update.UpdateNotificationService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

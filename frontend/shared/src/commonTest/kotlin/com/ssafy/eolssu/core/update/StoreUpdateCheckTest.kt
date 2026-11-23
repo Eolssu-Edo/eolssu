@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.core.update
 
-import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,41 +23,31 @@ class StoreUpdateCheckTest {
 
     @Test
     fun newStoreVersionIsShown() = runTest {
-        val check = StoreUpdateCheck(FakeStoreUpdates(StoreUpdate("12")), FakeKeyValueStore())
+        val check = StoreUpdateCheck(FakeStoreUpdates(StoreUpdate("12")))
 
         assertEquals(StoreUpdate("12"), check.pending())
     }
 
     @Test
     fun nothingIsShownWithoutStoreUpdate() = runTest {
-        val check = StoreUpdateCheck(FakeStoreUpdates(null), FakeKeyValueStore())
+        val check = StoreUpdateCheck(FakeStoreUpdates(null))
 
         assertNull(check.pending())
     }
 
     @Test
-    fun laterHidesSameVersionAfterRestart() = runTest {
-        val updates = FakeStoreUpdates(StoreUpdate("12"))
-        val store = FakeKeyValueStore()
-        StoreUpdateCheck(updates, store).later(StoreUpdate("12"))
+    fun sameVersionIsShownAgainOnEveryCheck() = runTest {
+        // '나중에'를 눌러도 저장하지 않으므로, 다시 켜면(다시 확인하면) 같은 버전을 또 안내한다(S15P31E102-1257).
+        val check = StoreUpdateCheck(FakeStoreUpdates(StoreUpdate("12")))
 
-        // 같은 저장소로 다시 만들면 앱을 다시 켠 것과 같다.
-        assertNull(StoreUpdateCheck(updates, store).pending())
-    }
-
-    @Test
-    fun newerVersionIsShownAgainAfterLater() = runTest {
-        val updates = FakeStoreUpdates(StoreUpdate("12"))
-        val store = FakeKeyValueStore()
-        StoreUpdateCheck(updates, store).later(StoreUpdate("12"))
-        updates.latest = StoreUpdate("13")
-
-        assertEquals(StoreUpdate("13"), StoreUpdateCheck(updates, store).pending())
+        assertEquals(StoreUpdate("12"), check.pending())
+        assertEquals(StoreUpdate("12"), StoreUpdateCheck(FakeStoreUpdates(StoreUpdate("12"))).pending())
+        assertEquals(StoreUpdate("12"), check.pending())
     }
 
     @Test
     fun failedCheckStartsWithoutNotice() = runTest {
-        val check = StoreUpdateCheck(FakeStoreUpdates(StoreUpdate("12"), failure = IllegalStateException("offline")), FakeKeyValueStore())
+        val check = StoreUpdateCheck(FakeStoreUpdates(StoreUpdate("12"), failure = IllegalStateException("offline")))
 
         assertNull(check.pending())
     }
@@ -67,7 +56,7 @@ class StoreUpdateCheckTest {
     fun openAsksPlatformToOpenStore() {
         val updates = FakeStoreUpdates(StoreUpdate("12"))
 
-        StoreUpdateCheck(updates, FakeKeyValueStore()).open(StoreUpdate("12"))
+        StoreUpdateCheck(updates).open(StoreUpdate("12"))
 
         assertEquals(listOf(StoreUpdate("12")), updates.opened)
     }
