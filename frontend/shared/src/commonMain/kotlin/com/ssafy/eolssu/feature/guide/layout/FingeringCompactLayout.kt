@@ -24,7 +24,7 @@ import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
  * 휴대폰 배치: 취법 탭은 위에 고정하고(악기는 상단 바 오른쪽), 그 아래 오른쪽 정렬 범례와 운지 카드만 한 줄씩 쌓아
- * 스크롤한다(S15P31E102-1242). 악기나 취법을 바꾸면 목록을 맨 위로 되돌린다.
+ * 스크롤한다(S15P31E102-1242). 악기나 취법을 바꿔도 목록을 맨 위로 되돌리지 않고 보던 자리에 둔다(S15P31E102-1255).
  */
 @Composable
 internal fun FingeringCompactLayout(
@@ -33,7 +33,7 @@ internal fun FingeringCompactLayout(
     noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val instrument = state.instrument
-    val listState = rememberSaveable(instrument, state.shownBlow, saver = LazyListState.Saver) { LazyListState() }
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     Column(Modifier.fillMaxSize()) {
         BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 10.dp))
         LazyColumn(
