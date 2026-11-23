@@ -152,6 +152,64 @@ $C groovy = apply < register-android-release-job.groovy
 
 되돌릴 때는 실행·대기 중인 빌드가 없을 때 백업한 config.xml의 정의로 잡을 다시 저장한다. 이미 커밋한 Play 출시는 Play Console에서 초안을 삭제하거나 출시를 중단한다.
 
+## iOS 출시 잡
+
+작업: [S15P31E102-1256](https://ssafy.atlassian.net/browse/S15P31E102-1256). `eolssu-ios-release` 잡([ios-release.Jenkinsfile](../ios-release.Jenkinsfile))은 은서 Mac(`mac-ios-eunseo`, label `ios-eunseo`)에서 develop 커밋으로 Release 아카이브와 App Store용 IPA를 만들어 보관하고, 고르면 App Store Connect에 업로드한다. 심사 제출은 하지 않는다. 서명·업로드 방식을 고른 근거는 [지식 문서](../../../docs/knowledge/infra/ios-app-store-release.md)에 있다. Mac 에이전트의 연결·전원 조건은 [iOS QA 문서](../../ios-qa/README.md#mac-에이전트)와 같다.
+
+### 실행
+
+실행 전에 Mac 담당자(은서)에게 알려 Mac을 전원에 연결하고 덮개를 연 채 로그인 상태로 두게 한다. 연결이 끊겨 있으면 실행은 대기열에서 기다린다.
+
+Jenkins → `eolssu-ios-release` → **Build with Parameters**.
+
+| 매개변수 | 값 |
+| --- | --- |
+| `REVISION` | develop에 속한 전체 40자 SHA |
+| `MARKETING_VERSION` | `1.0.3` 형식. 이미 출시한 버전보다 커야 한다. |
+| `CURRENT_PROJECT_VERSION` | App Store Connect에 올린 모든 빌드보다 큰 정수 |
+| `UPLOAD_TO_APP_STORE_CONNECT` | 꺼짐(기본): IPA만 만들어 보관한다.<br>켜짐: 같은 아카이브를 App Store Connect에 업로드한다. |
+
+두 버전 값은 `Config.xcconfig`의 값보다 우선한다. 출시한 뒤에는 저장소의 `Config.xcconfig`도 같은 값으로 올려 다음 번호를 맞춘다. 2026-11-23 기준 마지막 업로드는 1.0.2 빌드 8(출시됨)이므로 다음은 1.0.3 이상, 빌드 9 이상이다.
+
+단계는 다음 순서로 진행한다.
+
+1. `Build App Store IPA on Eunseo Mac`: 매개변수를 검사하고 REVISION을 체크아웃해 develop 포함 여부를 확인한다. Bundle ID `com.ssafy.eolssu`, 팀 `WDA26H33JA`로 Release 아카이브를 만들고(derived data `~/jenkins-agent/ios-release-derived`), `app-store-connect` 방식으로 IPA를 내보낸다. IPA의 Bundle ID·버전·빌드 번호·팀과 프로파일(기기 목록 없음, `get-task-allow=false`)을 검사한 뒤 `release-out/`의 IPA·sha256·dSYM zip·`revision.txt`를 보관한다. Mac이 잠들어 연결이 끊기면 이 단계만 최대 2회 다시 실행한다.
+2. `Upload to App Store Connect`(업로드를 켰을 때만): 같은 Mac 작업 공간의 아카이브를 `destination=upload`로 다시 내보내 업로드한다. 같은 빌드 번호는 다시 올릴 수 없으므로 이 단계는 재시도하지 않는다. 업로드 뒤 App Store Connect에서 빌드 처리가 끝나면 TestFlight 배포와 심사 제출을 사람이 한다.
+
+처음 쓰는 버전은 업로드를 끄고 실행해 IPA 검사 결과를 확인한 뒤, 같은 값으로 업로드를 켜서 다시 실행한다.
+
+### Credentials
+
+값은 `withCredentials` 안에서만 쓰고 출력하지 않는다.
+
+| ID | 종류 | 내용 |
+| --- | --- | --- |
+| `eolssu-asc-api-key` | Secret file | App Store Connect 팀 API 키 `AuthKey_<KEY_ID>.p8` |
+| `eolssu-asc-key-id` | Secret text | Key ID(영문 대문자·숫자 10자) |
+| `eolssu-asc-issuer-id` | Secret text | Issuer ID(UUID) |
+
+키는 클라우드 서명 인증서와 프로파일을 만들 수 있도록 **Admin** 역할 팀 키여야 한다. Mac의 `~/jenkins-agent/asc/` 키는 `eolssu-ios-qa` 전용으로 따로 둔다. 키를 교체할 때는 세 Credentials를 같은 ID로 덮어쓴 뒤 이전 키를 App Store Connect에서 폐기한다. 같은 키를 Mac 폴더에도 두었다면 그쪽도 함께 바꾼다.
+
+### 잡 정의 갱신
+
+잡 정의의 원본은 이 저장소다. 절차는 'Android 출시 잡'과 같다.
+
+```sh
+# 로컬 저장소 루트에서
+ssh -o ClearAllForwardings=yes edo1 'sudo -n tee /var/lib/jenkins/eolssu-ios-release.Jenkinsfile >/dev/null && sudo -n chown jenkins:jenkins /var/lib/jenkins/eolssu-ios-release.Jenkinsfile' < infra/jenkins/ios-release.Jenkinsfile
+# edo1에서
+C="sudo -n java -jar /opt/eolssu/jenkins/jenkins-cli.jar -s http://127.0.0.1:8080 -auth @/opt/eolssu/jenkins/admin-cli.auth"
+$C declarative-linter < /var/lib/jenkins/eolssu-ios-release.Jenkinsfile
+$C groovy = check < register-ios-release-job.groovy
+$C groovy = apply < register-ios-release-job.groovy
+```
+
+[등록 파일](register-ios-release-job.groovy)은 실행·대기 중인 빌드가 있거나 Credentials가 빠졌으면 멈춘다. 기존 잡의 config.xml을 `/var/lib/jenkins/ios1256-backup-<시각>.config.xml`로 백업하고 바꾼다. 매개변수 목록은 Jenkinsfile과 같은 순서로 직접 설정하므로, 매개변수를 바꾸면 등록 파일의 목록도 함께 고친다.
+
+2026-11-23 14:26 KST에 이 절차로 운영 잡을 저장소 정의와 맞췄다(정의 sha256 `ba26ea10`, 직전 정의는 `ios1256-backup-2026-11-23T05-26-31…config.xml`에 보관).
+
+되돌릴 때는 실행·대기 중인 빌드가 없을 때 백업한 config.xml의 정의로 잡을 다시 저장한다. 이미 업로드한 빌드는 App Store Connect에서 만료 처리한다. 같은 빌드 번호는 다시 쓸 수 없다.
+
 ## 복구
 
 전환 검증에 실패하면 새 빌드를 막고 실행 중인 빌드가 끝난 뒤 에이전트와 컨트롤러를 중단한다. 먼저 현재 홈의 실패 시점 복사본을 별도로 보존한다. 기존 홈을 즉시 삭제하거나 백업을 그 위에 무분별하게 덮어쓰지 않는다.
