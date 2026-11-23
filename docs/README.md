@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [새 버전 알림을 앱 실행마다 띄우고 FCM 토픽 푸시와 앱 안 업데이트로 확장 (1257)](plans/S15P31E102-1257.md) · [결정](decisions/frontend-in-app-update.md)
 - [문의 API 추가 뒤 실패하던 OpenAPI 엔드포인트 개수 검사 바로잡기 (1252)](plans/S15P31E102-1252.md)
 - [JDK 자동 업데이트 뒤 Jenkins 에이전트가 예전 JVM으로 남아 빌드가 실패한 장애와 JDK 자동 업데이트 제외 (1229)](plans/S15P31E102-1229.md) · [운영 안내](../infra/needrestart/README.md)
 - [소금 도라지타령 앞 8각을 도라지타령 8각 새 곡으로 적재 (1227)](plans/S15P31E102-1227.md)
