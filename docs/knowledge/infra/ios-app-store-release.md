@@ -1,6 +1,6 @@
 # iOS App Store 출시 잡의 서명·업로드 방식 (S15P31E102-1256)
 
-- 상태: 잡 등록 완료, 첫 실제 빌드 전. 결정·구현은 [S15P31E102-1256](https://ssafy.atlassian.net/browse/S15P31E102-1256), 실행 절차는 [Jenkins 컨트롤러 README](../../../infra/jenkins/controller/README.md#ios-출시-잡)에 있다.
+- 상태: 적용 중. 업로드를 끈 첫 실제 빌드(#1)까지 확인했다. 결정·구현은 [S15P31E102-1256](https://ssafy.atlassian.net/browse/S15P31E102-1256), 실행 절차는 [Jenkins 컨트롤러 README](../../../infra/jenkins/controller/README.md#ios-출시-잡)에 있다.
 - 기록일: 2026-11-23
 
 ## 선택
@@ -30,5 +30,12 @@
 ## 검증
 
 - 2026-11-23 Jenkins `declarative-linter`를 통과했다. 등록 스크립트 check·apply로 잡을 만들고 매개변수 4개(`UPLOAD_TO_APP_STORE_CONNECT` 기본 false)와 sandbox=true를 확인했다.
-- 셸 단계는 `bash -n`, IPA 검사 Python은 컴파일 검사만 했다.
-- 아직 실제 빌드는 실행하지 않았다. 첫 실행에서 Admin 키의 클라우드 서명이 App Store 배포 인증서를 만들 수 있는지 확인해야 한다.
+- 셸 단계는 `bash -n`, IPA 검사 Python은 컴파일 검사를 했다.
+- 같은 날 `eolssu-ios-release` #1을 실행해 실제 빌드를 확인했다.
+    - 입력: develop `70c64b1a3`, `MARKETING_VERSION` 1.0.3, `CURRENT_PROJECT_VERSION` 9, 업로드 끔
+    - 노드: `mac-ios-eunseo`(은서 MacBook Air M2, Xcode 27.2, AC 전원·덮개 열림). 30분 걸렸다.
+    - 아카이브는 Xcode 자동 서명대로 `Apple Development` 인증서로 서명되고, 내보내기에서 클라우드 서명으로 다시 서명됐다.
+    - IPA 프로파일은 `iOS Team Store Provisioning Profile: com.ssafy.eolssu`, 인증서는 `Apple Distribution` (팀 `WDA26H33JA`, 2027-11-08 만료)이다. 권한에 Sign in with Apple과 `beta-reports-active`가 있고 `get-task-allow`는 false이다.
+    - 잡의 IPA 검사 6개가 모두 통과했다. 보관 산출물은 `eolssu-1.0.3-b9.ipa`(54MB, sha256 `6f630a58…`), dSYM zip(19MB), sha256, `revision.txt`이다.
+    - 업로드 단계는 조건대로 건너뛰었다. 빌드 9는 아직 App Store Connect에 올라가지 않았으므로 다음 업로드에 그대로 쓸 수 있다.
+- 업로드 단계(`destination=upload`)는 아직 실제로 실행하지 않았다.

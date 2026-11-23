@@ -206,7 +206,7 @@ $C groovy = apply < register-ios-release-job.groovy
 
 [등록 파일](register-ios-release-job.groovy)은 실행·대기 중인 빌드가 있거나 Credentials가 빠졌으면 멈춘다. 기존 잡의 config.xml을 `/var/lib/jenkins/ios1256-backup-<시각>.config.xml`로 백업하고 바꾼다. 매개변수 목록은 Jenkinsfile과 같은 순서로 직접 설정하므로, 매개변수를 바꾸면 등록 파일의 목록도 함께 고친다.
 
-2026-11-23 14:26 KST에 이 절차로 운영 잡을 저장소 정의와 맞췄다(정의 sha256 `ba26ea10`, 직전 정의는 `ios1256-backup-2026-11-23T05-26-31…config.xml`에 보관).
+2026-11-23 14:26 KST에 이 절차로 운영 잡을 저장소 정의와 맞췄다(정의 sha256 `ba26ea10`, 직전 정의는 `ios1256-backup-2026-11-23T05-26-31…config.xml`에 보관). 같은 날 #1(develop `70c64b1a3`, 1.0.3 빌드 9, 업로드 끔)이 30분 만에 성공해 `Apple Distribution` 인증서와 App Store 프로파일로 서명된 IPA를 보관했다. 업로드 단계는 아직 실제로 실행하지 않았다.
 
 되돌릴 때는 실행·대기 중인 빌드가 없을 때 백업한 config.xml의 정의로 잡을 다시 저장한다. 이미 업로드한 빌드는 App Store Connect에서 만료 처리한다. 같은 빌드 번호는 다시 쓸 수 없다.
 
