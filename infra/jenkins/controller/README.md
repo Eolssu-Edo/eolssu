@@ -148,6 +148,8 @@ $C groovy = apply < register-android-release-job.groovy
 
 [등록 파일](register-android-release-job.groovy)은 실행·대기 중인 빌드가 있거나 Credentials가 빠졌으면 멈춘다. 기존 잡의 config.xml을 `/var/lib/jenkins/android1254-backup-<시각>.config.xml`로 백업하고 바꾼다. 선언형 매개변수는 실행 후에야 등록되므로 `ParametersDefinitionProperty`를 Jenkinsfile과 같은 순서로 직접 설정한다. 매개변수를 바꾸면 등록 파일의 목록도 함께 고친다. 운영 파일을 건드리지 않고 미리 검사할 때는 후보를 `/var/lib/jenkins` 아래 다른 이름으로 두고 `groovy = check <후보 경로>`로 실행한다.
 
+2026-11-23 12:28 KST에 이 절차로 운영 잡을 갱신했다(정의 sha256 `fe47a078`, 이전 정의는 `android1254-previous.Jenkinsfile`과 `android1254-backup-2026-11-23T03-28-06…config.xml`에 보관). 이 MR이 병합되기 전의 develop 커밋에는 `play-upload.py`가 없으므로 `PLAY_TRACK=none`으로만 실행할 수 있다.
+
 되돌릴 때는 실행·대기 중인 빌드가 없을 때 백업한 config.xml의 정의로 잡을 다시 저장한다. 이미 커밋한 Play 출시는 Play Console에서 초안을 삭제하거나 출시를 중단한다.
 
 ## 복구
