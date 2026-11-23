@@ -6,11 +6,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.ssafy.eolssu.core.browser.IncomingLinks
 import com.ssafy.eolssu.platform.androidPlatformModule
 import com.ssafy.eolssu.platform.permission.AndroidMicPermission
 import com.ssafy.eolssu.platform.update.AndroidStoreUpdates
+import com.ssafy.eolssu.platform.update.AndroidUpdatePush
 import com.ssafy.eolssu.core.network.ServerAddress
 
 /**
@@ -46,6 +48,14 @@ fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Productio
     DisposableEffect(storeUpdates, activity) {
         storeUpdates.activity = activity
         onDispose { if (storeUpdates.activity === activity) storeUpdates.activity = null }
+    }
+    // 새 버전 푸시(S15P31E102-1257): 지금 버전 토픽을 구독하고, 알림 권한(Android 13 이상)은 처음 한 번만 묻는다.
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(context) {
+        AndroidUpdatePush.start(context)
+        if (AndroidUpdatePush.shouldAskNotificationPermission(context)) {
+            notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
     App(platformModule = platformModule, qaSkipConsent = qaSkipConsent)
 }

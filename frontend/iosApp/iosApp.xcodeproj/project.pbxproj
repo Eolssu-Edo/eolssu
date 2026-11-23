@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9F1257A10000000000000001 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 9F1257A10000000000000002 /* FirebaseMessaging */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		8701BF2B1C0507AD1AEEF768 /* eolssu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = eolssu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -42,6 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9F1257A10000000000000001 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +91,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				9F1257A10000000000000002 /* FirebaseMessaging */,
 			);
 			productName = iosApp;
 			productReference = 8701BF2B1C0507AD1AEEF768 /* eolssu.app */;
@@ -115,6 +121,9 @@
 			);
 			mainGroup = 0910C17754844E5D854BA19A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9F1257A10000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2A48000243BF4B41C2168740 /* Products */;
 			projectDirPath = "";
@@ -367,6 +376,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9F1257A10000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9F1257A10000000000000002 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9F1257A10000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EA7F20113771E07BA57D3523 /* Project object */;
 }

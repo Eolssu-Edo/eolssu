@@ -284,7 +284,8 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
 - **iOS 번들 ID**: Android `applicationId`와 같은 `com.ssafy.eolssu`입니다. App Store에 등록한 뒤에는 바꿀 수 없습니다. Mac에서 빌드하려면 `iosApp/Configuration/Config.xcconfig`의 `TEAM_ID`에 Apple 개발팀 ID를 넣습니다(개인 값이면 커밋하지 않음).
 - **iOS 버전·언어**: 버전·빌드 번호는 `iosApp/Configuration/Config.xcconfig`의 `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION`입니다. App Store에 올릴 때마다 빌드 번호를 마지막 업로드보다 크게 올립니다. 개발 언어는 한국어(`ko`)이고, `iosApp/iosApp/ko.lproj`가 있어야 App Store에 한국어로 표시됩니다([S15P31E102-814](../docs/plans/S15P31E102-814.md)).
-- **스토어 업데이트 안내**: 앱을 켤 때 Play 스토어·App Store에 설치 버전보다 새 버전이 있으면 '업데이트'·'나중에' 안내를 띄웁니다(`core/update`, `platform/update`). 스토어에서 설치한 앱에서만 동작하므로 QA APK·Ad Hoc IPA·TestFlight에서는 뜨지 않습니다. Android는 Play 내부 앱 공유나 테스트 트랙으로, iOS는 App Store 설치본으로 확인합니다([결정 문서](../docs/decisions/frontend-in-app-update.md)).
+- **스토어 업데이트 안내**: 구버전 앱을 켤 때마다(백그라운드에서 다시 앞으로 가져올 때 포함) Play 스토어·App Store에 설치 버전보다 새 버전이 있으면 '업데이트하기'·'나중에' 안내를 띄웁니다(`core/update`, `platform/update`). '업데이트하기'는 Android에서 Play 즉시 업데이트, iOS에서 앱 안 App Store 시트를 엽니다. 스토어에서 설치한 앱에서만 동작하므로 QA APK·Ad Hoc IPA·TestFlight에서는 뜨지 않습니다. Android는 Play 내부 앱 공유나 테스트 트랙으로, iOS는 App Store 설치본으로 확인합니다([결정 문서](../docs/decisions/frontend-in-app-update.md)).
+- **새 버전 푸시**: 앱은 설치된 버전의 FCM 토픽(`update-android-<versionCode>`, `update-ios-<버전>`)을 구독합니다. Firebase 설정은 `androidApp/src/main/res/values/firebase.xml`과 `iosApp/iosApp/GoogleService-Info.plist`에 있고, 출시 뒤 Firebase 콘솔에서 구버전 토픽으로 보냅니다(발송 절차는 [결정 문서](../docs/decisions/frontend-in-app-update.md)).
 - **iOS 출시 설정**: 마이크 권한 설명·표시 이름은 `iosApp/iosApp/Info.plist`, 개인정보 매니페스트는 `iosApp/iosApp/PrivacyInfo.xcprivacy`에 있습니다. 매니페스트의 수집 항목은 App Store Connect의 개인정보 라벨과 같게 맞춥니다([S15P31E102-373 계획](../docs/plans/S15P31E102-373.md)).
 
 ## Android release 검증

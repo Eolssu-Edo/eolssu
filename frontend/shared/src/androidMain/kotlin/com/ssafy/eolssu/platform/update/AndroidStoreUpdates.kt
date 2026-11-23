@@ -21,7 +21,8 @@ import kotlin.coroutines.resumeWithException
 /**
  * Google Play In-App Updates로 Play 스토어의 새 버전을 확인한다(S15P31E102-1237).
  * Play에서 설치하지 않은 앱(QA APK 등)은 Play가 업데이트 없음이나 오류로 답하므로 안내하지 않는다.
- * '업데이트'는 Play의 즉시 업데이트 화면을 띄운다. 띄울 [activity]가 없거나 즉시 업데이트를 쓸 수 없으면 Play 스토어 앱 페이지를 연다.
+ * '업데이트하기'는 Play의 즉시 업데이트 화면을 띄워 앱 안에서 내려받고 설치한다. 띄울 [activity]가 없거나 즉시 업데이트를 쓸 수 없으면
+ * Play 스토어 앱 페이지를 연다. 즉시 업데이트 도중 앱을 벗어났다 돌아오면 다음 확인([latest])에서 이어서 띄운다(S15P31E102-1257).
  */
 internal class AndroidStoreUpdates(context: Context) : StoreUpdates {
     private val appContext = context.applicationContext
@@ -35,6 +36,11 @@ internal class AndroidStoreUpdates(context: Context) : StoreUpdates {
 
     override suspend fun latest(): StoreUpdate? {
         val found = manager.appUpdateInfo.await()
+        if (found.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+            // 즉시 업데이트를 받다가 앱을 벗어났다 돌아왔다. 안내 없이 Play 화면을 다시 이어서 띄운다(S15P31E102-1257).
+            activity?.let { manager.startUpdateFlow(found, it, AppUpdateOptions.defaultOptions(AppUpdateType.IMMEDIATE)) }
+            return null
+        }
         if (found.updateAvailability() != UpdateAvailability.UPDATE_AVAILABLE) return null
         info = found
         return StoreUpdate(found.availableVersionCode().toString())
