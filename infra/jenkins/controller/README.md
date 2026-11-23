@@ -94,6 +94,62 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 
 되돌릴 때는 실행·예약 중인 빌드가 없을 때 두 잡을 비활성화한다. `edo1-ai` 노드는 ai 잡이 계속 쓰므로 멈추지 않는다. 운영 이미지 되돌리기는 [운영 안내](../../runtime/README.md#omrplayback-자동-배포-s15p31e102-951)를 따른다.
 
+## Android 출시 잡
+
+작업: [S15P31E102-1254](https://ssafy.atlassian.net/browse/S15P31E102-1254). `eolssu-android-release` 잡([android-release.Jenkinsfile](../android-release.Jenkinsfile))은 `edo1-host`에서 develop 커밋을 테스트·lint한 뒤 업로드 키로 서명한 AAB를 만들어 보관하고, 선택한 Google Play 트랙에 올린다. 업로드 도구는 [play-upload.py](../play-upload.py)이며 방식을 고른 근거는 [지식 문서](../../../docs/knowledge/infra/android-play-upload.md)에 있다.
+
+### 실행
+
+Jenkins → `eolssu-android-release` → **Build with Parameters**.
+
+| 매개변수 | 값 |
+| --- | --- |
+| `REVISION` | develop에 속한 전체 40자 SHA |
+| `VERSION_CODE` | Play에 올린 모든 번들보다 큰 정수 |
+| `VERSION_NAME` | `1.4.0` 형식 |
+| `PLAY_TRACK` | `production`(기본)·`internal`·`none`(AAB만 만들고 올리지 않음) |
+| `PLAY_STATUS` | `draft`(기본): 초안으로 올리고 Play Console에서 사람이 검토 전송한다.<br>`completed`: 커밋과 함께 검토 전송한다. 승인되면 100% 출시된다. |
+| `RELEASE_NOTES_KO` | ko-KR 출시 노트(500자 이하). 비우면 노트 없이 올린다. |
+
+단계는 다음 순서로 진행한다.
+
+1. 매개변수를 검사하고 REVISION을 체크아웃한다. 업로드를 고르면 그 커밋에 `play-upload.py`가 있어야 한다.
+2. `Check Google Play access`: 서비스 계정으로 edit을 열어 트랙별 출시와 최고 versionCode를 로그에 남기고 edit을 지운다. `VERSION_CODE`가 최고값 이하이면 긴 빌드 전에 실패한다.
+3. 테스트·lint·서명 AAB 빌드 후 `release-out/`에 AAB와 sha256을 보관한다.
+4. `Upload to Google Play`: edit을 열어 번들을 올리고, Play가 읽은 versionCode·sha256을 확인한 뒤 트랙에 출시 하나(`<versionCode> (<versionName>)`)를 설정해 커밋한다. 커밋 전에 실패하면 edit을 지우므로 Play에는 아무것도 남지 않는다. 같은 번호를 다시 올릴 수 없으므로 이 단계는 재시도하지 않는다.
+
+Play Console에 검토로 보내지 않은 다른 변경이 쌓여 있으면 Play가 자동 검토 전송을 거부한다. 이때 도구는 `changesNotSentForReview=true`로 다시 커밋하고, 로그에 `committed without sending for review`를 남긴다. 사람이 Play Console의 출시 개요에서 검토 전송을 해야 한다.
+
+### Credentials
+
+값은 `withCredentials` 안에서만 쓰고 출력하지 않는다.
+
+| ID | 종류 | 내용 |
+| --- | --- | --- |
+| `eolssu-android-upload-keystore` | Secret file | 업로드 keystore(`eolssu-upload.jks`). alias는 첫 PrivateKeyEntry를 읽고, 키 비밀번호는 저장소 비밀번호와 같다고 가정한다. |
+| `eolssu-android-upload-password` | Secret text | keystore 비밀번호 |
+| `eolssu-play-service-account` | Secret file | Google Cloud 프로젝트 `eolssu-s15p31e102`의 서비스 계정 `eolssu-play-publisher` JSON 키 |
+
+서비스 계정은 프로젝트 IAM 역할이 없다. Play Console(Team Edo) 사용자 및 권한에서 얼쑤 앱에만 `프로덕션으로 출시, 기기 제외, Play 앱 서명 사용`과 `앱을 테스트 트랙으로 출시` 권한을 받았다. 프로젝트에는 Google Play Android Developer API를 사용 설정했다. 키를 교체할 때는 새 키를 같은 Credentials ID로 덮어쓴 뒤 이전 키를 Google Cloud에서 삭제한다.
+
+### 잡 정의 갱신
+
+잡 정의의 원본은 이 저장소다. develop에 병합된 Jenkinsfile을 edo1에 두고 lint·check를 통과한 뒤 apply한다. CLI 명령은 위 'ai 배포 전용 슬롯'과 같다.
+
+```sh
+# 로컬 저장소 루트에서
+ssh -o ClearAllForwardings=yes edo1 'sudo -n tee /var/lib/jenkins/eolssu-android-release.Jenkinsfile >/dev/null && sudo -n chown jenkins:jenkins /var/lib/jenkins/eolssu-android-release.Jenkinsfile' < infra/jenkins/android-release.Jenkinsfile
+# edo1에서
+C="sudo -n java -jar /opt/eolssu/jenkins/jenkins-cli.jar -s http://127.0.0.1:8080 -auth @/opt/eolssu/jenkins/admin-cli.auth"
+$C declarative-linter < /var/lib/jenkins/eolssu-android-release.Jenkinsfile
+$C groovy = check < register-android-release-job.groovy
+$C groovy = apply < register-android-release-job.groovy
+```
+
+[등록 파일](register-android-release-job.groovy)은 실행·대기 중인 빌드가 있거나 Credentials가 빠졌으면 멈춘다. 기존 잡의 config.xml을 `/var/lib/jenkins/android1254-backup-<시각>.config.xml`로 백업하고 바꾼다. 선언형 매개변수는 실행 후에야 등록되므로 `ParametersDefinitionProperty`를 Jenkinsfile과 같은 순서로 직접 설정한다. 매개변수를 바꾸면 등록 파일의 목록도 함께 고친다. 운영 파일을 건드리지 않고 미리 검사할 때는 후보를 `/var/lib/jenkins` 아래 다른 이름으로 두고 `groovy = check <후보 경로>`로 실행한다.
+
+되돌릴 때는 실행·대기 중인 빌드가 없을 때 백업한 config.xml의 정의로 잡을 다시 저장한다. 이미 커밋한 Play 출시는 Play Console에서 초안을 삭제하거나 출시를 중단한다.
+
 ## 복구
 
 전환 검증에 실패하면 새 빌드를 막고 실행 중인 빌드가 끝난 뒤 에이전트와 컨트롤러를 중단한다. 먼저 현재 홈의 실패 시점 복사본을 별도로 보존한다. 기존 홈을 즉시 삭제하거나 백업을 그 위에 무분별하게 덮어쓰지 않는다.
