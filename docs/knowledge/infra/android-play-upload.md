@@ -28,7 +28,18 @@
 - 출시 이름은 Play Console 기본 형식인 `<versionCode> (<versionName>)`을 쓴다.
 - Play Console의 API 액세스(Google Cloud 프로젝트 연결) 화면은 더 이상 열리지 않는다. 서비스 계정을 사용자 및 권한에 초대하는 것만으로 API를 쓸 수 있다.
 
+## 검증
+
+- 2026-11-23 단위 테스트(로컬 Python 3.11, edo1 Python 3.12.3·OpenSSL 3.0.13)와 Jenkins `declarative-linter`를 통과했다.
+- 같은 날 `eolssu-android-release` #2를 실행해 실제 업로드를 확인했다.
+    - 입력: develop `17c7d6b66`, `VERSION_CODE` 11, `VERSION_NAME` 1.3.0, `PLAY_TRACK=internal`, `PLAY_STATUS=draft`, ko-KR 출시 노트 한 줄
+    - 접근 검사: 서비스 계정으로 edit을 열고 트랙을 읽었다(production completed vc10, alpha completed vc8, internal 없음). 최고 versionCode 10보다 커서 진행했다.
+    - 업로드: Play가 읽은 번들이 versionCode 11, sha256 `f39636380edc678ea6d8471667eee7460915b2251e0184dc0568b56c464a2683`으로 로컬 파일과 같았다. internal 트랙에 `11 (1.3.0)`을 draft로 설정하고 커밋했다. 결과는 SUCCESS였다.
+    - Play Console 내부 테스트 화면에 "임시 버전: 11 (1.3.0)"이 생겼고, production의 vc10 출시는 바뀌지 않았다.
+- 이 실행으로 vc11은 사용된 번호가 되었다. 다음 업로드는 vc12 이상이어야 한다.
+
 ## 미확인
 
-- 실제 업로드는 vc11 이상으로 잡을 실행해 확인해야 한다. 2026-11-23 현재 단위 테스트(로컬 Python 3.11, edo1 Python 3.12)와 Jenkins `declarative-linter`를 통과했다.
-- 같은 날 로컬 PC에서 서비스 계정 키로 `play-upload.py check`를 실행해 토큰 발급·edit 열기·트랙 조회·edit 삭제가 성공했다(당시 최고 versionCode 9). 번들 업로드·트랙 변경·커밋 권한은 아직 실제로 확인하지 않았다.
+- `PLAY_TRACK=production`과 `PLAY_STATUS=completed`(검토 자동 전송) 조합은 실제로 실행하지 않았다.
+- `changesNotSentForReview`를 요구받아 다시 커밋하는 경로는 단위 테스트로만 확인했다.
+- 업로드 단계의 완료 로그는 draft이면 트랙과 관계없이 "Play Console에서 검토 전송하라"고 안내한다. internal 초안은 Play Console에서 출시를 시작해야 테스터에게 배포되므로 안내 문구가 맞지 않는다.
