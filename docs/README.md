@@ -123,6 +123,7 @@
 - [웹 정적 자산 gzip 압축과 캐시 헤더 (917)](plans/S15P31E102-917.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
 
 - [Android 출시 잡의 Play 자동 업로드 (1254)](../infra/jenkins/controller/README.md#android-출시-잡) · [업로드 방식 선택 근거](knowledge/infra/android-play-upload.md)
+- [iOS App Store 출시 잡 (1256)](../infra/jenkins/controller/README.md#ios-출시-잡) · [서명·업로드 방식 선택 근거](knowledge/infra/ios-app-store-release.md)
 
 - [최종 발표 릴리스·시연 동결 절차 (916)](../infra/release/README.md) · [버전 단일화 방안](knowledge/infra/release-versioning.md) · [계획·질문](plans/S15P31E102-916.md)
 
