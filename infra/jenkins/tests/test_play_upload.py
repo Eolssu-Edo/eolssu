@@ -100,6 +100,19 @@ class UploadTest(unittest.TestCase):
             'name': '11 (1.4.0)', 'versionCodes': ['11'], 'status': 'draft',
             'releaseNotes': [{'language': 'ko-KR', 'text': '버그를 고쳤습니다.'}]}]})
 
+    def test_commit_log_names_next_step_for_track_and_status(self):
+        expected = {
+            ('internal', 'draft'): 'committed: draft internal release is in Play Console; start its rollout there to reach testers',
+            ('internal', 'completed'): 'committed: internal release rolled out to testers',
+            ('production', 'draft'): 'committed: draft production release is in Play Console; send it for review there',
+            ('production', 'completed'): 'committed: production release sent for review',
+        }
+        for (track, status), line in expected.items():
+            with self.subTest(track=track, status=status):
+                self.log.clear()
+                self.run_upload(FakePlay(), track=track, status=status)
+                self.assertEqual(self.log[-1], line)
+
     def test_empty_notes_are_left_out(self):
         fake = FakePlay()
         self.run_upload(fake, track='internal', notes='')
