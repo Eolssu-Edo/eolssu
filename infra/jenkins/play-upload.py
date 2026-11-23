@@ -30,6 +30,14 @@ API = 'https://androidpublisher.googleapis.com'
 SCOPE = 'https://www.googleapis.com/auth/androidpublisher'
 TRACKS = ('internal', 'production')
 STATUSES = ('draft', 'completed')
+# What a person does in Play Console after a normal commit. A draft internal release goes out
+# only after someone starts its rollout; a draft production release must be sent for review.
+NEXT_STEP = {
+    ('internal', 'draft'): 'draft internal release is in Play Console; start its rollout there to reach testers',
+    ('internal', 'completed'): 'internal release rolled out to testers',
+    ('production', 'draft'): 'draft production release is in Play Console; send it for review there',
+    ('production', 'completed'): 'production release sent for review',
+}
 NOTES_LANGUAGE = 'ko-KR'
 NOTES_LIMIT = 500  # Play Console limit per language
 UPLOAD_TIMEOUT = 900
@@ -246,8 +254,7 @@ def upload(play, aab, version_code, version_name, track, status, notes, validate
             except PlayError as error:
                 log(f'warning: could not delete edit: {error}')
     if outcome == 'committed':
-        log('committed: ' + ('draft release is in Play Console; send it for review there'
-                             if status == 'draft' else 'release sent for review'))
+        log('committed: ' + NEXT_STEP[track, status])
     else:
         log('committed without sending for review: open Play Console > Publishing overview and send the changes')
     return outcome

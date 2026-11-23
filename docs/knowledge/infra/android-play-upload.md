@@ -26,6 +26,7 @@
 - 커밋 전 실패에서는 edit을 지운다. 커밋하지 않은 edit은 Play에 아무것도 남기지 않는다.
 - 커밋은 기본값(검토 자동 전송)으로 먼저 시도한다. Play Console에 검토로 보내지 않은 다른 변경이 있으면 Play가 `changesNotSentForReview`를 요구하며 거부한다. 이 경우에만 그 값을 `true`로 다시 커밋한다. 처음부터 `true`를 쓰면 자동 전송 상태의 앱에서 Play가 거꾸로 거부하고, 콘솔에 쌓인 다른 사람의 변경이 의도치 않게 검토로 넘어가는 일도 기본값의 거부로 막을 수 있다.
 - 출시 이름은 Play Console 기본 형식인 `<versionCode> (<versionName>)`을 쓴다.
+- 커밋 뒤 로그에는 트랙·상태별로 사람이 Play Console에서 할 일을 남긴다. internal 초안은 출시를 시작해야 테스터에게 배포되고, production 초안은 검토 전송이 필요하다.
 - Play Console의 API 액세스(Google Cloud 프로젝트 연결) 화면은 더 이상 열리지 않는다. 서비스 계정을 사용자 및 권한에 초대하는 것만으로 API를 쓸 수 있다.
 
 ## 검증
@@ -42,4 +43,3 @@
 
 - `PLAY_TRACK=production`과 `PLAY_STATUS=completed`(검토 자동 전송) 조합은 실제로 실행하지 않았다.
 - `changesNotSentForReview`를 요구받아 다시 커밋하는 경로는 단위 테스트로만 확인했다.
-- 업로드 단계의 완료 로그는 draft이면 트랙과 관계없이 "Play Console에서 검토 전송하라"고 안내한다. internal 초안은 Play Console에서 출시를 시작해야 테스터에게 배포되므로 안내 문구가 맞지 않는다.
