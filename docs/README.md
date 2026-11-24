@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [웹 테스트 보강: 웹 Koin 정의 해석 검사와 develop 웹 브라우저 테스트 자동 예약 (1270)](plans/web-parity/S15P31E102-1270-handoff.md) · [자동 경로 근거·실측·스모크 검토](knowledge/infra/web-tests-ci.md) · [운영 적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)
 - [웹 셸 정비: 탭·홈 화면 아이콘과 manifest, 키보드 viewport, Safari 글꼴 미리 해석, 본문 글꼴 CFF 변환 (1267)](plans/web-parity/S15P31E102-1267-handoff.md) · [글꼴 변환 기록](knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)
 - [R2 파일과 DB를 대조하는 읽기 전용 점검 도구 추가 (1273)](plans/S15P31E102-1273.md) · [사용 방법](../infra/storage/README.md#주인-없는-파일-점검-s15p31e102-1273)
 - [녹음 업로드 WAV 허용과 서버 AAC 변환 저장 (1272)](plans/S15P31E102-1272.md) · [스펙](specs/recording-file.md)

@@ -65,6 +65,40 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 
 되돌릴 때는 실행·예약 중인 웹 빌드가 없을 때 웹 잡의 Pipeline을 `agent any`로 되돌리고 `eolssu-jenkins-web-agent`를 중지한다. 노드 설정과 작업 공간은 보존한다.
 
+## 웹 테스트 잡
+
+작업: [S15P31E102-1270](https://ssafy.atlassian.net/browse/S15P31E102-1270). `eolssu-web-tests` 잡([web-tests.Jenkinsfile](../web-tests.Jenkinsfile))은 develop 커밋의 웹 브라우저 테스트(`:shared:wasmJsTest`·`:shared:jsTest`)만 돌리고 이미지를 만들거나 배포하지 않는다. 고른 근거는 [지식 문서](../../../docs/knowledge/infra/web-tests-ci.md)에 있다.
+
+- `eolssu-backend`의 `Queue web tests` 단계가 웹 빌드 입력이 바뀐 커밋마다 `REVISION`을 넘겨 기다리지 않고 예약한다. 웹 빌드 입력은 `frontend/shared/src`의 common·web·js·wasmJs 소스와 테스트, Gradle 설정, `kotlin-js-store/`다. 비교 기준은 iOS QA 예약과 같은 직전 성공 커밋(`IOS_QA_BASE`)이다.
+- 백엔드 검사·배포 단계보다 먼저 예약하므로 백엔드가 실패해도 웹 테스트는 돈다.
+- 웹 수동 배포와 같은 `edo1-web` 노드(executor 1개)를 쓴다. 두 잡이 겹치면 나중 잡이 기다린다.
+- 새 커밋이 예약되면 대기·실행 중인 이전 빌드를 중단한다(`abortPrevious`). 새 develop 커밋이 이전 변경을 모두 담기 때문이다.
+- 결과는 잡의 테스트 결과(junit)에 남는다. 실패·UNSTABLE은 [Jenkins 실패 알림](../notifications/README.md)이 `eolssu-*` 잡으로 따로 설정 없이 Mattermost에 알린다. GitLab MR에는 표시되지 않는다.
+
+### 적용 (develop 병합 뒤)
+
+순서를 지킨다. 백엔드 잡을 먼저 바꾸면 `build job:`이 없는 잡을 불러 백엔드 잡이 실패한다. CLI 명령은 아래 'ai 배포 전용 슬롯'과 같다.
+
+1. develop에 병합된 `web-tests.Jenkinsfile`을 edo1에 두고 linter·check를 통과한 뒤 apply한다.
+
+   ```sh
+   # 로컬 저장소 루트에서
+   ssh -o ClearAllForwardings=yes edo1 'sudo -n tee /var/lib/jenkins/eolssu-web-tests.Jenkinsfile >/dev/null && sudo -n chown jenkins:jenkins /var/lib/jenkins/eolssu-web-tests.Jenkinsfile' < infra/jenkins/web-tests.Jenkinsfile
+   # edo1에서
+   C="sudo -n java -jar /opt/eolssu/jenkins/jenkins-cli.jar -s http://127.0.0.1:8080 -auth @/opt/eolssu/jenkins/admin-cli.auth"
+   $C declarative-linter < /var/lib/jenkins/eolssu-web-tests.Jenkinsfile
+   $C groovy = check < register-web-tests-job.groovy
+   $C groovy = apply < register-web-tests-job.groovy
+   ```
+
+   [등록 파일](register-web-tests-job.groovy)은 실행·대기 중인 빌드가 있거나 `edo1-web` 노드·`eolssu-gitlab` Credentials가 없으면 멈춘다. 기존 잡이 있으면 config.xml을 `/var/lib/jenkins/webtests1270-backup-<시각>.config.xml`로 백업하고 바꾼다.
+2. 현재 develop 전체 SHA를 `REVISION`에 넣어 `eolssu-web-tests`를 한 번 수동 실행한다. 두 단계의 테스트 결과가 잡에 남는지 확인한다. 첫 실행은 새 작업 공간이라 Gradle 프로젝트 캐시가 없어 오래 걸린다.
+3. 실행·대기 중인 백엔드 빌드가 없을 때 `eolssu-backend` 잡의 config.xml과 서버 사본 `/opt/eolssu/config/backend.Jenkinsfile`을 root 전용 폴더에 백업한다. develop의 [backend.Jenkinsfile](../backend.Jenkinsfile)을 `declarative-linter`로 검사한 뒤 관리자 CLI `update-job`으로 저장하고, 서버 사본도 같은 내용으로 바꾼다.
+4. [일치 점검](../../drift/README.md)(`infra/drift/check.py --host edo1`)에서 `jenkins:eolssu-backend`, `jenkins:eolssu-web-tests`, `/opt/eolssu/config/backend.Jenkinsfile`이 '일치'인지 확인한다.
+5. 웹 빌드 입력을 바꾼 다음 develop 커밋에서 백엔드 잡 로그에 `Web test diff:`가 찍히고 `eolssu-web-tests`가 같은 SHA로 예약·통과하는지 확인한다.
+
+되돌릴 때는 실행·대기 중인 빌드가 없을 때 백업한 config.xml의 정의로 `eolssu-backend`를 다시 저장하고 서버 사본도 되돌린 뒤 `eolssu-web-tests`를 비활성화한다. 순서는 적용의 반대로, 백엔드 잡을 먼저 되돌린다.
+
 ## ai 배포 전용 슬롯
 
 작업: [S15P31E102-244](../../../docs/plans/S15P31E102-244.md). `eolssu-ai` 잡([ai.Jenkinsfile](../ai.Jenkinsfile))은 전용 노드 `edo1-ai`에서 실행한다. 웹 슬롯과 같이 executor 1개, EXCLUSIVE, 노드 이름과 같은 라벨만 받는다. AI 이미지 빌드(수 분)가 백엔드 빌드를 막거나 기다리지 않는다. 운영 교체는 공유 배포 lock으로 한 번에 하나만 진행한다. 작업 공간은 `/var/lib/jenkins-ai-agent/workspace`다.
