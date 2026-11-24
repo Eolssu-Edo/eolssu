@@ -653,24 +653,31 @@ class SheetEditViewModel(
     }
 
     /**
+     * 지금 닫으면 사라질 편집이 있는지. 저장한 내용과 다르거나, 저장 응답을 기다리거나, 충돌로 저장하지 못했으면 true다.
+     * 서버에 저장할 수 없는 악보는 처음 연 내용과 다르면 true다. Web 새로고침·탭 닫기 확인이 쓴다(S15P31E102-1265).
+     */
+    fun hasUnsavedChanges(): Boolean {
+        val state = _uiState.value
+        if (loaded == null) {
+            val start = baseline
+            return start != null && state.draft != start && !state.documentFailed
+        }
+        return !isDraftPersisted(state.draft) || state.saving || confirmationPending || state.saveConflict
+    }
+
+    /**
      * 저장한 내용과 같으면 바로 닫는다. 저장하지 않은 변경이 있으면 저절로 저장하지 않고 임시저장·계속 편집·버리기를 묻는다.
      * 누른 저장이 아직 진행 중이면 결과를 기다린 뒤 판단한다.
      */
     fun closeEditor(onClose: () -> Unit) {
         if (!accountScope.isActive || closeJob?.isActive == true) return
-        if (loaded == null) {
-            // 서버에 저장할 수 없는 악보는 고친 내용이 닫으면 사라지므로 먼저 묻는다.
-            val start = baseline
-            if (start != null && _uiState.value.draft != start && !_uiState.value.documentFailed) _uiState.update { it.copy(closeWarning = true) }
-            else onClose()
-            return
-        }
-        val state = _uiState.value
-        if (isDraftPersisted(state.draft) && !state.saving && !confirmationPending && !state.saveConflict) {
+        if (!hasUnsavedChanges()) {
             onClose()
             return
         }
-        if (!state.saving && !confirmationPending) {
+        val state = _uiState.value
+        // 서버에 저장할 수 없는 악보는 고친 내용이 닫으면 사라지므로 먼저 묻는다.
+        if (loaded == null || (!state.saving && !confirmationPending)) {
             _uiState.update { it.copy(closeWarning = true) }
             return
         }

@@ -18,6 +18,16 @@ class SheetEditStateTest {
     private fun importState() = SheetEditUiState.initial(importSource, SheetEditSamples.draftFor(importSource, emptyList()))
 
     @Test
+    fun backClosesTheAdaptationPanelOnlyWhileItIsOnScreen() {
+        val draft = importState().draft
+        val opened = importState().copy(tab = EditTab.Adaptation, adaptation = SheetAdaptationUi(baseline = draft))
+        assertTrue(opened.adaptationVisible, "펼친 입력판의 음역 맞추기 탭은 뒤로 가기로 먼저 닫는다")
+        assertFalse(opened.copy(inputPanelExpanded = false).adaptationVisible, "입력판을 접은 채 연 변환 악보는 패널이 보이지 않아 편집기를 닫는다")
+        assertFalse(opened.copy(tab = EditTab.Yul).adaptationVisible)
+        assertFalse(opened.copy(adaptation = null).adaptationVisible)
+    }
+
+    @Test
     fun importStartsLikeWireframeWithEmptyCellsFromFifthColumn() {
         val state = importState()
         assertEquals(54, state.draft.cells.size)

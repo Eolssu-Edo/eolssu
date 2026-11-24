@@ -34,7 +34,6 @@ import com.ssafy.eolssu.core.storage.SheetFileSource
 import com.ssafy.eolssu.core.storage.sheetFileSources
 import com.ssafy.eolssu.feature.song.edit.component.SheetUploadInfoButton
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.component.*
@@ -50,7 +49,8 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
     onTitle: (String) -> Unit, onKind: (ImportKind) -> Unit, onInstrument: (String) -> Unit, onJangdan: (String) -> Unit,
     onPick: (SheetFileSource) -> Unit, onSubmit: () -> Unit, onReload: () -> Unit, onDismissError: () -> Unit = {},
     sources: List<SheetFileSource> = sheetFileSources, onJangdanUnsure: () -> Unit = {}) {
-    BackHandler(enabled = state.busy) { }
+    // 올리는 중에는 Web 브라우저 뒤로 가기로도 화면을 떠나지 않는다(S15P31E102-1265).
+    ScreenBackHandler(enabled = state.busy) { }
     val editable = !state.busy && !state.picking && !state.expired && state.acceptedId == null
     val colors = EolssuTheme.colors
     // 가져올 곳이 여럿이면 버튼 아래로 메뉴(파일·갤러리)를 펼치고, 하나뿐이면 바로 연다(S15P31E102-997).

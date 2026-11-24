@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -61,6 +60,7 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.core.ui.component.ScreenBackHandler
 import com.ssafy.eolssu.feature.guide.component.GuideCard
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LengthRow
@@ -144,7 +144,8 @@ private fun ReadingBook(
     }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
-    BackHandler(enabled = tocOpen) { tocOpen = false }
+    // Web 브라우저 뒤로 가기도 목차만 닫는다(S15P31E102-1265).
+    ScreenBackHandler(enabled = tocOpen) { tocOpen = false }
 
     Box(
         Modifier

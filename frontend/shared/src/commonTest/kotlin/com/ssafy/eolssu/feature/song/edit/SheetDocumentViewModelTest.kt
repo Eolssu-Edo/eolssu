@@ -259,6 +259,26 @@ internal class SheetDocumentViewModelTest : CatalogViewModelTest() {
         assertTrue(closed)
     }
 
+    @Test fun unsavedChangesTellWhatLeavingWouldLose() = runTest {
+        val reply = CompletableDeferred<SheetWrite>()
+        val repository = object : SheetDocumentRepository {
+            override suspend fun get(sheetId: String) = document()
+            override suspend fun save(sheetId: String, copy: SheetWorkingCopy, draft: Boolean) = reply.await()
+        }
+        val model = keep(SheetEditViewModel(EditSource.Mine("31"), EditView.Jeongganbo, SampleMySheetRepository(), documents = repository))
+        runCurrent()
+        assertFalse(model.hasUnsavedChanges(), "불러온 그대로면 떠나도 사라질 것이 없다")
+        model.updateDetails("새 제목", 60)
+        assertTrue(model.hasUnsavedChanges(), "고친 내용은 저장 전까지 경고한다")
+        model.saveDraft(); runCurrent()
+        assertTrue(model.hasUnsavedChanges(), "저장 응답 전에는 아직 남지 않았다")
+        reply.complete(SheetWrite.Saved("1", 1)); runCurrent()
+        assertFalse(model.hasUnsavedChanges(), "임시저장한 뒤에는 경고하지 않는다")
+        var closed = false
+        model.closeEditor { closed = true }
+        assertTrue(closed, "저장한 편집기는 묻지 않고 닫는다")
+    }
+
     @Test fun editsAreNotSavedUntilTheUserAsks() = runTest {
         var writes = 0
         val repository = object : SheetDocumentRepository {

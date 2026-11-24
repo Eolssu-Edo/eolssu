@@ -14,7 +14,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.backhandler.BackHandler
+import com.ssafy.eolssu.core.ui.component.BrowserBackHandler
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.ScreenBackHandler
+import com.ssafy.eolssu.core.ui.component.UnsavedChangesWarning
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -102,7 +105,7 @@ fun SheetEditRoute(
     var reopenReviewKey by remember { mutableStateOf<Int?>(null) }
     var focusRequestKey by remember { mutableStateOf(0) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    val adaptationOpen = state.tab == EditTab.Adaptation && state.adaptation != null
+    val adaptationOpen = state.adaptationVisible
     // 고른 칸에 고칠 음이 있으면 음 바꾸기 창을, 다시 볼 곳이면 할 일 창을 연다.
     fun openCellHelp(index: Int, sub: Int? = null) {
         val current = viewModel.uiState.value
@@ -116,7 +119,11 @@ fun SheetEditRoute(
         openCellHelp(viewModel.uiState.value.selected)
     }
     BackHandler(enabled = state.draft.original != null && !adaptationOpen && !state.closeWarning && !detailsOpen && !saveOpen && !correctionOpen && pitchCorrection == null && !state.confirming) { viewModel.closeEditor(onClose) }
-    BackHandler(enabled = adaptationOpen && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
+    // Web 브라우저 뒤로 가기는 편집기가 열려 있는 동안 늘 받아 화면을 바로 닫지 않고 미저장 확인을 거친다.
+    // 위에 연 창·패널은 이보다 나중에 등록되어 먼저 받는다(S15P31E102-1265).
+    BrowserBackHandler(enabled = state.draft.original != null) { viewModel.closeEditor(onClose) }
+    ScreenBackHandler(enabled = adaptationOpen && state.adaptation?.confirmationRequested != true) { viewModel.closeAdaptation() }
+    UnsavedChangesWarning(viewModel::hasUnsavedChanges)
     if (state.documentLoading || state.documentFailed) {
         SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
         return
