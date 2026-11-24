@@ -32,7 +32,7 @@ MUTED = "#5C564F"
 
 
 def font(weight, size):
-    return ImageFont.truetype(RESOURCES / "font" / f"pretendard_{weight}.otf", size)
+    return ImageFont.truetype(RESOURCES / "font" / f"eolssu_sans_kr_{weight}.otf", size)
 
 
 def diagram(instrument, model, pattern):

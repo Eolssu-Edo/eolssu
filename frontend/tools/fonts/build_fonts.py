@@ -1,10 +1,10 @@
 """앱에 넣는 글꼴 파일을 만든다.
 
 Compose Web은 기기 글꼴로 한글·한자를 대신 그리지 않으므로 글꼴 파일을 앱 리소스에 넣어야 한다.
-- 본문: Pretendard 원본(Regular·SemiBold·Bold). 한글 11,172자가 모두 있다. 예약 글꼴 이름이 있어 가공하지 않는다.
+- 본문 글꼴(Eolssu Sans KR)은 tools/fonts/build_body_font.py가 따로 만든다.
 - 율명·제목: Noto Serif CJK KR(CFF) SemiBold·Bold에서 자주 쓰는 한글 2,350자(KS X 1001)와 율명 한자만 남긴다.
   Noto Serif KR(SubsetOTF)에는 탁성·하배·중청 율명이 없어 같은 디자인의 CJK 원본(OTF/Korean)을 쓴다.
-  그래서 세리프는 율명과 앱이 정한 문구에만 쓰고, 사용자가 입력한 글자는 Pretendard로 표시한다.
+  그래서 세리프는 율명과 앱이 정한 문구에만 쓰고, 사용자가 입력한 글자는 본문 글꼴(Eolssu Sans KR)로 표시한다.
 
 사용법(원본 내려받기는 frontend/README.md 참고, frontend/에서 실행):
     python -m pip install --user fonttools==4.60.1
@@ -12,7 +12,6 @@ Compose Web은 기기 글꼴로 한글·한자를 대신 그리지 않으므로 
 """
 
 import hashlib
-import shutil
 import sys
 from pathlib import Path
 
@@ -22,17 +21,8 @@ from fontTools.ttLib import TTFont
 OUT_DIR = Path(__file__).resolve().parents[2] / "shared/src/commonMain/composeResources/font"
 
 SOURCES = {
-    "Pretendard-Regular.otf": "3ffbacde6ab8411f1d2db54bb9b1f0b3ee2a738932033722cf0388c06aed1c93",
-    "Pretendard-SemiBold.otf": "c89bc43027dc7cde5726e96223376f8eec09302b2fc1f8147fd5b57cfc376118",
-    "Pretendard-Bold.otf": "2e91915fab54df71cc9598ebf608b2bdb54c6fe3c066ac61dff0bc44fca71cc7",
     "NotoSerifCJKkr-SemiBold.otf": "bce8d43887e2999c3af13802311fdc2b68f2c5b79d606ed3dd85293649932dcc",
     "NotoSerifCJKkr-Bold.otf": "10cc03741178ad6d2747df8497d911e34b167d0474a826fb9d866c402cbe3d8f",
-}
-
-PRETENDARD = {
-    "Pretendard-Regular.otf": "pretendard_regular.otf",
-    "Pretendard-SemiBold.otf": "pretendard_semibold.otf",
-    "Pretendard-Bold.otf": "pretendard_bold.otf",
 }
 
 SERIF = {
@@ -107,10 +97,8 @@ def main() -> None:
     src = Path(sys.argv[1])
     check_sources(src)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    for src_name, out_name in PRETENDARD.items():
-        shutil.copyfile(src / src_name, OUT_DIR / out_name)
     build_serif(src)
-    for name in [*PRETENDARD.values(), *SERIF.values()]:
+    for name in SERIF.values():
         print(f"{name}\t{(OUT_DIR / name).stat().st_size:,} bytes")
 
 
