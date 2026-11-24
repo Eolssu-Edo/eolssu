@@ -35,7 +35,7 @@ frontend/
 | `iosMain` | iOS 전용 API를 쓰는 구현과 연결 (`platform/`), `MainViewController` | 화면 로직 |
 | `jsMain` / `wasmJsMain` / `webMain` | 웹 전용 구현. JS·Wasm이 함께 쓰는 코드는 `webMain`(`platform/`, Web `App` 입구)에 둔다 | 화면 로직 |
 | `commonTest` | 공통 로직 테스트 | 플랫폼 API가 필요한 테스트 |
-| `androidHostTest` / `iosTest` / `webTest` | 플랫폼별 테스트. 기존 설정 유지 | — |
+| `androidHostTest` / `iosTest` / `webTest` | 플랫폼별 테스트. `webTest`는 JS·Wasm 브라우저에서 돌며 실제 웹 Koin 모듈 해석 검사와 웹 구현(`platform/`) 테스트를 둔다 | — |
 
 `commonMain`에 라이브러리를 넣으면 **네 타깃(Android·iOS·JS·Wasm) 모두** 지원해야 빌드된다. 모바일 구조를 정리했다고 웹 타깃을 빼지 않는다.
 
@@ -232,7 +232,7 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 | Web | `main.kt` → `App(onNavHostReady)` | `webMain`의 `App.web.kt` |
 
 - 이렇게 하면 Koin 타입이 `shared` 밖에 드러나지 않아 진입점 모듈에 Koin 의존성을 더하지 않아도 되고, Android Context는 전역 변수나 별도 초기화 라이브러리 없이 생성자로 전달된다. `koin-android`의 `androidContext()`는 쓰지 않는다.
-- 플랫폼 구현을 더할 때는 같은 소스 세트의 `PlatformModule.kt`에 한 줄을 더한다. 한 플랫폼이라도 빠지면 그 플랫폼에서는 컴파일은 되지만 객체를 만들 때 실행 오류가 나므로 세 곳 모두 등록하고, 지원하지 않는 플랫폼은 "지원 안 함" 구현을 등록한다.
+- 플랫폼 구현을 더할 때는 같은 소스 세트의 `PlatformModule.kt`에 한 줄을 더한다. 한 플랫폼이라도 빠지면 그 플랫폼에서는 컴파일은 되지만 객체를 만들 때 실행 오류가 나므로 세 곳 모두 등록하고, 지원하지 않는 플랫폼은 "지원 안 함" 구현을 등록한다. 웹에서 빠진 등록은 `webTest`의 `WebKoinResolutionTest`가 잡는다. 이 테스트는 `webPlatformModule()`과 `appModule`로 등록된 정의를 모두 만들어 보고, 웹에 없는 기능에만 기대는 정의(`platformOnly`)는 그 기능이 정말 없어서 실패하는지 따로 확인한다.
 - `expect`/`actual`은 "플랫폼 이름 문자열"처럼 작은 값이나, 구현 객체를 만드는 팩토리 함수 하나처럼 **연결 지점 한 곳**에만 쓴다. 모든 클래스에 붙이지 않는다. 기존 `Platform.kt`가 `expect`/`actual` 예시다.
 - 웹 타깃도 `commonMain` 인터페이스를 컴파일하므로, 인터페이스를 추가하면 `jsMain`·`wasmJsMain`에도 구현이나 "지원 안 함" 구현이 필요한지 확인한다.
 
