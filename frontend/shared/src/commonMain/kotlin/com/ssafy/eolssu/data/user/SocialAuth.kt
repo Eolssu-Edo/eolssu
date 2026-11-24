@@ -96,6 +96,32 @@ object IosDevOAuthRelay : OAuthRoute by IosOAuthRelay {
 }
 
 /**
+ * 웹 복귀(`docs/specs/social-auth.md` 웹 간편 로그인). 웹 앱은 같은 탭에서 제공자 화면으로 이동하고, 제공자는 페이지와 같은 주소(origin)의
+ * `/auth/oauth/<제공자>/callback`으로 돌려보낸다. `index.html`이 그 주소를 받아 둔 뒤 주소창을 `/`로 바꾸고 웹 앱을 띄운다.
+ * [origin]은 `window.location.origin`이다(운영 `https://k15e102.p.ssafy.io`). 이 주소가 제공자 콘솔·서버 허용 목록에 있어야 한다.
+ */
+class WebOAuthCallback(origin: String) : OAuthRoute {
+    private val base = Url(origin)
+    private val origin = origin.trimEnd('/')
+
+    override fun uriFor(provider: SocialProvider) = "$origin${pathFor(provider)}"
+
+    /**
+     * 페이지와 같은 프로토콜·호스트·포트이고 `/auth/oauth/<제공자>/callback` 경로일 때 그 제공자.
+     * 웹에서 보여 주는 제공자([providers], Apple 제외)만 받는다. `index.html`도 이 세 경로만 받아 둔다.
+     */
+    override fun providerOf(url: Url): SocialProvider? {
+        if (url.protocol != base.protocol || !url.host.equals(base.host, ignoreCase = true) || url.port != base.port) return null
+        if (url.user != null || url.password != null) return null
+        return providers.firstOrNull { url.encodedPath == pathFor(it) }
+    }
+
+    companion object {
+        fun pathFor(provider: SocialProvider) = "/auth/oauth/${provider.pathName}/callback"
+    }
+}
+
+/**
  * iOS 기본 Apple 로그인(`docs/specs/social-auth.md` Sign in with Apple). 서버 start가 준 Apple 인증 주소를 열지 않고
  * `state`·`nonce`만 꺼내 기본 로그인 요청에 넣는다. 끝나면 다른 제공자의 서버 중계 복귀와 같은 앱 주소를 만들어 같은 확인([OAuthAttempts.accept])을 거친다.
  */
