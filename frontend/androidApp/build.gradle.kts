@@ -11,8 +11,6 @@ val releaseStorePassword = providers.environmentVariable("EOLSSU_STORE_PASSWORD"
 val releaseAlias = providers.environmentVariable("EOLSSU_KEY_ALIAS").orNull
 val releaseKeyPassword = providers.environmentVariable("EOLSSU_KEY_PASSWORD").orNull
 val releaseSigningValues = listOf(releaseStore, releaseStorePassword, releaseAlias, releaseKeyPassword)
-// TEMP S15P31E102-309: opt-in QA APK only; remove after normal consent flow is verified.
-val qaSkipConsent = providers.gradleProperty("eolssu.qaSkipConsent").orElse("false").get().toBooleanStrict()
 val debugApiBaseUrl = providers.gradleProperty("eolssu.debugApiBaseUrl").orElse("https://k15e102.p.ssafy.io").get()
 val qaLive = providers.gradleProperty("eolssu.qaLive").orElse("false").get().toBooleanStrict()
 check(!qaLive || debugApiBaseUrl == "http://127.0.0.1:18180") {
@@ -76,15 +74,10 @@ android {
                 versionNameSuffix = "-qa283-live"
             }
             buildConfigField("boolean", "QA_LIVE", qaLive.toString())
-            // TEMP S15P31E102-309
-            buildConfigField("boolean", "QA_SKIP_CONSENT", qaSkipConsent.toString())
-            if (qaSkipConsent) versionNameSuffix = "-qa309"
             buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
         }
         release {
             buildConfigField("boolean", "QA_LIVE", "false")
-            // TEMP S15P31E102-309: never enable this in release, even when the property is true.
-            buildConfigField("boolean", "QA_SKIP_CONSENT", "false")
             buildConfigField("String", "API_BASE_URL", "\"https://k15e102.p.ssafy.io\"")
             isDebuggable = false
             if (!releaseStore.isNullOrBlank()) signingConfig = signingConfigs.getByName("release")

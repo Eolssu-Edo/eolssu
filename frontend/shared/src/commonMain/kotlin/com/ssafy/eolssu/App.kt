@@ -58,8 +58,6 @@ internal fun App(
     platformModule: Module,
     onNavHostReady: suspend (NavController) -> Unit = {},
     browserBackGuard: BrowserBackGuard? = null,
-    // TEMP S15P31E102-309: Android QA only; all other callers retain false.
-    qaSkipConsent: Boolean = false,
 ) {
     KoinApplication(configuration = koinConfiguration { modules(platformModule, appModule) }) {
         val practiceTimeQueue = koinInject<PracticeTimeQueue>()
@@ -92,7 +90,7 @@ internal fun App(
         EolssuTheme {
             when (restored) {
                 MemberResult.Done, MemberResult.Unauthenticated -> EolssuNavHost(
-                    onNavHostReady = onNavHostReady, browserBackGuard = browserBackGuard, qaSkipConsent = qaSkipConsent,
+                    onNavHostReady = onNavHostReady, browserBackGuard = browserBackGuard,
                     sessionExpired = restored == MemberResult.Unauthenticated,
                 )
                 // 회원 확인 중에는 로고와 작은 로딩 표시만 둔다. 처리 과정을 설명하는 문구는 보이지 않는다.
