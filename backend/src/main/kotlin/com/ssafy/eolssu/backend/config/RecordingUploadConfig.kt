@@ -5,7 +5,9 @@ import com.ssafy.eolssu.backend.feature.practice.application.UploadRecording
 import com.ssafy.eolssu.backend.feature.practice.domain.RECORDING_READ_URL_TTL
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFileValidator
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingTranscoder
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadRepository
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.media.FfmpegRecordingTranscoder
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.media.FfprobeAudioProbe
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.MyBatisRecordingUploadRepository
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
@@ -50,10 +52,18 @@ class RecordingUploadConfig {
     @Bean
     fun recordingFileValidator() = RecordingFileValidator(FfprobeAudioProbe())
 
+    // 웹 녹음의 WAV를 저장 전에 AAC m4a로 바꾼다. 운영 실행 이미지에는 ffprobe와 같은 ffmpeg 패키지가 있다.
+    @Bean
+    fun recordingTranscoder(): RecordingTranscoder = FfmpegRecordingTranscoder()
+
     // 분석 시작(PRA-03)은 저장소가 발행하는 RecordingUploaded를 AnalysisOnUpload가 커밋 뒤 받아 백그라운드에서 한다.
     @Bean
-    fun uploadRecording(repository: RecordingUploadRepository, validator: RecordingFileValidator, storage: RecordingStorage) =
-        UploadRecording(repository, validator, storage, Clock.systemUTC())
+    fun uploadRecording(
+        repository: RecordingUploadRepository,
+        validator: RecordingFileValidator,
+        storage: RecordingStorage,
+        transcoder: RecordingTranscoder,
+    ) = UploadRecording(repository, validator, storage, transcoder, Clock.systemUTC())
 
     /** AI가 원본을 읽는 15분짜리 서명 URL(PRA-03 분석 요청). */
     @Bean

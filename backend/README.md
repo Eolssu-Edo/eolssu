@@ -256,9 +256,11 @@ Docker가 있으면 `python3 -B ../infra/jenkins/run-database-tests.py -- ./grad
 
 ### 녹음 파일 검사와 ffmpeg
 
-업로드된 녹음이 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)에 맞는지 `RecordingFileValidator`가 판정합니다. 크기(20MiB 초과면 `TooLarge`)를 먼저 보고, 실제 내용을 `ffprobe`로 읽어 MP4 계열 컨테이너의 AAC 오디오인지(`UnsupportedFormat`), 길이가 1ms 이상·601초 미만인지(`InvalidDuration`) 봅니다. 1ms 미만은 저장할 길이가 0ms로 반올림돼 V3 메타데이터 CHECK에 걸리므로 먼저 거부합니다. 확장자·MIME는 보지 않습니다. 오디오 스트림이 없는 m4a는 길이 검사 전에 `UnsupportedFormat`이 됩니다. `ffprobe` 실행 실패·10초 초과·대기 중 중단·출력 읽기 실패는 규격 위반이 아니라 `AudioProbeException`이며, 남은 ffprobe 프로세스는 종료합니다. multipart 한도는 스펙대로 파일·요청 25MiB이고, 20MiB 경계는 검사기가 정합니다(Nginx `client_max_body_size 25m`은 업로드 API Task에서 설정).
+업로드된 녹음이 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)에 맞는지 `RecordingFileValidator`가 판정합니다. 크기(20MiB 초과면 `TooLarge`)를 먼저 보고, 실제 내용을 `ffprobe`로 읽어 MP4 계열 컨테이너의 AAC 오디오 또는 WAV 컨테이너의 PCM16(`pcm_s16le`, 웹 녹음) 오디오인지(`UnsupportedFormat`), 길이가 1ms 이상·601초 미만인지(`InvalidDuration`) 봅니다. 1ms 미만은 저장할 길이가 0ms로 반올림돼 V3 메타데이터 CHECK에 걸리므로 먼저 거부합니다. 확장자·MIME는 보지 않습니다. 오디오 스트림이 없는 m4a는 길이 검사 전에 `UnsupportedFormat`이 됩니다. `ffprobe` 실행 실패·10초 초과·대기 중 중단·출력 읽기 실패는 규격 위반이 아니라 `AudioProbeException`이며, 남은 ffprobe 프로세스는 종료합니다. multipart 한도는 스펙대로 파일·요청 25MiB이고, 20MiB 경계는 검사기가 정합니다(Nginx `client_max_body_size 25m`은 업로드 API Task에서 설정).
 
-`mediaTest`는 테스트 중 `ffmpeg`로 사인파·무음 AAC(2초, 600.5초, 601초), 이름만 바꾼 MP3, ALAC, 오디오 없는 m4a, 잘린 파일을 만들어 `ffprobe`로 검사합니다. 큰 파일은 커밋하지 않습니다. `ffmpeg`·`ffprobe`가 `PATH`에 없으면 건너뛰지 않고 실패합니다. 기본 `test`·`clean build`는 테스트 JVM의 `java`로 띄우는 가짜 ffprobe(`FakeFfprobe`)로 출력 해석·종료 코드·시간 초과·중단 시 프로세스 정리를 검사하므로 OS와 ffmpeg 설치에 관계없이 돕니다.
+WAV는 `UploadRecording`이 `FfmpegRecordingTranscoder`로 모노 AAC(64kbps) m4a로 바꾼 뒤 변환본을 같은 검사기로 다시 판정하고, 변환본과 그 메타데이터를 저장합니다(S15P31E102-1272). ffmpeg가 읽지 못하거나 손상된 WAV(`-xerror`)는 415이고, ffmpeg 실행 실패·30초 초과·대기 중 중단은 규격 위반이 아니라 `RecordingTranscodeException`(500)입니다. 업로드 WAV와 변환본 임시 파일은 요청이 끝나면 지웁니다.
+
+`mediaTest`는 테스트 중 `ffmpeg`로 사인파·무음 AAC(2초, 600.5초, 601초), 이름만 바꾼 MP3, ALAC, 오디오 없는 m4a, 잘린 파일, PCM16·float WAV를 만들어 `ffprobe`로 검사하고, 16kHz 모노 WAV(2초·600초)와 48kHz 스테레오 WAV를 실제로 변환해 변환본을 검사합니다. 큰 파일은 커밋하지 않습니다. `ffmpeg`·`ffprobe`가 `PATH`에 없으면 건너뛰지 않고 실패합니다. 기본 `test`·`clean build`는 테스트 JVM의 `java`로 띄우는 가짜 ffprobe·ffmpeg(`FakeFfprobe`)로 출력 해석·종료 코드·시간 초과·중단 시 프로세스 정리를 검사하므로 OS와 ffmpeg 설치에 관계없이 돕니다.
 
 | 환경 | 설치 |
 | --- | --- |
@@ -291,7 +293,7 @@ R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
 3. 버킷 설정 > 객체 수명 주기 규칙: 두지 않습니다. 저장하지 않은 녹음은 서버 정리 작업(`UnsavedRecordingPurgeService`, 매일 04:30 KST)이 업로드 30일 뒤 지우고, 저장한 기록의 녹음은 회원이 지우거나 탈퇴할 때까지 보관합니다(S15P31E102-375, [녹음 보관](../docs/specs/recording-retention.md)). 375 전환 전 운영 버킷에는 `recordings/` 30일 삭제 규칙이 있었고 전환 때 지웁니다([전환 절차](../infra/storage/README.md#저장한-기록-녹음-보관-전환-s15p31e102-375)).
 4. R2 > API 토큰 관리 > API 토큰 만들기: 권한 `Object Read & Write`, 적용 버킷은 이 버킷 하나로 지정합니다. 발급된 Access Key ID·Secret Access Key와 S3 API 주소를 서버 `.env`에 넣습니다.
 
-샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다.
+샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다. WAV 업로드는 변환(상한 30초)과 변환본 ffprobe가 더해져 모든 상한이 겹치면 60초를 넘을 수 있습니다. 이때는 Nginx 504가 되고 서버는 처리를 이어 가므로, 앱의 재전송이 409를 받아 상태 조회로 결과를 확인합니다.
 
 S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다. 2026-10-29에는 사용자 승인으로 운영 버킷의 전용 합성 객체를 사용해 연결·정책을 검증하고 버킷명 오류·누락된 보관 규칙을 수정했습니다([검증 기록](../docs/knowledge/infra/r2-storage-verification.md)).
 
