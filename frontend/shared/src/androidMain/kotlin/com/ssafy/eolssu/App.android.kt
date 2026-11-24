@@ -20,10 +20,7 @@ import com.ssafy.eolssu.core.network.ServerAddress
  * [incomingLinks]에는 `MainActivity`가 간편 로그인 복귀 주소(App Links)를 넣는다.
  */
 @Composable
-fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Production, incomingLinks: IncomingLinks = remember { IncomingLinks() },
-    // TEMP S15P31E102-309: remove parameter and forwarding after consent recovery.
-    qaSkipConsent: Boolean = false,
-) {
+fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Production, incomingLinks: IncomingLinks = remember { IncomingLinks() }) {
     val storeUpdates = remember(context) { AndroidStoreUpdates(context) }
     val platformModule = remember(context, serverAddress.baseUrl, incomingLinks, storeUpdates) {
         androidPlatformModule(context, serverAddress, incomingLinks, storeUpdates)
@@ -57,5 +54,5 @@ fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Productio
             notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    App(platformModule = platformModule, qaSkipConsent = qaSkipConsent)
+    App(platformModule = platformModule)
 }
