@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.component
 
+import com.ssafy.eolssu.core.ui.component.mouseDragScroll
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
@@ -141,8 +142,9 @@ internal fun SongLevelChips(
         }
     }
     if (singleLine) {
+        val scroll = rememberScrollState()
         Row(
-            modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
+            modifier.fillMaxWidth().mouseDragScroll(scroll).horizontalScroll(scroll).selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) { chips() }
     } else {
