@@ -46,6 +46,8 @@ fun EolssuDoneDialog(title: String, body: String, action: String, onDismiss: () 
     LaunchedEffect(Unit) {
         jump.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 250f))
     }
+    // Web 브라우저 뒤로 가기도 창만 닫는다(S15P31E102-1265).
+    BrowserBackHandler(onBack = onDismiss)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         QaModalObservation()
         Column(

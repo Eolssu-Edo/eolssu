@@ -2,32 +2,64 @@ package com.ssafy.eolssu.platform.navigation
 
 import com.ssafy.eolssu.app.navigation.BrowserBackGuard
 import kotlinx.browser.window
+import org.w3c.dom.BeforeUnloadEvent
 import org.w3c.dom.events.Event
 
 /**
  * 브라우저 뒤로 가기(`popstate`)를 화면 이동 그래프의 브라우저 연결보다 먼저 받아, [guard]에 확인할 화면이 있으면 막는다.
  * 막을 때는 그래프에 이벤트를 넘기지 않고 `history.forward()`로 주소를 되돌린 뒤 화면의 뒤로 가기 동작을 부른다.
  * 되돌리며 생기는 `popstate`도 그래프에 넘기지 않는다. 같은 대상(window)의 리스너 중 캡처 단계 리스너가 먼저 불린다.
+ * 화면의 동작은 주소를 되돌린 뒤에 불러, 그 동작이 화면을 닫아도 그래프가 맞춘 주소를 되돌리기가 덮지 않게 한다.
+ *
+ * 앞 기록이 없으면(주소창에서 `#경로`를 바꿨거나 앞으로 가기로 마지막 기록에 왔으면) `history.forward()`가 아무 일도 하지 않는다.
+ * 그때는 [RESTORE_TIMEOUT_MS] 뒤에 한 칸 뒤로 가서 주소를 화면에 맞추고 같은 동작을 부른다.
+ * 기다리는 동작이 남아 다음 브라우저 이동을 잘못 막는 일을 없앤다.
+ *
+ * 새로고침·탭 닫기(`beforeunload`)는 저장하지 않은 변경이 있을 때만 브라우저의 떠나기 확인을 띄운다.
  * 앱이 떠 있는 동안 한 번만 건다.
  */
 internal fun installBrowserBackInterceptor(guard: BrowserBackGuard) {
-    var restoring = false
+    var restoring: (() -> Unit)? = null
+    var fallback: Int? = null
     window.addEventListener(
         "popstate",
         { event: Event ->
-            if (restoring) {
-                restoring = false
+            val pending = restoring
+            if (pending != null) {
+                restoring = null
+                fallback?.let(::cancelTimeout)
+                fallback = null
                 event.stopImmediatePropagation()
+                pending()
             } else {
-                val onBack = guard.onBack
+                val onBack = guard.current()
                 if (onBack != null) {
                     event.stopImmediatePropagation()
-                    restoring = true
+                    restoring = onBack
                     window.history.forward()
-                    onBack()
+                    fallback = requestTimeout({
+                        fallback = null
+                        if (restoring != null) window.history.back()
+                    }, RESTORE_TIMEOUT_MS)
                 }
             }
         },
         true,
     )
+    window.addEventListener("beforeunload", { event: Event ->
+        if (guard.screens.hasUnsavedChanges()) {
+            // 브라우저가 정한 문구로 묻는다. 예전 브라우저는 returnValue가 있어야 묻는다.
+            event.preventDefault()
+            (event as? BeforeUnloadEvent)?.returnValue = ""
+        }
+    })
 }
+
+/** `history.forward()` 뒤 `popstate`를 기다리는 시간. 보통 몇 ms 안에 오며, 느린 기기에서도 겹치지 않게 넉넉히 둔다. */
+private const val RESTORE_TIMEOUT_MS = 1000
+
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun requestTimeout(action: () -> Unit, delayMs: Int): Int = js("window.setTimeout(action, delayMs)")
+
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun cancelTimeout(handle: Int): Unit = js("window.clearTimeout(handle)")

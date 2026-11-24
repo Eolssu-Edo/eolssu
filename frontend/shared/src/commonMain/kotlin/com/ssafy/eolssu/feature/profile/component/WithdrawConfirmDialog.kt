@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.profile.component
 
+import com.ssafy.eolssu.core.ui.component.BrowserBackHandler
 import com.ssafy.eolssu.core.ui.component.QaModalObservation
 import com.ssafy.eolssu.core.ui.component.qaModalInput
 
@@ -48,6 +49,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun WithdrawConfirmDialog(confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val colors = EolssuTheme.colors
+    // Web 브라우저 뒤로 가기도 창만 닫는다(S15P31E102-1265).
+    BrowserBackHandler(onBack = onDismiss)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         QaModalObservation()
         // 휴대폰 가로·큰 글꼴에서 높이가 모자라면 그림·안내만 스크롤하고 버튼은 아래에 고정한다.

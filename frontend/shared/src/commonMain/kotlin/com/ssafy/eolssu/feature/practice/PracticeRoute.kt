@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.diagnostics.LocalPerformanceVisit
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.ui.component.BrowserBackHandler
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -110,6 +111,8 @@ fun PracticeRoute(
     BackHandler {
         if (state.panel != null) viewModel.closePanel() else back()
     }
+    // Web 브라우저 뒤로 가기도 열린 패널부터 닫는다. 패널이 없으면 아래 확인(연주 중)이나 화면 이동으로 넘긴다(S15P31E102-1265).
+    BrowserBackHandler(enabled = state.panel != null) { viewModel.closePanel() }
     val confirmBeforeLeave = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Countdown
     val currentBack by rememberUpdatedState(back)
     val currentOnConfirmBackChange by rememberUpdatedState(onConfirmBackChange)
