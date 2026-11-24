@@ -49,8 +49,7 @@ import com.ssafy.eolssu.feature.song.component.providedSongMeta
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
-import com.ssafy.eolssu.core.ui.component.SongSearchField
-import com.ssafy.eolssu.core.ui.component.SongSortButton
+import com.ssafy.eolssu.core.ui.component.SongSearchBar
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_reset_filter
@@ -131,7 +130,7 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
 }
 
 /**
- * SONG-03 본문(`.body`, 간격 12dp): 탭 · 두 탭이 함께 쓰는 제목 검색칸 · 제공 곡(단계 필터 · 오른쪽 정렬 버튼 · 곡 줄)
+ * SONG-03 본문(`.body`, 간격 12dp): 탭 · 두 탭이 함께 쓰는 제목 검색칸 · 제공 곡(검색칸 옆 정렬 버튼 · 단계 필터 · 곡 줄)
  * 또는 내 악보(악보 추가 · 'n개' · 악보 줄, 검색에 맞는 악보가 없으면 '찾는 곡이 없어요.').
  * 탭 · 검색칸 · 단계 필터는 위쪽에 고정하고 그 아래 목록만 스크롤한다(S15P31E102-1241). [modifier]에는 높이가 정해진 크기를 준다.
  * 개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
@@ -156,7 +155,17 @@ internal fun MySongsBody(
                 actions.onSelectTab,
                 Modifier.padding(top = 4.dp),
             )
-            SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
+            // 제공 곡의 이름 정렬 버튼은 목록 위 한 줄 대신 검색칸 오른쪽에 둔다. 내 악보 탭에는 정렬이 없어 검색칸만 둔다.
+            // 검색 결과가 비어도 버튼을 남겨, 입력할 때마다 검색칸 폭이 바뀌지 않게 한다.
+            val songsLoaded = state.loadState == SongLoadState.Ready && state.songs.isNotEmpty()
+            SongSearchBar(
+                state.query,
+                actions.onQueryChange,
+                actions.onClearQuery,
+                sortOrder = state.sort.takeIf { state.tab == MySongsTab.Songs && songsLoaded },
+                onToggleSort = actions.onToggleSort,
+                bordered = false,
+            )
             if (state.tab == MySongsTab.Songs) {
                 SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true, bordered = false)
             }
@@ -177,7 +186,7 @@ internal fun MySongsBody(
     }
 }
 
-/** [MySongsBody]의 스크롤되는 아래쪽: 제공 곡(정렬 버튼 · 곡 줄) 또는 내 악보(악보 추가 · 개수 · 악보 줄). */
+/** [MySongsBody]의 스크롤되는 아래쪽: 제공 곡(곡 줄) 또는 내 악보(악보 추가 · 개수 · 악보 줄). */
 @Composable
 private fun MySongsList(state: MySongsUiState, actions: MySongsActions, columns: Int, rowGap: Dp) {
     val searching = state.query.isNotBlank()
@@ -193,11 +202,8 @@ private fun MySongsList(state: MySongsUiState, actions: MySongsActions, columns:
                     resetLabel = stringResource(Res.string.mysongs_reset_filter),
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
-                    CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
-                        ProvidedSongRow(song, providedSongMeta(song), onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_01, { actions.onOpenSong(song.id) }), modifier = rowModifier, bordered = false)
-                    }
+                CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
+                    ProvidedSongRow(song, providedSongMeta(song), onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_01, { actions.onOpenSong(song.id) }), modifier = rowModifier, bordered = false)
                 }
             }
         }

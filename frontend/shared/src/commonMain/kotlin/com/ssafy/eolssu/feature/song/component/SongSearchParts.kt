@@ -4,8 +4,7 @@ import com.ssafy.eolssu.core.ui.component.mouseDragScroll
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
-import com.ssafy.eolssu.core.ui.component.SongSearchField
-import com.ssafy.eolssu.core.ui.component.SongSortButton
+import com.ssafy.eolssu.core.ui.component.SongSearchBar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -100,27 +99,30 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
             modifier = Modifier.padding(bottom = 22.dp - SearchStickyTopGap),
         )
     }
+    val loaded = state.loadState == SongLoadState.Ready && state.songs.isNotEmpty()
     stickyHeader(key = "search") {
         Column(
             Modifier.fillMaxWidth().background(EolssuTheme.colors.groupedBackground).padding(top = SearchStickyTopGap),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
+            // 정렬 버튼은 목록 위 한 줄 대신 검색칸 오른쪽에 둔다. 곡 수 안내('46곡 · 단소')는 두지 않는다(S15P31E102-768).
+            // 검색 결과가 비어도 버튼을 남겨, 입력할 때마다 검색칸 폭이 바뀌지 않게 한다.
+            SongSearchBar(
+                state.query,
+                actions.onQueryChange,
+                actions.onClearQuery,
+                sortOrder = state.sort.takeIf { loaded },
+                onToggleSort = actions.onToggleSort,
+                bordered = false,
+            )
             SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp), bordered = false)
         }
     }
     val songs = state.visibleSongs
     when {
-        state.loadState != SongLoadState.Ready || state.songs.isEmpty() ->
-            item(key = "notice") { SongLoadNotice(state.loadState, actions.onRetry) }
+        !loaded -> item(key = "notice") { SongLoadNotice(state.loadState, actions.onRetry) }
         songs.isEmpty() -> item(key = "empty") { SongEmptyResult(actions.onResetFilters) }
         else -> {
-            // 곡 수 안내('46곡 · 단소')는 두지 않고 정렬 버튼만 오른쪽에 둔다(S15P31E102-768).
-            item(key = "count") {
-                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.End) {
-                    SongSortButton(state.sort, actions.onToggleSort, small = true, bordered = false)
-                }
-            }
             // 연습곡 고르기와 같은 곡 줄(첫 글자 칸 · 제목 · 장단 · 난이도 배지)을 8dp 간격으로 쌓는다.
             items(songs, key = { it.id }) { song ->
                 ProvidedSongRow(
