@@ -7,6 +7,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -57,6 +59,15 @@ internal fun rememberLearnStagePractice(
         val state by viewModel.uiState.collectAsStateWithLifecycle()
         val celebrating by viewModel.celebrating.collectAsStateWithLifecycle()
         val detail = (learnState.detail(number) as? LearnDetailLoad.Loaded)?.detail
+        // 단계 상세에서 악기를 바꾸면 듣던 연습을 멈추고 새 악기로 처음부터 한다(S15P31E102-1276). 처음 그릴 때(배치가 바뀌어 다시 그릴 때 포함)는 이어 간다.
+        val currentInstrument = learnState.instrument
+        val shownInstrument = remember { mutableStateOf(currentInstrument) }
+        LaunchedEffect(currentInstrument) {
+            if (shownInstrument.value != currentInstrument) {
+                shownInstrument.value = currentInstrument
+                viewModel.reset()
+            }
+        }
         LaunchedEffect(learnState.instrument, detail) { detail?.let { viewModel.prepare(learnState.instrument, it) } }
         LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.stopListening() }
         // 다른 단계로 가거나 단계 화면을 닫으면 멈춘다(할 일 박스 안 듣기는 박스가 접혀도 이어 간다).
