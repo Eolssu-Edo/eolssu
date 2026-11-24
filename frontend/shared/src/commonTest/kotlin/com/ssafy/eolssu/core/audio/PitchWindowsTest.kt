@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.platform.audio
+package com.ssafy.eolssu.core.audio
 
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -117,7 +117,17 @@ class LearnPracticeViewModel(
             recorder.pitchGate = plan?.takeIf { tracker != null }?.rule?.leniency?.gate ?: PitchGate.Default
             // 녹음보다 먼저 구독해야 첫 관측을 놓치지 않는다(관측 흐름은 지난 값을 다시 주지 않는다).
             watchPitch(recorder)
-            if (runCatching { recorder.start() }.isFailure) {
+            // 웹은 마이크를 비동기로 연 뒤 시작한다. 앱은 prepare()가 할 일이 없다.
+            val started = try {
+                recorder.prepare()
+                recorder.start()
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            if (!started) {
                 pitchJob?.cancel()
                 recorder.pitchGate = PitchGate.Default
                 _uiState.update { it.micUnavailable(LearnMicStatus.Failed) }

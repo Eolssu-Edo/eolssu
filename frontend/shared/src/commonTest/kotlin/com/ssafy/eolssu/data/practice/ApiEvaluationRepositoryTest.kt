@@ -270,6 +270,13 @@ class ApiEvaluationRepositoryTest {
     }
 
     @Test
+    fun analysisWithoutARecordingIsReportedAsMissingRecording() = runTest {
+        val client = createHttpClient(MockEngine { error("서버를 부르면 안 된다") }, ServerAddress.Production)
+        val repository = ApiEvaluationRepository(client, songs)
+        assertFailsWith<NoRecordingToAnalyze> { repository.requestAnalysis(SampleSongs.first().id, 60, 48) }
+    }
+
+    @Test
     fun sampleIdsGoToFallbackWithoutServer() = runTest {
         val repository = repository { error("서버를 부르면 안 된다") }
         val id = repository.requestAnalysis(SampleSongs.first().id, 60, 48)

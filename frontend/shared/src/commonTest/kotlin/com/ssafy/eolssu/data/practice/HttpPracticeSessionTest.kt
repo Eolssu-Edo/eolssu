@@ -156,6 +156,16 @@ class HttpPracticeSessionTest {
         assertContains(body, "Content-Type: audio/mp4")
     }
 
+    /** 웹 녹음은 WAV다. 서버는 내용으로 판정해 m4a로 바꿔 저장한다(S15P31E102-1262·1272). */
+    @Test
+    fun webWavRecordingIsSentAsWav() = runTest {
+        assertEquals(UploadOutcome.Uploaded, uploader(HttpStatusCode.Accepted).upload("41", "kept/web-recording-1-1.wav"))
+
+        val body = bodies.single()
+        assertContains(body, "name=\"audio\"; filename=\"recording.wav\"")
+        assertContains(body, "Content-Type: audio/wav")
+    }
+
     @Test
     fun uploadReportsProgressFromZeroToWhole() = runTest {
         val reported = mutableListOf<Float>()
