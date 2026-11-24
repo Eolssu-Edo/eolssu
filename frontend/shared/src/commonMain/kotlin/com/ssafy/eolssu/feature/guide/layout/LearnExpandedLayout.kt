@@ -33,7 +33,7 @@ import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.feature.guide.learn.LearnListActions
 import com.ssafy.eolssu.feature.guide.learn.LearnListContent
-import com.ssafy.eolssu.feature.guide.learn.LearnResetAction
+import com.ssafy.eolssu.feature.guide.learn.LearnInstrumentAction
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
@@ -90,7 +90,7 @@ internal fun LearnExpandedLayout(
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = outer - 20.dp, end = 4.dp),
                         maxWidth = Dp.Infinity,
                     ) {
-                        LearnResetAction(state, listActions.onResetDone)
+                        LearnInstrumentAction(state.instrument, state.isDropdownOpen, listActions.onToggleDropdown, listActions.onSelectInstrument, listActions.onDismissDropdown)
                     }
                     LearnListContent(
                         state,
@@ -126,8 +126,6 @@ internal fun LearnExpandedLayout(
                                 columns = if (wide) LearnStageColumns.Landscape else LearnStageColumns.Compact,
                                 tour = tour,
                                 practice = practice,
-                                // 왼쪽 목록에 악기 칩이 있어 오른쪽 상세에는 진행 막대만 맨 위 줄에 둔다(S15P31E102-1276).
-                                showInstrument = false,
                             )
                         }
                     }

@@ -3,8 +3,7 @@ package com.ssafy.eolssu.feature.guide.learn
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,7 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,12 +31,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -50,6 +46,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
+import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import eolssu.shared.generated.resources.Res
@@ -91,8 +88,8 @@ fun LearnListScreen(
 ) {
     EolssuScaffold(
         topBar = {
-            GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass) {
-                LearnResetAction(state, actions.onResetDone)
+            GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass, shrinkRight = true) {
+                LearnInstrumentAction(state.instrument, state.isDropdownOpen, actions.onToggleDropdown, actions.onSelectInstrument, actions.onDismissDropdown)
             }
         },
         snackbarHostState = snackbarHostState,
@@ -112,7 +109,7 @@ fun LearnListScreen(
 }
 
 /**
- * 단계 목록 본문(악기 · 달리기 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
+ * 단계 목록 본문(초기화·진도 줄 · 달리기 지도 · 단계 카드 넘기기). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
  *
  * @param currentStage 펼칠 단계 카드. 태블릿 가로 배치에서는 오른쪽 칸에 보이는 단계다.
  * @param largeCard 태블릿 세로 목록이면 단계 카드를 키워 남는 아래 공간을 채운다.
@@ -148,15 +145,9 @@ internal fun LearnListContent(
                 .onSizeChanged { contentHeight = it.height }
                 .padding(contentPadding),
         ) {
-            // 진도는 악기마다 따로라, 작은 악기 칩(악기 그림)과 그 악기의 진도를 한 줄에 둔다.
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                LearnInstrumentChip(
-                    selected = state.instrument,
-                    open = state.isDropdownOpen,
-                    onToggle = actions.onToggleDropdown,
-                    onSelect = actions.onSelectInstrument,
-                    onDismiss = actions.onDismissDropdown,
-                )
+            // 악기 고르기는 상단 바 오른쪽으로 올리고, 그 자리에 '초기화하기'를 둔다. 오른쪽은 지금 악기의 진도다(S15P31E102-1281).
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                LearnResetAction(state, actions.onResetDone)
                 Spacer(Modifier.weight(1f))
                 if (state.track is LearnTrackLoad.Loaded) {
                     Text(
@@ -191,35 +182,59 @@ internal fun LearnListContent(
 }
 
 /**
- * 상단 바 오른쪽의 '초기화하기'(S15P31E102-1238): 글자 없이 기존 둥근 화살표만 두고, 누르면 바로 확인 창을 띄운다.
+ * 상단 바 오른쪽의 악기 고르기. 운지법 보기·곡 고르기와 같은 '(악기 그림) 단소 ⌄' 알약이다(S15P31E102-1281).
+ * 단계 목록(휴대폰·태블릿 세로, 태블릿 가로 왼쪽 칸)과 단계 상세가 함께 쓴다. 흰 바탕인 단계 상세는 [bordered]로 옅은 테두리를 둔다.
+ */
+@Composable
+internal fun LearnInstrumentAction(
+    selected: GuideInstrument,
+    open: Boolean,
+    onToggle: () -> Unit,
+    onSelect: (GuideInstrument) -> Unit,
+    onDismiss: () -> Unit,
+    bordered: Boolean = false,
+) {
+    InstrumentDropdown(
+        selected = selected,
+        open = open,
+        onToggle = onToggle,
+        onSelect = onSelect,
+        onDismiss = onDismiss,
+        bordered = bordered,
+        toggleTarget = QaTarget.LEARN_INSTRUMENT_BADGE_01,
+        selectTarget = QaTarget.LEARN_INSTRUMENT_BADGE_02,
+    )
+}
+
+/**
+ * 단계 목록 본문 맨 위 줄 왼쪽의 '↻ 초기화하기' 알약(S15P31E102-1281). 악기 알약과 같은 흰 알약이고, 누르면 바로 확인 창을 띄운다.
  * 진도를 모두 지우므로 바로 지우지 않고 한 번 묻는다(S15P31E102-845). 단계 목록을 받기 전·받지 못했으면 지울 진도가 없어 두지 않는다.
- * 휴대폰·태블릿 세로 상단 바와 태블릿 가로 왼쪽 칸 상단 바가 함께 쓴다. 제목은 [com.ssafy.eolssu.core.ui.component.EolssuTopBar]가 이 자리 너비와 관계없이 가운데에 둔다.
  */
 @Composable
 internal fun LearnResetAction(state: LearnUiState, onReset: () -> Unit) {
     if (state.track !is LearnTrackLoad.Loaded) return
     var confirming by rememberSaveable { mutableStateOf(false) }
     if (confirming) LearnResetDialog(onConfirm = { confirming = false; onReset() }, onCancel = { confirming = false })
-    val label = stringResource(Res.string.learn_reset)
-    Box(
-        Modifier
-            // 뒤로 가기 꺽쇠처럼 화살표 오른쪽 끝을 본문 오른쪽 끝에 맞춘다. 누르는 영역(48dp)과 제목 자리는 그대로다.
-            .offset(x = LearnResetIconPull)
-            .size(48.dp)
-            .clip(CircleShape)
-            .clickable(role = Role.Button, onClickLabel = label, onClick = UserActionLog.click(QaTarget.LEARN_LIST_SCREEN_01, { confirming = true }))
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = UserActionLog.click(QaTarget.LEARN_LIST_SCREEN_01, { confirming = true }),
+        shape = CircleShape,
+        color = colors.surface,
+        contentColor = colors.textMuted,
     ) {
-        Icon(EolssuIcons.Restart, contentDescription = null, Modifier.size(LearnResetIconSize), tint = EolssuTheme.colors.textMuted)
+        Row(
+            Modifier.padding(start = 10.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(EolssuIcons.Restart, contentDescription = null, Modifier.size(LearnResetIconSize))
+            Text(stringResource(Res.string.learn_reset), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+        }
     }
 }
 
 /** '초기화하기' 화살표 크기. 예전 알약 버튼의 화살표 그대로다. */
 private val LearnResetIconSize = 14.dp
-
-/** 48dp 누르는 칸 가운데 화살표를 오른쪽으로 밀어 화살표 오른쪽 끝을 본문 끝에 맞추는 거리. */
-private val LearnResetIconPull = (48.dp - LearnResetIconSize) / 2
 
 /** '초기화하기' 확인 창: '진행 과정을 초기화할까요?'와 확인·취소. 바깥을 누르거나 뒤로 가면 취소다. */
 @Composable
