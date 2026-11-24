@@ -27,7 +27,7 @@ import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
  * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 취법 탭을 고정하고(악기는 상단 바 오른쪽),
- * 그 아래 범례와 두 칸 운지 카드 격자만 스크롤한다(S15P31E102-1242). 악기나 취법을 바꾸면 격자를 맨 위로 되돌린다.
+ * 그 아래 범례와 두 칸 운지 카드 격자만 스크롤한다(S15P31E102-1242). 악기나 취법을 바꿔도 격자를 맨 위로 되돌리지 않는다(S15P31E102-1255).
  */
 @Composable
 internal fun FingeringMediumLayout(
@@ -36,7 +36,7 @@ internal fun FingeringMediumLayout(
     noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val instrument = state.instrument
-    val gridState = rememberSaveable(instrument, state.shownBlow, saver = LazyGridState.Saver) { LazyGridState() }
+    val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
     Column(Modifier.fillMaxSize()) {
         BlowTabs(
             state.blowTabs,

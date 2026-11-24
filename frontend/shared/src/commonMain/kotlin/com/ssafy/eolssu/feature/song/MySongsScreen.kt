@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -162,8 +161,9 @@ internal fun MySongsBody(
                 SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true, bordered = false)
             }
         }
-        // 탭을 바꾸면 그 탭 목록의 맨 위부터 보이도록 스크롤 위치를 탭마다 새로 둔다.
-        val listScroll = key(state.tab) { rememberScrollState() }
+        // 위쪽 탭·검색·단계 필터를 눌러도 맨 위로 되돌리지 않는다. 두 탭이 스크롤 위치 하나를 함께 쓰고,
+        // 바뀐 목록이 더 짧으면 끝으로 당겨진다(S15P31E102-1255).
+        val listScroll = rememberScrollState()
         Column(
             Modifier
                 .fillMaxWidth()
