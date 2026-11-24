@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 const val APP_CALLBACK_SCHEME = "com.ssafy.eolssu"
 
 /**
- * 앱 밖에서 앱으로 돌아온 주소(Android App Links, iOS 인증 세션의 앱 전용 주소). 간편 로그인을 마친 브라우저가 복귀 주소로 돌아올 때 쓴다.
- * 진입점(Android `MainActivity`, iOS 인증 세션)이 [deliver]로 넣고, 받을 화면이 [take]로 한 번만 꺼낸다.
+ * 앱 밖에서 앱으로 돌아온 주소(Android App Links, iOS 인증 세션의 앱 전용 주소, 웹 복귀 페이지). 간편 로그인을 마친 브라우저가 복귀 주소로 돌아올 때 쓴다.
+ * 진입점(Android `MainActivity`, iOS 인증 세션, 웹 플랫폼 모듈)이 [deliver]로 넣고, 받을 화면이 [take]로 한 번만 꺼낸다.
  * 주소에는 인가 코드가 들어 있으므로 로그·화면 이동 경로에 남기지 않는다.
  */
 class IncomingLinks {
