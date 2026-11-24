@@ -65,7 +65,7 @@ private fun EolssuColors.toMaterialColorScheme() = lightColorScheme(
 @Composable
 fun EolssuTheme(content: @Composable () -> Unit) {
     val colors = LightEolssuColors
-    val sans = ibmPlexSansKrFamily()
+    val sans = eolssuSansKrFamily()
     val serif = notoSerifKrFamily()
     // 제목도 본문 글꼴을 쓴다(S15P31E102-768).
     val heading = sans

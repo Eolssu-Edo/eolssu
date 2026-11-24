@@ -8,18 +8,18 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.eolssu_sans_kr_bold
+import eolssu.shared.generated.resources.eolssu_sans_kr_regular
+import eolssu.shared.generated.resources.eolssu_sans_kr_semibold
 import eolssu.shared.generated.resources.noto_serif_kr_bold
 import eolssu.shared.generated.resources.noto_serif_kr_semibold
-import eolssu.shared.generated.resources.ibm_plex_sans_kr_bold
-import eolssu.shared.generated.resources.ibm_plex_sans_kr_regular
-import eolssu.shared.generated.resources.ibm_plex_sans_kr_semibold
 import org.jetbrains.compose.resources.Font
 
 /**
  * 와이어프레임의 세리프 글자 스타일. Material [Typography]에 없는 율명·곡 제목용이다.
  *
  * 세리프 글꼴에는 자주 쓰는 한글 2,350자와 율명 한자만 들어 있다(`tools/fonts/build_fonts.py`).
- * 사용자가 입력한 글자(내 악보 제목 등)는 본문 글자 스타일(IBM Plex Sans KR)을 쓴다.
+ * 사용자가 입력한 글자(내 악보 제목 등)는 본문 글자 스타일(Eolssu Sans KR)을 쓴다.
  */
 @Immutable
 data class EolssuSerifTypography(
@@ -33,11 +33,15 @@ data class EolssuSerifTypography(
     val yul: TextStyle,
 )
 
+/**
+ * 본문 글꼴 Eolssu Sans KR: IBM Plex Sans KR 1.001을 크기를 줄인 CFF로 바꾸고 이름만 바꾼 수정본이다
+ * (OFL 예약 이름 "Plex", `tools/fonts/build_body_font.py`). 글자 범위·폭·행간은 원본과 같다.
+ */
 @Composable
-internal fun ibmPlexSansKrFamily() = FontFamily(
-    Font(Res.font.ibm_plex_sans_kr_regular, FontWeight.Normal),
-    Font(Res.font.ibm_plex_sans_kr_semibold, FontWeight.SemiBold),
-    Font(Res.font.ibm_plex_sans_kr_bold, FontWeight.Bold),
+internal fun eolssuSansKrFamily() = FontFamily(
+    Font(Res.font.eolssu_sans_kr_regular, FontWeight.Normal),
+    Font(Res.font.eolssu_sans_kr_semibold, FontWeight.SemiBold),
+    Font(Res.font.eolssu_sans_kr_bold, FontWeight.Bold),
 )
 
 @Composable
@@ -47,7 +51,7 @@ internal fun notoSerifKrFamily() = FontFamily(
 )
 
 /**
- * 본문·제목 모두 IBM Plex Sans KR. 제목([heading]) 스타일은 버튼 글자처럼 SemiBold로 둔다(S15P31E102-768, 이전 제목 글꼴 Song Myung 대체).
+ * 본문·제목 모두 Eolssu Sans KR(IBM Plex Sans KR 수정본). 제목([heading]) 스타일은 버튼 글자처럼 SemiBold로 둔다(S15P31E102-768).
  * 율명은 별도 Noto Serif KR를 유지한다.
  */
 internal fun eolssuTypography(sans: FontFamily, heading: FontFamily = sans): Typography {

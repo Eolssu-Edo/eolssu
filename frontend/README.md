@@ -67,6 +67,8 @@ Gradle 프로젝트명은 `eolssu`, Android 앱 표시명은 `얼쑤`입니다. 
 
 첫 화면(`webApp/src/webMain/resources/index.html`)은 앱을 불러오는 동안 로고와 로딩 표시를 보여 줍니다. 앱 파일을 받지 못하거나 시작 중 오류가 나면 실패 안내를, 20초가 지나면 지연 안내를, 브라우저가 Wasm GC를 지원하지 않으면 다른 브라우저 안내를 새로고침 버튼과 함께 띄웁니다. 안내가 뜬 뒤에도 앱이 화면을 붙이면 안내는 사라집니다.
 
+탭 아이콘(`favicon.ico`)·홈 화면 아이콘(`apple-touch-icon.png`, `icon-*.png`)과 `manifest.webmanifest`도 같은 폴더에 있습니다. 홈 화면에 추가하면 주소창 없는 단독 창(`standalone`)으로 열립니다. 아이콘은 iOS 앱 아이콘(`iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png`)에서 `frontend/`의 `python -P tools/web-icons/build_web_icons.py`(Pillow 13.0.0)로 다시 만듭니다.
+
 ## 🍎 iOS 실행 (Mac)
 
 Windows에서는 iOS 코드(`iosMain`)를 작성할 수만 있고, 컴파일·실행은 Mac에서 합니다.
@@ -125,7 +127,7 @@ Android Studio 밖에서 실행할 때는 `JAVA_HOME`이 JDK 17 이상을 가리
 | 출시와 같은 R8 빌드를 기기에서 확인 | `./gradlew :androidApp:installBenchmark` | debug 키로 서명한 `com.ssafy.eolssu.benchmark`를 설치합니다. Play 앱과 나란히 설치되며 간편 로그인은 되지 않습니다([R8 기록](../docs/knowledge/frontend/android-r8-release-build.md)) |
 | Web 개발 서버 (Wasm, 권장) | `./gradlew :webApp:wasmJsBrowserDevelopmentRun` | `http://localhost:8080/`에 개발 서버를 띄웁니다 |
 | Web 개발 서버 (JS) | `./gradlew :webApp:jsBrowserDevelopmentRun` | 로컬 개발 서버를 띄웁니다. 운영에는 배포하지 않습니다 |
-| Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 13MB) |
+| Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 39MB: Wasm 두 개 약 20MB(gzip 약 6.5MB), `composeResources` 약 16MB 중 글꼴 약 8MB. 2026-11-24 측정) |
 | iOS | Mac에서만 가능 — 위의 "iOS 실행 (Mac)" 참고 | — |
 
 - Android Studio 없이 명령줄만으로 빌드하려면 [Android 명령줄 도구](https://developer.android.com/studio#command-line-tools-only)를 SDK의 `cmdline-tools/` 아래에 설치합니다. `frontend/local.properties`에는 `sdk.dir=C\:/Users/<사용자>/AppData/Local/Android/Sdk`처럼 **콜론을 이스케이프하고 슬래시(`/`) 경로**로 적습니다. Windows 경로를 그대로 쓰면 경로 해석 또는 lint `PropertyEscape` 검사에 실패합니다. 설치 명령은 해당 버전의 `--help`로 확인합니다(cmdline-tools 23은 `android sdk` 제공).
@@ -232,29 +234,37 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 
 | 파일 | 용도 | 글자 범위 |
 | --- | --- | --- |
-| `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 제목·본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
-| `song_myung_regular.ttf` | 미사용(제목은 S15P31E102-768부터 IBM Plex Sans KR SemiBold) | Google Fonts 공식 Song Myung 원본 |
+| `eolssu_sans_kr_regular·semibold·bold.otf` | 제목·본문·버튼·사용자가 입력한 글자 | IBM Plex Sans KR 1.001(Google Fonts `ofl/ibmplexsanskr`)의 모든 글자를 CFF로 바꿔 굵기마다 약 2.8MB → 2.0MB로 줄인 수정본. OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Sans KR`로 바꿨고 라이선스 원문은 `files/licenses/ibm_plex_sans_kr_ofl.txt` |
 | `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | Noto Serif CJK KR 서브셋, 한글 2,350자·옥타브 -2~2 율명 한자·영숫자 |
 | `eolssu_yul_supplement.ttf` | 하배이·배유·중청대 | Jigmo2 20250912에서 실제 세 글자만 남긴 보조 폰트, 3,808바이트(CC0 1.0) |
 | `seal_brush.ttf` | 연습곡 표지의 붉은 '얼쑤' 도장 | 나눔손글씨 붓(Google Fonts `ofl/nanumbrushscript`)에서 `얼쑤` 2자만 남긴 서브셋(약 4.5KB). OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Seal Brush`로 바꿨고 라이선스 원문은 `files/licenses/nanum_brush_script_ofl.txt` |
-| `pretendard_regular·semibold·bold.otf` | 기존 리소스 보존, 기본 본문에서는 미사용 | Pretendard 1.3.9 원본 |
 
 - 세리프 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.**
 - 기본 율명 폰트는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_YUL`(정간보 원본 표기 옥타브 -2~2와 운지표 글자)을 담습니다. 앱의 `SerifYulHanja`(`core/model/fingering/YulNotation.kt`)와 같게 유지하고, `YulFontCoverageTest`가 실제 글꼴 파일에 글리프가 있는지 검사합니다. 하배이·배유·중청대는 보조 폰트의 실제 한자로 표시합니다.
 - Noto Serif KR(SubsetOTF)에는 탁성·하배·중청 율명이 없어 S15P31E102-923부터 같은 디자인의 Noto Serif CJK KR(OTF/Korean)에서 만듭니다. 그래서 대금의 배·하배 율명도 단소·소금과 같은 세리프 글리프로 그립니다. 변(氵·亻) + 율명 조합(`ComposedGlyph`)은 글꼴 어디에도 없는 글자의 예비 경로로만 남습니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
 - 기존 글꼴은 SIL Open Font License 1.1, 율명 보조 폰트는 CC0 1.0입니다. 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
 
-기존 Pretendard·Noto 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상; IBM Plex Sans KR·Song Myung에는 적용하지 않음):
+본문 글꼴을 다시 만들 때(`frontend/`에서):
+
+```bash
+python -m pip install --user fonttools==4.60.1
+SRC="${TMPDIR:-/tmp}/eolssu-body-font-src"; mkdir -p "$SRC"
+for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/IBMPlexSansKR-$w.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexsanskr/IBMPlexSansKR-$w.ttf"; done
+PYTHONUTF8=1 python -P tools/fonts/build_body_font.py "$SRC"
+```
+
+글자는 빼지 않고 TrueType 윤곽(이차 곡선)을 CFF 윤곽(삼차 곡선)으로 합쳐(허용 오차 1/1000em) 줄입니다. 글자 범위·폭·행간은 원본과 같습니다. [변환·검증 기록](../docs/knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)을 참고합니다.
+
+Noto 세리프 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상):
 
 ```bash
 python -m pip install --user fonttools==4.60.1
 SRC="${TMPDIR:-/tmp}/eolssu-fonts-src"; mkdir -p "$SRC"
-for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/Pretendard-$w.otf "https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/public/static/Pretendard-$w.otf"; done
 for w in SemiBold Bold; do curl -fL -o "$SRC"/NotoSerifCJKkr-$w.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/OTF/Korean/NotoSerifCJKkr-$w.otf"; done
 PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
 ```
 
-스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
+두 스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
 
 하배이·배유·중청대 보조 폰트는 [Jigmo 공식 배포](https://kamichikoichi.github.io/jigmo/)의 `Jigmo-20250912.zip`에서 `Jigmo2.ttf`를 꺼내 `python -P tools/fonts/build_supplementary_yul.py <Jigmo2.ttf>`로 만듭니다(fonttools 4.60.1). 원본 해시·세 코드포인트·실제 윤곽을 검사하고 이름을 `Eolssu Yul Supplement`로 바꿉니다. CC0 원문은 `tools/fonts/licenses/Jigmo-CC0.txt`와 앱의 `files/licenses/jigmo_cc0.txt`에 보존합니다. [출처·검증 기록](../docs/knowledge/frontend/web-korean-fonts.md#보충-평면-율명-세-글자-s15p31e102-813)을 참고합니다.
 
