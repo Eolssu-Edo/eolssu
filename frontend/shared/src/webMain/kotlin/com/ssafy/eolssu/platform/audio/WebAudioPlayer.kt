@@ -6,7 +6,6 @@ import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.core.audio.ReferenceAudioPlayer
 import com.ssafy.eolssu.core.audio.referenceSeekTarget
 import kotlin.js.ExperimentalWasmJsInterop
-import kotlin.js.js
 import kotlin.time.TimeSource
 import kotlinx.browser.document
 import kotlinx.coroutines.CoroutineScope
@@ -304,7 +303,3 @@ class WebAudioPlayer(private val retainCompletedMedia: Boolean = false) : Refere
         const val SILENT_WAV = "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="
     }
 }
-
-/** kotlinx-browser의 `Document`에는 Page Visibility API(`document.hidden`)가 선언되어 있지 않다. */
-@OptIn(ExperimentalWasmJsInterop::class)
-private fun pageHidden(): Boolean = js("document.hidden === true")
