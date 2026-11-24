@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.app.navigation
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -18,6 +19,13 @@ class SheetCompletionNavigationTest {
     fun sameSheetOnTopIsNotStackedAgain() {
         assertTrue(showsSheet(EolssuDestination.PRACTICE, args("songId" to "12", "mine" to true), "12", SheetCompletionTarget.Practice))
         assertTrue(showsSheet(SheetEditDestination.EDIT, args("from" to "mine", "id" to "12"), "12", SheetCompletionTarget.Editor))
+    }
+
+    @Test
+    fun audioCompletionOpensPracticeWhereverPersonalAudioCanPlay() {
+        // S15P31E102-1261: 웹은 스트리밍으로 틀 수 있어 앱처럼 연습으로 간다. 틀 수 없는 플랫폼만 편집기로 간다.
+        assertEquals(SheetCompletionTarget.Practice, sheetAudioCompletionTarget(personalAudioPlayable = true))
+        assertEquals(SheetCompletionTarget.Editor, sheetAudioCompletionTarget(personalAudioPlayable = false))
     }
 
     @Test

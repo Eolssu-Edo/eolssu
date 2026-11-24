@@ -47,7 +47,14 @@ data class ModelAudio(
             it.audioDurationMs == durationMs && it.audioStartOffsetMs == startOffsetMs } ?: true)
 }
 
-data class SheetPlayback(val withJangdan: Boolean, val localFile: LocalAudioFile)
+/**
+ * 내 악보 생성 음원으로 재생할 때의 정보. [withJangdan]이면 음원에 장단이 들어 있어 반주를 따로 깔지 않는다.
+ * [localFile]은 기기에 받은 파일이고, null이면 [ModelAudio.audioUrl]의 SHT-13 서명 URL을 바로 튼다(웹, S15P31E102-1261).
+ */
+data class SheetPlayback(val withJangdan: Boolean, val localFile: LocalAudioFile?)
+
+/** 기기 파일 없이 SHT-13 서명 URL로 트는 내 악보 음원. 링크는 서버가 파일을 지울 때 함께 끝난다. */
+internal val ModelAudio.streamsSheetAudio: Boolean get() = sheetPlayback != null && sheetPlayback.localFile == null
 
 interface ModelAudioRepository {
     /** null means no published matching audio. Transport/protocol failures throw [CatalogUnavailable]. */
