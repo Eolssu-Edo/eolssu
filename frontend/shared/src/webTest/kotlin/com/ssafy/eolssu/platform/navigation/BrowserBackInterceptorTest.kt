@@ -3,7 +3,6 @@ package com.ssafy.eolssu.platform.navigation
 import com.ssafy.eolssu.app.navigation.BrowserBackGuard
 import kotlinx.browser.window
 import org.w3c.dom.events.Event
-import org.w3c.dom.events.EventInit
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -33,8 +32,12 @@ class BrowserBackInterceptorTest {
     }
 
     private fun leave(): Boolean {
-        val event = Event("beforeunload", EventInit(cancelable = true))
+        val event = cancelableEvent("beforeunload")
         window.dispatchEvent(event)
         return event.defaultPrevented
     }
 }
+
+/** Wasm의 `kotlinx-browser`에는 `EventInit` 생성 함수가 없어 JS로 만든다. */
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun cancelableEvent(type: String): Event = js("new Event(type, { cancelable: true })")
