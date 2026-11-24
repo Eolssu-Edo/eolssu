@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [웹 장단 연습·장단 듣기·모범 연주 장단 반주를 Web Audio 예약 재생으로 지원 (1260)](plans/web-parity/S15P31E102-1260-handoff.md) · [브라우저 확인·제약](knowledge/frontend/web-jangdan-playback.md)
 - [웹 오디오 재생기 연결로 모범 연주 듣기·기록 녹음 재생 살리고 기록 상세 무한 로딩 막기 (1259)](plans/web-parity/S15P31E102-1259-handoff.md) · [재생 구조](knowledge/frontend/model-audio-playback.md)
 - [웹 테스트 보강: 웹 Koin 정의 해석 검사와 develop 웹 브라우저 테스트 자동 예약 (1270)](plans/web-parity/S15P31E102-1270-handoff.md) · [자동 경로 근거·실측·스모크 검토](knowledge/infra/web-tests-ci.md) · [운영 적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)
 - [웹 셸 정비: 탭·홈 화면 아이콘과 manifest, 키보드 viewport, Safari 글꼴 미리 해석, 본문 글꼴 CFF 변환 (1267)](plans/web-parity/S15P31E102-1267-handoff.md) · [글꼴 변환 기록](knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)
@@ -429,6 +430,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [웹 장단 재생(Web Audio) 지원 범위와 브라우저 확인 (1260)](knowledge/frontend/web-jangdan-playback.md)
 - [Android 장단 타격·악보 진행 지연 수정 (805)](knowledge/frontend/android-jangdan-timing.md) · [수정 스펙](specs/practice-playback-timing.md) · [계획·검증](plans/S15P31E102-805.md)
 - [모범 연주 메타데이터와 시간표의 방문 간 재사용 (764)](plans/S15P31E102-764.md)
 - [모범 연주 음원 파일 캐시 (859)](specs/model-audio-file-cache.md) · [설계·검증 기록](knowledge/frontend/model-audio-playback.md#s15p31e102-859-모범-음원-파일-캐시)

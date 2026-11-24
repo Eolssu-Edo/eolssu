@@ -1,13 +1,17 @@
 package com.ssafy.eolssu.platform
 
 import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.UnavailableSheetAudioDeviceStore
 
 import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
+import com.ssafy.eolssu.platform.audio.WebAudioOutput
 import com.ssafy.eolssu.platform.audio.WebAudioPlayer
+import com.ssafy.eolssu.platform.audio.WebJangdanSampleCache
+import com.ssafy.eolssu.platform.audio.WebJangdanSamplePlayer
 import com.ssafy.eolssu.platform.audio.WebSoundPlayer
 import com.ssafy.eolssu.platform.storage.WebKeyValueStore
 import io.ktor.client.engine.HttpClientEngine
@@ -27,4 +31,8 @@ internal fun webPlatformModule(): Module = module {
     single<HttpClientEngine> { Js.create() }
     single { ServerAddress(window.location.origin) }
     single<SoundPlayer> { WebSoundPlayer() }
+    // 녹음이 없는 웹은 JangdanVolumeLimit을 등록하지 않아 NoJangdanVolumeLimit을 쓴다.
+    single { WebJangdanSampleCache(get()) }
+    single { WebAudioOutput() }
+    factory<JangdanSamplePlayer> { WebJangdanSamplePlayer(get(), get()) }
 }
