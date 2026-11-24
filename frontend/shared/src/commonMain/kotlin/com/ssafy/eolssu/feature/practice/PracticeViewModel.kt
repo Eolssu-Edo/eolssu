@@ -122,6 +122,7 @@ class PracticeViewModel(
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo || mine, mine = mine, learn = learn, direct = direct && !solo && !mine && !learn && (recorder != null || sectionSource != null), fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true,
+            personalAudioStreams = mine && personalAudio?.streamsAudio == true,
             // 구간 재평가는 악보를 받기 전에도 제목이 ‘구간 재평가’로 보이게 구간을 먼저 둔다.
             sectionPractice = initialSection?.takeIf { sectionSource != null }?.let(::PracticeSectionState)),
     )
@@ -876,7 +877,7 @@ class PracticeViewModel(
     fun followNow() = _uiState.update { it.followNow() }
 
     // 내 악보 음원
-    private val supportsPersonalAudio: Boolean get() = mine && personalAudio?.deviceAudioAvailable == true
+    private val supportsPersonalAudio: Boolean get() = mine && personalAudio?.personalAudioPlayable == true
 
     private fun checkPersonalAudio(song: Song) {
         val repository = personalAudio ?: return
@@ -923,7 +924,7 @@ class PracticeViewModel(
         personalAudioJob = accountScope.launch { runPersonalDownload(repository, song, resume = false) }
     }
 
-    /** 생성 요청(또는 진행 중인 생성 대기)부터 기기 저장까지. 상태가 [PersonalAudioPending] 중 하나인 채로 부른다. */
+    /** 생성 요청(또는 진행 중인 생성 대기)부터 기기 저장까지(웹은 저장 없이 완료 확인까지). 상태가 [PersonalAudioPending] 중 하나인 채로 부른다. */
     private suspend fun runPersonalDownload(repository: SheetPracticeRepository, song: Song, resume: Boolean) {
         val result = try {
             repository.download(song, resume, onStatus = { status ->

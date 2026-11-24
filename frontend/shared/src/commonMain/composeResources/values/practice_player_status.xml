@@ -7,6 +7,7 @@
     <string name="practice_sheet_audio_unavailable">음원 다운로드를 눌러 지금 악보의 음원을 받아 주세요</string>
     <string name="practice_sheet_audio_checking">음원 확인 중</string>
     <string name="practice_sheet_audio_download">음원 다운로드</string>
+    <string name="practice_sheet_audio_create">음원 만들기</string>
     <string name="practice_sheet_audio_queued">음원 생성 대기 중</string>
     <string name="practice_sheet_audio_preparing">음원 생성 중</string>
     <string name="practice_sheet_audio_downloading">음원 다운받는 중</string>

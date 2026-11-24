@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
 import androidx.lifecycle.ViewModelStore
+import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.DeviceSheetAudio
 import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
@@ -17,6 +18,7 @@ import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
 import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.song.SheetAudio
+import com.ssafy.eolssu.data.song.SheetAudioFailure
 import com.ssafy.eolssu.data.song.SheetAudioFile
 import com.ssafy.eolssu.data.song.SheetAudioLookup
 import com.ssafy.eolssu.data.song.SheetAudioRepository
@@ -28,6 +30,10 @@ import com.ssafy.eolssu.data.song.smallScoreSong
 import com.ssafy.eolssu.data.song.previewSong
 import com.ssafy.eolssu.data.song.previewJson
 import com.ssafy.eolssu.data.song.SourceHash
+import com.ssafy.eolssu.feature.practice.component.personalAudioLabel
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_sheet_audio_create
+import eolssu.shared.generated.resources.practice_sheet_audio_download
 import io.ktor.client.engine.mock.MockEngine
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +52,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticePersonalAudioTest {
@@ -410,7 +417,77 @@ class PracticePersonalAudioTest {
         assertEquals("/app/files/42-v2.m4a", fixture.saved?.localFile?.path)
     }
 
-    private fun practiceTest(performed: Boolean = false, cached: Boolean = false, estimatedMs: Double? = null,
+    @Test fun webCreatesTheAudioAndStreamsItsSignedLinkWithoutSaving() = practiceTest(streams = true) { vm, fixture, player ->
+        // S15P31E102-1261: 웹은 기기에 받지 않으므로 '음원 만들기'로 생성만 요청하고, 완료되면 서명 URL을 바로 튼다.
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudioControl)
+        assertTrue(vm.uiState.value.personalAudioStreams)
+        assertEquals(Res.string.practice_sheet_audio_create, personalAudioLabel(PracticePersonalAudio.Missing, streams = true))
+        assertEquals(Res.string.practice_sheet_audio_download, personalAudioLabel(PracticePersonalAudio.Missing, streams = false))
+
+        vm.downloadPersonalAudio(); runCurrent()
+        assertEquals(PracticePersonalAudio.Queued, vm.uiState.value.personalAudio)
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(PracticePlayerNotice.PersonalAudioReady, vm.uiState.value.playerNotice)
+        assertEquals(listOf(SheetAudioSettings(instrumentId = "9", withJangdan = false, bpm = 60)), fixture.requests)
+        assertEquals(0, fixture.saves, "웹은 기기에 저장하지 않는다")
+        assertEquals(0, player.loads)
+
+        vm.startModel(); runCurrent()
+        assertEquals(1, player.loads)
+        assertEquals(StreamUrl, player.requestedSource?.url)
+        assertNull(player.requestedSource?.localFile)
+    }
+
+    @Test fun webPlayAfterMovingFetchesTheLinkAgainAndOffersCreatingOnceTheServerDeletedTheFile() = practiceTest(
+        streams = true, cached = true,
+    ) { vm, fixture, player ->
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio, "링크가 살아 있으면 열자마자 들을 수 있다")
+        vm.startModel(); runCurrent()
+        assertEquals(StreamUrl, player.requestedSource?.url)
+        player.emit(AudioPlaybackStatus.Playing, 500); runCurrent()
+        vm.toggleModel(); runCurrent()
+        assertEquals(ModelAudioStatus.Paused, vm.uiState.value.modelAudioStatus)
+        vm.toggleModel(); runCurrent()
+        assertEquals(1, player.loads, "제자리에서 이어 들으면 링크를 다시 받지 않는다")
+
+        player.emit(AudioPlaybackStatus.Playing, 600); runCurrent()
+        vm.toggleModel(); runCurrent()
+        vm.seekModel(500); runCurrent()
+        val reads = fixture.statusReads
+        fixture.statuses += fixture.done.copy(audio = fixture.done.audio?.copy(url = "$StreamUrl?fresh"))
+        vm.startModel(); runCurrent()
+        assertEquals(reads + 1, fixture.statusReads, "새로 열 때는 파일이 아직 있는지 SHT-13으로 확인한다")
+        assertEquals(2, player.loads)
+        assertEquals("$StreamUrl?fresh", player.requestedSource?.url)
+
+        // 완료 10분 뒤 서버가 파일을 지웠다.
+        player.emit(AudioPlaybackStatus.Playing, 1_200); runCurrent()
+        vm.toggleModel(); runCurrent()
+        vm.seekModel(500); runCurrent()
+        fixture.statuses += Expired(fixture.done)
+        vm.startModel(); runCurrent()
+        assertEquals(2, player.loads, "지워진 파일의 링크를 틀지 않는다")
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudioControl)
+        assertEquals(0, fixture.saves)
+    }
+
+    @Test fun webReentryAfterTheServerDeletedTheFileOffersCreatingAgain() = practiceTest(streams = true, cached = true) { vm, fixture, player ->
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        vm.onScreenHidden(); runCurrent()
+        fixture.statuses += listOf(Expired(fixture.done), Expired(fixture.done))
+        vm.onScreenShown(); runCurrent()
+        assertEquals(PracticePersonalAudio.Missing, vm.uiState.value.personalAudioControl)
+        assertEquals(0, player.loads)
+
+        vm.downloadPersonalAudio(); runCurrent()
+        advanceTimeBy(500); runCurrent()
+        assertEquals(PracticePersonalAudio.Ready, vm.uiState.value.personalAudio)
+        assertEquals(1, fixture.requests.size)
+        assertEquals(0, fixture.saves)
+    }
+
+    private fun practiceTest(streams: Boolean = false, performed: Boolean = false, cached: Boolean = false, estimatedMs: Double? = null,
         serverStatuses: List<SheetAudio> = listOf(NoCurrentGeneration), scoreVersion: Int = 1,
         deviceFiles: Map<String, DeviceSheetAudio> = emptyMap(),
         block: suspend TestScope.(PracticeViewModel, Fixture, FakeAudioPlayer) -> Unit) = runTest {
@@ -422,16 +499,18 @@ class PracticePersonalAudioTest {
             val member = SignedInMember(storage).apply { set("7") }
             val song = (if (performed) previewSong() else smallScoreSong()).copy(id = "42", instrumentId = "9", scoreVersion = scoreVersion,
                 estimatedModelDurationMs = estimatedMs)
-            val fixture = Fixture(performed, scoreVersion.toString())
+            val fixture = Fixture(performed, scoreVersion.toString(), streams)
             fixture.files.putAll(deviceFiles)
             if (!cached) fixture.statuses.addAll(serverStatuses)
-            if (cached) {
+            // 웹(스트리밍)의 '받아 둔 음원'은 서버에 아직 있는 완료 파일이다(Fixture.done).
+            if (cached && !streams) {
                 val audio = requireNotNull(fixture.done.audio)
                 fixture.saved = DeviceSheetAudio(LocalAudioFile("/app/files/42.m4a"), "9", 60, false,
                     "a".repeat(64), requireNotNull(audio.durationMs), audio.performance)
             }
             val repository = SheetPracticeRepository(ApiSheetDocumentRepository(client), fixture,
-                ApiReferenceCatalogRepository(client), InstrumentCatalog(client), member, fixture, { testScheduler.currentTime })
+                ApiReferenceCatalogRepository(client), InstrumentCatalog(client), member, fixture, { testScheduler.currentTime },
+                streamsAudio = streams)
             val player = FakeAudioPlayer()
             val vm = PracticeViewModel(song.id, true, SampleSongRepository(), PracticeSettingsStore(storage),
                 PracticeTimeMeter({ 0L }), PracticeTimeQueue(storage, null, member, backgroundScope),
@@ -454,11 +533,15 @@ class PracticePersonalAudioTest {
         val Generating = SheetAudio("42", SheetAudioStatus.Queued, "1", "1", false, "9", false, 60, pollAfterMs = 500)
         /** 열 때 서버에 진행 중인 생성이 없다(이전 판본의 완료 음원). */
         val NoCurrentGeneration = SheetAudio("42", SheetAudioStatus.Done, "0", "1", true, "9", false, 60)
+        const val StreamUrl = "https://example.invalid/song.m4a"
+        /** 완료 10분이 지나 서버가 파일을 지운 뒤의 SHT-13 응답. */
+        fun Expired(done: SheetAudio) = done.copy(status = SheetAudioStatus.Failed, failureCode = SheetAudioFailure.Expired, audio = null)
     }
 
-    private class Fixture(performed: Boolean = false, val version: String = "1") : SheetAudioDeviceStore, SheetAudioRepository {
+    /** [streams]이면 웹처럼 기기 저장소가 없다. */
+    private class Fixture(performed: Boolean = false, val version: String = "1", streams: Boolean = false) : SheetAudioDeviceStore, SheetAudioRepository {
         val done = SheetAudio("42", SheetAudioStatus.Done, version, version, false, "9", false, 60,
-            audio = SheetAudioFile("https://example.invalid/song.m4a", 60_000, "audio/mp4", 100, "song.m4a",
+            audio = SheetAudioFile(StreamUrl, 60_000, "audio/mp4", 100, "song.m4a",
                 "a".repeat(64), if (performed) 7_050 else 3_300,
                 performance = if (performed) SheetAudioPerformance(SourceHash, Json.parseToJsonElement(previewJson()).jsonObject) else null))
         var request: SheetAudioRequest = SheetAudioRequest.Accepted(done.copy(status = SheetAudioStatus.Queued, audio = null, pollAfterMs = 500))
@@ -474,7 +557,7 @@ class PracticePersonalAudioTest {
         var savedLookupUnavailable = false
         var downloadFinished: CompletableDeferred<Unit>? = null
 
-        override val available = true
+        override val available = !streams
         override suspend fun request(sheetId: String, settings: SheetAudioSettings): SheetAudioRequest {
             assertEquals("42", sheetId)
             requests += settings

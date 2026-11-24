@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.audio.LocalAudioFile
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
 import com.ssafy.eolssu.core.audio.SheetAudioDownload
 import com.ssafy.eolssu.core.audio.SheetAudioPerformance
+import com.ssafy.eolssu.core.audio.UnavailableSheetAudioDeviceStore
 import com.ssafy.eolssu.feature.practice.modelMediaPosition
 import com.ssafy.eolssu.feature.practice.modelPointAt
 import com.ssafy.eolssu.core.network.ServerAddress
@@ -16,6 +17,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -24,6 +26,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -206,12 +209,107 @@ class SheetPracticeRepositoryTest {
         }
     }
 
+    @Test fun webStreamsTheCurrentVersionsSignedLinkWithoutTheDeviceStore() = runTest {
+        // S15P31E102-1261: 웹은 기기 저장소가 없어도 SHT-13의 완료된 최신 M4A 링크를 바로 튼다.
+        val song = smallScoreSong().copy(id = "42", scoreVersion = 1)
+        var response = HttpStatusCode.OK to sheetAudioJson()
+        var now = StreamExpiresAt - 60_000
+        val requests = mutableListOf<String>()
+        val client = createHttpClient(MockEngine { request ->
+            assertEquals(HttpMethod.Get, request.method)
+            requests += request.url.encodedPath
+            assertEquals("/api/users/me/sheets/42/audio", request.url.encodedPath)
+            respond(response.second, response.first, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repository = practiceRepository(client, UnavailableSheetAudioDeviceStore, streamsAudio = true, now = { now })
+            assertTrue(repository.personalAudioPlayable)
+            val audio = assertNotNull(repository.get(song))
+            assertEquals(StreamUrl, audio.audioUrl)
+            assertNull(audio.localFile)
+            assertNull(assertNotNull(audio.sheetPlayback).localFile)
+            assertTrue(audio.streamsSheetAudio)
+            assertTrue(audio.sheetPlayback.withJangdan)
+            assertEquals(66, audio.bpm, "음원을 만든 빠르기로 속도를 맞춘다")
+            assertEquals("9f".repeat(32), audio.sha256)
+            assertEquals(3300L, audio.durationMs)
+            assertEquals("audio/mp4", audio.contentType)
+            assertTrue(audio.matches(song))
+            assertEquals(1, requests.size)
+
+            response = HttpStatusCode.OK to sheetAudioJson(outdated = true, currentScoreVersion = "2")
+            assertNull(repository.get(song), "보관 중인 이전 판본 파일은 틀지 않는다")
+            response = HttpStatusCode.OK to sheetAudioJson(scoreVersion = "2", currentScoreVersion = "2")
+            assertNull(repository.get(song), "다른 판본의 파일은 틀지 않는다")
+            response = HttpStatusCode.OK to sheetAudioJson(status = "RUNNING")
+            assertNull(repository.get(song), "만드는 중에는 틀 링크가 없다")
+            response = HttpStatusCode.OK to sheetAudioJson(status = "FAILED", failureCode = "AUDIO_EXPIRED")
+            assertNull(repository.get(song), "완료 10분 뒤 서버가 지운 파일은 없는 것으로 본다")
+            response = HttpStatusCode.OK to sheetAudioJson(contentType = "audio/midi")
+            assertNull(repository.get(song))
+            response = HttpStatusCode.NotFound to ""
+            assertNull(repository.get(song), "만든 적 없는 음원")
+
+            response = HttpStatusCode.OK to sheetAudioJson()
+            now = StreamExpiresAt - STREAM_START_MARGIN_MS
+            assertNull(repository.get(song), "곧 지워질 링크로는 재생을 시작하지 않는다")
+            now = StreamExpiresAt - STREAM_START_MARGIN_MS - 1
+            assertNotNull(repository.get(song))
+
+            response = HttpStatusCode.ServiceUnavailable to ""
+            assertFailsWith<CatalogUnavailable> { repository.get(song) }
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test fun platformsWithoutTheDeviceStoreOrStreamingNeitherPlayNorAskTheServer() = runTest {
+        val client = createHttpClient(MockEngine { error("기기 저장도 스트리밍도 없으면 음원 상태를 묻지 않는다") }, ServerAddress.Production)
+        try {
+            val repository = practiceRepository(client, UnavailableSheetAudioDeviceStore)
+            val song = smallScoreSong().copy(id = "42", scoreVersion = 1)
+            assertFalse(repository.personalAudioPlayable)
+            assertNull(repository.get(song))
+            assertNull(repository.generationStatus(song))
+            assertEquals(SheetPracticeDownload.Failed, repository.download(song))
+        } finally {
+            client.close()
+        }
+    }
+
+    private fun sheetAudioJson(
+        status: String = "DONE",
+        scoreVersion: String = "1",
+        currentScoreVersion: String = scoreVersion,
+        outdated: Boolean = false,
+        contentType: String = "audio/mp4",
+        failureCode: String? = null,
+    ): String {
+        val audio = if (status == "DONE") {
+            """{"url":"$StreamUrl","urlExpiresAt":"$StreamExpiresAtText","contentType":"$contentType","byteSize":4096,""" +
+                """"sha256":"${"9f".repeat(32)}","durationMs":3300,"fileName":"내 악보.m4a"}"""
+        } else "null"
+        val poll = if (status == "RUNNING") "3000" else "null"
+        val failure = failureCode?.let { "\"$it\"" } ?: "null"
+        return """{"isSuccess":true,"code":200,"result":{"sheetId":"42","status":"$status","scoreVersion":"$scoreVersion",""" +
+            """"currentScoreVersion":"$currentScoreVersion","outdated":$outdated,"instrumentId":"2","withJangdan":true,"bpm":66,""" +
+            """"failureCode":$failure,"pollAfterMs":$poll,"audio":$audio,"midi":null}}"""
+    }
+
     private fun practiceRepository(
         client: HttpClient,
         deviceAudio: SheetAudioDeviceStore = PracticeDeviceAudio { _, _, _ -> null },
         member: SignedInMember = SignedInMember(FakeKeyValueStore()).apply { set("7") },
+        streamsAudio: Boolean = false,
+        now: () -> Long = { 0L },
     ) = SheetPracticeRepository(ApiSheetDocumentRepository(client), deviceAudio, ApiReferenceCatalogRepository(client),
-        InstrumentCatalog(client), member, ApiSheetAudioRepository(client), { 0L })
+        InstrumentCatalog(client), member, ApiSheetAudioRepository(client), now, streamsAudio)
+
+    private companion object {
+        const val StreamUrl = "https://r2.example/sheet-audio/42.m4a"
+        const val StreamExpiresAtText = "2026-11-24T03:10:00Z"
+        val StreamExpiresAt = Instant.parse(StreamExpiresAtText).toEpochMilliseconds()
+    }
 
     private fun savedAudio() = DeviceSheetAudio(
         localFile = LocalAudioFile("/app/files/sheet-audio/42.m4a"),

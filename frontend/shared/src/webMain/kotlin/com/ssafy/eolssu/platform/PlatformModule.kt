@@ -3,6 +3,7 @@ package com.ssafy.eolssu.platform
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.SheetAudioPlayback
 import com.ssafy.eolssu.core.audio.UnavailableSheetAudioDeviceStore
 
 import com.ssafy.eolssu.app.di.OAuthAttemptStore
@@ -38,6 +39,8 @@ import org.koin.dsl.module
 internal fun webPlatformModule(): Module = module {
     factory<AudioPlayer> { WebAudioPlayer() }
     single<SheetAudioDeviceStore> { UnavailableSheetAudioDeviceStore }
+    // 내 악보 음원은 기기에 받지 않고 SHT-13 서명 URL을 바로 튼다(S15P31E102-1261).
+    single { SheetAudioPlayback.Stream }
     single<KeyValueStore> { WebKeyValueStore() }
     single<HttpClientEngine> { Js.create() }
     single { ServerAddress(window.location.origin) }
