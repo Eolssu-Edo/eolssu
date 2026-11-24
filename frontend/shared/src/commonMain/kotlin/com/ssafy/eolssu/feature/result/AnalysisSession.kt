@@ -14,6 +14,7 @@ import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.AnalysisStatus
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.NoRecordingToAnalyze
 import com.ssafy.eolssu.data.practice.PendingRecording
 import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.RecordingUploads
@@ -301,18 +302,27 @@ internal class AnalysisSession(
 
     private suspend fun requestAnalysis() {
         val request = request ?: return
-        val requested = attempt {
-            analysisId = repository.requestAnalysis(request.songId, request.bpm, request.recordedSeconds)
+        val requested = try {
+            attempt { analysisId = repository.requestAnalysis(request.songId, request.bpm, request.recordedSeconds) }
+        } catch (_: NoRecordingToAnalyze) {
+            // 녹음 없이 분석 주소로 들어왔다(웹 새로 고침·주소 직접 입력). 서버 오류가 아니라 '다시 연주'를 안내한다.
+            _state.update { it.copy(upload = UploadProblem.Missing) }
+            return
         }
         if (requested) startPolling()
     }
 
-    /** [block]을 부르고 성공하면 기다리는 상태로 돌린다. 실패하면 사유가 없는 실패라 [AnalysisFailure.ServerError]로 본다. */
+    /**
+     * [block]을 부르고 성공하면 기다리는 상태로 돌린다. 실패하면 사유가 없는 실패라 [AnalysisFailure.ServerError]로 본다.
+     * [NoRecordingToAnalyze]는 부르는 쪽이 다루도록 그대로 던진다.
+     */
     private suspend fun attempt(block: suspend () -> Unit): Boolean = try {
         block()
         polling.start()
         _state.update { it.copy(failure = null, retrying = false) }
         true
+    } catch (e: NoRecordingToAnalyze) {
+        throw e
     } catch (e: Exception) {
         if (e is CancellationException) currentCoroutineContext().ensureActive()
         _state.update { it.copy(failure = AnalysisFailure.ServerError, retrying = false) }

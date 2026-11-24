@@ -8,12 +8,18 @@ import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.Song
 
+/** 분석할 녹음이 없다. 서버 분석은 녹음 업로드로만 시작한다. 분석 화면은 '다시 연주' 안내를 띄운다. */
+class NoRecordingToAnalyze : IllegalStateException("분석할 녹음이 없습니다")
+
 /**
  * 연주 평가. 녹음을 분석에 맡긴 뒤 상태를 물어 결과를 받는다(PRA-03 상태 조회).
  * 서버 분석은 [ApiEvaluationRepository]가, 녹음 없이 진행하는 플랫폼의 예시 분석은 [SampleEvaluationRepository]가 맡는다.
  */
 interface EvaluationRepository {
-    /** 녹음 없이 연주를 분석에 맡기고 분석 ID를 돌려준다(예시 분석). 녹음은 업로드가 분석을 시작한다. */
+    /**
+     * 녹음 없이 연주를 분석에 맡기고 분석 ID를 돌려준다(예시 분석). 녹음은 업로드가 분석을 시작한다.
+     * 예시 분석이 없으면 [NoRecordingToAnalyze]를 던진다(웹에서 분석 주소로 바로 들어오거나 새로 고친 경우).
+     */
     suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String
 
     /** 분석 상태. 연결 오류는 예외로 던진다. */

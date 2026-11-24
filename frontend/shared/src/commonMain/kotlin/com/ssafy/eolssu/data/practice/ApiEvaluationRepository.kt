@@ -45,7 +45,7 @@ class ApiEvaluationRepository(
     private val newKey: () -> String = { Uuid.random().toString() },
 ) : EvaluationRepository {
     override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String =
-        requireNotNull(fallback) { "실제 녹음 세션이 필요합니다" }.requestAnalysis(songId, bpm, recordedSeconds)
+        (fallback ?: throw NoRecordingToAnalyze()).requestAnalysis(songId, bpm, recordedSeconds)
 
     /** 상태. 응답을 받지 못했거나 200이 아니면 예외를 던진다(분석 대기 화면은 응답 없음으로 센다). */
     override suspend fun analysisStatus(analysisId: String): AnalysisStatus = member.inSession {
