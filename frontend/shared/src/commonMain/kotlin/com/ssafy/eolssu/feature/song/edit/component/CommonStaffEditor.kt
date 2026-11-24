@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.ui.component.mouseDragScroll
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 import com.ssafy.eolssu.core.diagnostics.QaKind
@@ -88,7 +89,7 @@ internal fun CommonStaffEditor(
                         drawStaffLines(bottom.toPx(), step.toPx(), colors.lineStrong)
                         drawTrebleClef(bottom.toPx() - 2 * step.toPx(), scale, colors.text)
                     }
-                    LazyRow(Modifier.weight(1f), state = scroll) {
+                    LazyRow(Modifier.weight(1f).mouseDragScroll(scroll), state = scroll) {
                         items(glyphs, key = { "${it.event.id}:${it.sliceIndex}" }) { glyph ->
                             val chosen = glyph.key == state.staffKey
                             val pitch = glyph.pitch?.name ?: stringResource(Res.string.score_rest)
