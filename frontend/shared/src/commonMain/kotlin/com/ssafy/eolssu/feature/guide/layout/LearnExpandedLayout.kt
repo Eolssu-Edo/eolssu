@@ -126,6 +126,8 @@ internal fun LearnExpandedLayout(
                                 columns = if (wide) LearnStageColumns.Landscape else LearnStageColumns.Compact,
                                 tour = tour,
                                 practice = practice,
+                                // 왼쪽 목록에 악기 칩이 있어 오른쪽 상세에는 진행 막대만 맨 위 줄에 둔다(S15P31E102-1276).
+                                showInstrument = false,
                             )
                         }
                     }

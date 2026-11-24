@@ -1,9 +1,13 @@
 # 프로젝트 문서
 
 - [웹 장단 연습·장단 듣기·모범 연주 장단 반주를 Web Audio 예약 재생으로 지원 (1260)](plans/web-parity/S15P31E102-1260-handoff.md) · [브라우저 확인·제약](knowledge/frontend/web-jangdan-playback.md)
+- [웹 간편 로그인과 계정 연결·탈퇴 재인증 지원: 같은 탭 이동과 웹 복귀 주소 (1263)](plans/web-parity/S15P31E102-1263-handoff.md) · [스펙](specs/social-auth.md#웹-간편-로그인-s15p31e102-1263)
+- [웹 마우스 끌기 가로 스크롤과 휴대폰 가로 웹 창의 연습 화면 세로 스크롤 (1268)](plans/web-parity/S15P31E102-1268-handoff.md) · [창 크기 기준값](../frontend/docs/architecture.md#기준값)
+- [웹 악보 파일 선택 취소 대체 처리와 큰 PDF 읽기 메모리 줄이기 (1266)](plans/web-parity/S15P31E102-1266-handoff.md)
 - [웹 오디오 재생기 연결로 모범 연주 듣기·기록 녹음 재생 살리고 기록 상세 무한 로딩 막기 (1259)](plans/web-parity/S15P31E102-1259-handoff.md) · [재생 구조](knowledge/frontend/model-audio-playback.md)
 - [웹 테스트 보강: 웹 Koin 정의 해석 검사와 develop 웹 브라우저 테스트 자동 예약 (1270)](plans/web-parity/S15P31E102-1270-handoff.md) · [자동 경로 근거·실측·스모크 검토](knowledge/infra/web-tests-ci.md) · [운영 적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)
 - [웹 셸 정비: 탭·홈 화면 아이콘과 manifest, 키보드 viewport, Safari 글꼴 미리 해석, 본문 글꼴 CFF 변환 (1267)](plans/web-parity/S15P31E102-1267-handoff.md) · [글꼴 변환 기록](knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)
+- [R2 파일과 DB를 대조하는 읽기 전용 점검 도구 추가 (1273)](plans/S15P31E102-1273.md) · [사용 방법](../infra/storage/README.md#주인-없는-파일-점검-s15p31e102-1273)
 - [녹음 업로드 WAV 허용과 서버 AAC 변환 저장 (1272)](plans/S15P31E102-1272.md) · [스펙](specs/recording-file.md)
 - [iOS QA Jenkins 잡이 Mac 오프라인 때 노드 대기로 ABORTED를 쌓지 않도록 수정 (1258)](plans/S15P31E102-1258.md) · [운영 안내](../infra/ios-qa/README.md)
 - [Android 출시 빌드 R8 코드 축소·난독화 적용과 benchmark 빌드 추가 (1120)](plans/S15P31E102-1120.md) · [설정 근거·크기·시작 시간 측정](knowledge/frontend/android-r8-release-build.md)

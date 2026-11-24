@@ -307,16 +307,17 @@ private enum class SignUpNext(val route: String, val path: SignupPath) {
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }
 
-/**
- * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05·MY-04 재인증)이 주소를 받도록 그 화면으로 간다.
- * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
- * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
- */
 /** 이 플랫폼에서 보여 줄 간편 로그인 제공자. 플랫폼 모듈이 등록한 복귀 경로가 정한다(iOS만 Apple 포함). */
 @Composable
 internal fun socialProviders(): List<SocialProvider> =
     (getKoin().getOrNull<com.ssafy.eolssu.data.user.OAuthRoute>() ?: com.ssafy.eolssu.data.user.OAuthRedirect).providers
 
+/**
+ * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05·MY-04 재인증)이 주소를 받도록 그 화면으로 간다.
+ * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
+ * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
+ * 연결·탈퇴 재인증은 마치고 마이페이지로 돌아가도록, 화면 기록에 마이페이지가 없으면(웹은 복귀 때 페이지를 새로 연다) 먼저 깐다.
+ */
 @Composable
 fun OAuthReturnEffect(navController: NavController) {
     val links = getKoin().getOrNull<IncomingLinks>() ?: return
@@ -332,6 +333,8 @@ fun OAuthReturnEffect(navController: NavController) {
             links.take(uri)
             return@LaunchedEffect
         }
+        val myPageMissing = runCatching { navController.getBackStackEntry(ProfileDestination.MY_PAGE) }.isFailure
+        if (target.purpose != OAuthPurpose.LogIn && myPageMissing) navController.navigate(ProfileDestination.MY_PAGE)
         navController.navigate(
             when (target.purpose) {
                 OAuthPurpose.LogIn -> AuthDestination.oauth(target.provider)

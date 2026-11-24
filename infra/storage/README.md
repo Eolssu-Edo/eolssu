@@ -102,6 +102,35 @@ DB 조회는 등록 도구(`infra/terms/publish.py`)와 같은 방식으로 back
 
 되돌릴 때는 R2 규칙을 다시 추가하고 이전 JAR로 배포한다. 규칙을 지운 동안 저장한 녹음은 다시 30일 기준으로 지워지므로, 되돌리기 전에 처리방침 판도 함께 정한다.
 
+## 주인 없는 파일 점검 (S15P31E102-1273)
+
+`audit_r2_orphans.py`는 R2 버킷의 객체 목록 전체를 운영 DB가 가리키는 키와 대조한다. 읽기만 하며 객체·DB를 바꾸지 않는다. 탈퇴·기록 삭제·미저장 녹음 정리가 파일까지 지웠는지 확인할 때 쓴다. [작업 기록](../../docs/plans/S15P31E102-1273.md).
+
+| 접두사 | 대조하는 DB 칸 | 분류 |
+| --- | --- | --- |
+| `recordings/` | `practice_sessions.recording_url` | user |
+| `sheet-sources/` | `sheet_source_files.object_key`, `sheet_source_pages.object_key` | user |
+| `sheet-audio/` | `sheet_audio_objects.object_key` | user |
+| `sheet-import-temp/` | 없음(변환 전 임시 업로드) | temporary |
+| `model-audio/` | `song_model_audios.object_key`, `performance_object_key` | other |
+| `reference-audio/` | `reference_audio_assets.object_key` | other |
+| `jangdan-practice/`·`jangdan-preview/` | 없음(백엔드가 키를 코드로 만든다) | other |
+| 그 밖 | 없음 | other |
+
+- `RECORDING_STORAGE_*`·`SHEET_STORAGE_*`·`REFERENCE_AUDIO_STORAGE_*` 중 설정된 버킷을 모두 본다. 같은 버킷을 쓰는 묶음은 한 번만 나열하고 그 묶음들의 DB 키를 합쳐 대조한다. 목록 권한이 없으면 같은 버킷의 다음 묶음 키로 다시 시도한다.
+- DB를 먼저 읽고 목록을 나중에 받는다. 기본 24시간(`--grace-hours`) 안에 올라온 객체는 DB 갱신 전일 수 있어 `recent_unreferenced`로 따로 센다.
+- `user` 접두사의 `unreferenced`가 주인 없는 회원 파일이다(`user_orphans`). `other`의 `unreferenced`에는 카탈로그 게시 묶음의 `release.json`·manifest처럼 일부러 DB에 없는 파일도 들어 있어 바로 고아로 보지 않는다. `missing`은 DB가 가리키지만 버킷에 없는 키다.
+- 콘솔에는 개수·바이트·가장 오래된 날짜만 나온다. 키 목록이 필요하면 `--keys-out`으로 새 파일(0600, 덮어쓰기 거절)에 받는다. 키에는 회원·세션 ID가 들어 있으니 확인 뒤 지운다.
+- 종료 코드: 0 모든 버킷 대조 완료, 2 목록을 받지 못한 버킷 있음(`error`), 1 그 밖 실패.
+- 삭제 기능은 없다. 찾은 파일을 지우려면 키 목록과 근거를 붙여 따로 승인받는다.
+
+edo1에서 실행한다. DB 조회는 다른 도구처럼 `infra/terms/publish.py`를 거쳐 MySQL 컨테이너 안의 암호를 쓴다. `<checkout>`은 검토한 저장소 체크아웃이며 boto3가 있는 Python이 필요하다.
+
+```sh
+sudo python3 <checkout>/infra/storage/audit_r2_orphans.py --env-file /opt/eolssu/.env
+sudo python3 <checkout>/infra/storage/audit_r2_orphans.py --env-file /opt/eolssu/.env --keys-out /root/r2-audit-$(date +%Y%m%d).json
+```
+
 ## Naver 인증 메일
 
 메일 전환은 다른 담당자가 완료했다는 사용자 안내에 따라 이번 작업에서 제외했다. 운영 계정·비밀번호·호스트·포트를 변경하지 않는다. 기존 Naver 설정을 사용하고 실제 운영 API 확인은 해당 담당자의 변경과 대조한다.

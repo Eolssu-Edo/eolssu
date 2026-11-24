@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
+import com.ssafy.eolssu.core.ui.component.mouseDragScroll
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
@@ -204,7 +205,7 @@ internal fun EditInputPanel(
         // 접으면 실행 취소 줄 한 줄만 남겨 짧은 휴대폰에서도 정간보를 넓게 본다(S15P31E102-972).
         if (!expanded) return@Column
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Row(Modifier.horizontalScroll(tabsScroll)) {
+            Row(Modifier.mouseDragScroll(tabsScroll).horizontalScroll(tabsScroll)) {
                 SegmentTabs(
                     labels = listOf(stringResource(Res.string.sheet_adapt_tab), stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
                     selected = tab.ordinal,
@@ -301,7 +302,7 @@ private fun YulKeys(
         } else {
             val listState = rememberLazyListState()
             Box {
-                LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
+                LazyRow(Modifier.mouseDragScroll(listState), state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
                     items(BaseYuls, key = { it.name }) { base -> yulKey(base) }
                 }
                 ScrollFades(listState)
@@ -565,14 +566,15 @@ private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: Ed
                     color = colors.textMuted,
                 )
             } else {
-                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val addedScroll = rememberScrollState()
+                Row(Modifier.weight(1f).mouseDragScroll(addedScroll).horizontalScroll(addedScroll), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     added.forEachIndexed { position, value -> AddedSigimsae(value) { actions.onRemoveSigimsae(position) } }
                 }
             }
         }
         val listState = rememberLazyListState()
         Box {
-            LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
+            LazyRow(Modifier.mouseDragScroll(listState), state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
                 itemsIndexed(Sigimsae.entries, key = { _, value -> value.name }) { _, value ->
                     val order = added.indexOfFirst { it.name == value.name }
                     // 함께 쓸 수 없는 것은 흐리게 두되 누를 수 있다. 누르면 겹치는 것을 빼고 붙이며 무엇을 뺐는지 알린다.

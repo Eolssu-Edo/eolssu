@@ -42,6 +42,24 @@ class WindowLayoutTest {
     }
 
     @Test
+    fun phoneLandscapeWebWindowsAreCompactHeight() {
+        // 데스크톱에서 줄인 창, iPhone 가로, 큰 휴대폰 가로, 주소창을 뺀 Android Chrome 가로
+        for ((width, height) in listOf(800 to 380, 844 to 390, 932 to 430, 780 to 300)) {
+            assertTrue(windowLayoutOf(width = width.dp, height = height.dp).isCompactHeight, "${width}x$height")
+        }
+        assertTrue(windowLayoutOf(width = 1280.dp, height = 479.9.dp).isCompactHeight)
+    }
+
+    @Test
+    fun laptopAndPortraitWindowsAreNotCompactHeight() {
+        // 낮은 노트북 브라우저 창은 isShortHeight일 뿐 Compact 높이가 아니다.
+        for ((width, height) in listOf(1280 to 480, 1280 to 600, 1366 to 625, 600 to 900, 390 to 844)) {
+            assertFalse(windowLayoutOf(width = width.dp, height = height.dp).isCompactHeight, "${width}x$height")
+        }
+        assertTrue(windowLayoutOf(width = 1280.dp, height = 600.dp).isShortHeight)
+    }
+
+    @Test
     fun heightDoesNotChangeWidthClass() {
         val wideShort = windowLayoutOf(width = 1440.dp, height = 400.dp)
         assertEquals(WindowWidthClass.Expanded, wideShort.widthClass)

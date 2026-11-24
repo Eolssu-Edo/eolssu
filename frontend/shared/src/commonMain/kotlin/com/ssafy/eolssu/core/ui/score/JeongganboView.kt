@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.score
 
+import com.ssafy.eolssu.core.ui.component.mouseDragScroll
 import com.ssafy.eolssu.core.diagnostics.*
 import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.tween
@@ -328,7 +329,9 @@ fun JeongganboView(
     val playingKey = if (live) currentUnit?.key else null
 
     val rowModifier = if (scrollState != null) {
-        Modifier.horizontalScroll(scrollState, enabled = userScrollEnabled, reverseScrolling = true)
+        Modifier
+            .mouseDragScroll(scrollState, reverseDirection = true, enabled = userScrollEnabled, onDragStart = onUserScroll)
+            .horizontalScroll(scrollState, enabled = userScrollEnabled, reverseScrolling = true)
     } else {
         Modifier.wrapContentWidth(align = Alignment.End, unbounded = true)
     }
