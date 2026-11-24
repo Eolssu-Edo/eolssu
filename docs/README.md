@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [웹 악보 파일 선택 취소 대체 처리와 큰 PDF 읽기 메모리 줄이기 (1266)](plans/web-parity/S15P31E102-1266-handoff.md)
 - [녹음 업로드 WAV 허용과 서버 AAC 변환 저장 (1272)](plans/S15P31E102-1272.md) · [스펙](specs/recording-file.md)
 - [iOS QA Jenkins 잡이 Mac 오프라인 때 노드 대기로 ABORTED를 쌓지 않도록 수정 (1258)](plans/S15P31E102-1258.md) · [운영 안내](../infra/ios-qa/README.md)
 - [Android 출시 빌드 R8 코드 축소·난독화 적용과 benchmark 빌드 추가 (1120)](plans/S15P31E102-1120.md) · [설정 근거·크기·시작 시간 측정](knowledge/frontend/android-r8-release-build.md)
