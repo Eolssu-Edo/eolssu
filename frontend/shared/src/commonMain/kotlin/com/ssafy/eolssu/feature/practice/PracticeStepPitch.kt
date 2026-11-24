@@ -9,6 +9,7 @@ import com.ssafy.eolssu.data.practice.NotePracticeCriteria
 import kotlin.math.abs
 import kotlin.math.log2
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -280,6 +281,7 @@ class PitchStepNoteJudge internal constructor(
 ) : StepNoteJudge {
     override val manualConfirm: Boolean = false
     private var collector: Job? = null
+    private var starter: Job? = null
     private var onMatched: ((Int) -> Unit)? = null
 
     override fun listen(target: StepTarget, onMatched: (index: Int) -> Unit) {
@@ -299,9 +301,21 @@ class PitchStepNoteJudge internal constructor(
                 matched?.let { index -> this@PitchStepNoteJudge.onMatched?.invoke(index) }
             }
         }
-        if (runCatching { recorder.start() }.isFailure) {
-            stop()
-            onFailed()
+        // 웹은 마이크를 비동기로 연 뒤 시작한다. 앱은 prepare()가 할 일이 없어 바로 시작한다.
+        starter = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val started = try {
+                recorder.prepare()
+                recorder.start()
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            if (!started) {
+                stop()
+                onFailed()
+            }
         }
     }
 
@@ -309,6 +323,8 @@ class PitchStepNoteJudge internal constructor(
         val job = collector ?: return
         collector = null
         onMatched = null
+        starter?.cancel()
+        starter = null
         job.cancel()
         recorder.cancel()
         recorder.pitchGate = PitchGate.Default

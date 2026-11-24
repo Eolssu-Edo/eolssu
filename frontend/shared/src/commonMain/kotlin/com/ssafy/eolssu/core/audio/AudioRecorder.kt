@@ -54,15 +54,15 @@ object RecordingSpec {
  */
 data class RecordedTake(val path: String, val key: String, val scoreVersion: Int? = null)
 
-/** 녹음을 마친 m4a 파일. */
+/** 녹음을 마친 파일. 앱은 m4a(AAC), 웹은 WAV(PCM16)이며 웹은 서버가 m4a로 바꿔 저장한다(S15P31E102-1272). */
 data class RecordedAudio(val path: String, val bytes: Long) {
     val tooLarge: Boolean get() = bytes > RecordingSpec.MAX_BYTES
 }
 
 /**
- * 연주 녹음. 한 번에 하나만 녹음하고 m4a(AAC)로 저장한다(PRA-02).
+ * 연주 녹음. 한 번에 하나만 녹음한다. 앱은 m4a(AAC), 웹은 16kHz 모노 WAV(PCM16)로 저장한다(PRA-02).
  * 길이 제한은 부르는 쪽이 [RecordingSpec.MaxDuration]으로 잰다. 일시정지한 동안은 녹음되지 않는다.
- * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 Web)은 등록하지 않는다.
+ * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼은 등록하지 않는다.
  */
 interface AudioRecorder {
     /** 실시간 음높이 관측을 지원하지 않는 플랫폼은 null이다. */
@@ -83,6 +83,13 @@ interface AudioRecorder {
 
     /** 현재 녹음 구간의 입력 경계. */
     val captureBoundary: CaptureBoundary? get() = null
+
+    /**
+     * [start] 전에 마이크와 오디오 처리를 연다. 장치를 비동기로만 열 수 있는 웹만 일이 있고, 앱은 [start]가 바로 연다.
+     * 열지 못하면(권한 거부·장치 없음) 예외를 던지며, 부르는 쪽은 [start] 실패와 같이 다룬다.
+     * 웹은 [stop]·[cancel]이 장치를 닫으므로 새 녹음마다 다시 부른다. 일시정지 뒤 [resume]에는 필요 없다.
+     */
+    suspend fun prepare() {}
 
     /** 새 녹음을 시작한다. 전에 [stop]으로 남긴 파일은 지운다. 시작하지 못하면 예외를 던진다. */
     fun start()

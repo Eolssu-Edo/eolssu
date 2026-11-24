@@ -39,6 +39,7 @@ import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.CatalogUnreachable
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -1204,6 +1205,8 @@ class PracticeViewModel(
 
     fun cancelCountdown() {
         countdownJob?.cancel()
+        // 새 연주의 카운트다운이면 준비해 둔 마이크를 닫는다(웹). 이어 연주는 일시정지한 녹음을 그대로 둔다.
+        if (!_uiState.value.resume) recorder?.cancel()
         _uiState.update { it.cancelCountdown() }
     }
 
@@ -1328,6 +1331,8 @@ class PracticeViewModel(
     private fun runCountdown() {
         countdownJob?.cancel()
         countdownJob = accountScope.launch {
+            // 웹은 마이크를 비동기로 연다. 새 연주는 카운트다운과 함께 열고 끝에서 기다린다. 이어 연주는 열린 마이크를 쓴다.
+            val prepared = if (_uiState.value.resume) null else async { prepareRecorder() }
             while (_uiState.value.count > 1) {
                 delay(1000)
                 _uiState.update { it.copy(count = it.count - 1) }
@@ -1335,7 +1340,7 @@ class PracticeViewModel(
             delay(1000)
             val resume = _uiState.value.resume
             val carry = _uiState.value.eventElapsedMs
-            if (!(if (resume) resumeRecorder() else startRecorder())) {
+            if (prepared?.await() == false || !(if (resume) resumeRecorder() else startRecorder())) {
                 _uiState.update { it.failRecording() }
                 return@launch
             }
@@ -1465,6 +1470,19 @@ class PracticeViewModel(
         if (!state.finished || (state.popup != PracticePopup.End && state.popup != PracticePopup.EndAtLimit)) return null
         if (take == null) _uiState.update { it.failRecording() } else handedToAnalysis = true
         return take
+    }
+
+    /** 녹음 장치를 연다(웹). 열지 못하면 false이고, 부르는 쪽은 시작 실패와 같이 다룬다. */
+    private suspend fun prepareRecorder(): Boolean {
+        val recorder = recorder ?: return false
+        return try {
+            recorder.prepare()
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun startRecorder(): Boolean {

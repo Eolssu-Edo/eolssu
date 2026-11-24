@@ -27,6 +27,7 @@ import kotlinx.io.files.SystemFileSystem
  * 파일은 요청마다 새로 열어, 401 뒤 같은 요청을 다시 보낼 때도 처음부터 읽는다.
  * 전송 진행률은 시도마다 0부터 알리고, 파일 크기를 모르면 알리지 않는다. 요청 본문은 파일을 읽는 대로 보내므로 읽은 바이트를
  * 진행률로 쓴다. Ktor `onUpload`는 본문을 다른 코루틴에서 흘려 보내 가상 시간 테스트에서 업로드가 시간 초과로 끝나 쓰지 않는다.
+ * 웹 녹음(`.wav`)은 `audio/wav`로 보낸다. 서버는 이름·MIME이 아니라 내용으로 판정하고 WAV를 m4a로 바꿔 저장한다(S15P31E102-1272).
  *
  * @param fileSize 녹음 파일 크기(바이트). 없으면 null. 테스트는 가짜 크기를 넣는다.
  * @param openFile 녹음 파일을 처음부터 읽는다. 테스트는 메모리의 바이트를 넣는다.
@@ -57,10 +58,7 @@ class HttpRecordingUploader(
                     append(
                         "audio",
                         InputProvider(size) { counted(openFile(path), size, onProgress) },
-                        Headers.build {
-                            append(HttpHeaders.ContentType, "audio/mp4")
-                            append(HttpHeaders.ContentDisposition, "filename=\"recording.m4a\"")
-                        },
+                        recordingPartHeaders(path),
                     )
                 },
             ) {
@@ -87,6 +85,15 @@ class HttpRecordingUploader(
         /** 20MiB 전송에 기본 30초보다 시간을 더 주며, 자동 재시도까지 이 한도 안에서 끝낸다. */
         const val UPLOAD_TIMEOUT_MILLIS = 120_000L
         const val RETRY_DELAY_MILLIS = 1_000L
+    }
+}
+
+/** 녹음 파일 파트의 형식·이름. 웹 녹음은 WAV, 앱 녹음은 m4a다. */
+internal fun recordingPartHeaders(path: String): Headers {
+    val wav = path.endsWith(".wav", ignoreCase = true)
+    return Headers.build {
+        append(HttpHeaders.ContentType, if (wav) "audio/wav" else "audio/mp4")
+        append(HttpHeaders.ContentDisposition, if (wav) "filename=\"recording.wav\"" else "filename=\"recording.m4a\"")
     }
 }
 
