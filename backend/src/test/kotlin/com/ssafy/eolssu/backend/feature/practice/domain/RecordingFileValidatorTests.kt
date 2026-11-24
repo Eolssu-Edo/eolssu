@@ -13,6 +13,13 @@ class RecordingFileValidatorTests {
         channels = 2,
         durationSeconds = 12.3456,
     )
+    private val wav = AudioProbeResult(
+        formatNames = setOf("wav"),
+        audioCodec = "pcm_s16le",
+        sampleRate = 16_000,
+        channels = 1,
+        durationSeconds = 600.0,
+    )
 
     private class FakeProbe(private val result: AudioProbeResult?) : AudioProbe {
         var calls = 0
@@ -29,9 +36,40 @@ class RecordingFileValidatorTests {
         assertEquals(
             RecordingCheck.Accepted(
                 RecordingMetadata(bytes = 1_000, durationMs = 12_346, sampleRate = 44_100, channels = 2),
+                RecordingFormat.AAC_MP4,
             ),
             result,
         )
+    }
+
+    @Test
+    fun `accepts PCM16 WAV as a file to convert and returns the uploaded file's metadata`() {
+        // 웹 녹음 10분(16kHz·모노·PCM16)은 헤더 44바이트를 더해 19,200,044바이트다.
+        val result = RecordingFileValidator(FakeProbe(wav)).validate(file, sizeBytes = 19_200_044)
+
+        assertEquals(
+            RecordingCheck.Accepted(
+                RecordingMetadata(bytes = 19_200_044, durationMs = 600_000, sampleRate = 16_000, channels = 1),
+                RecordingFormat.PCM_WAV,
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `WAV is accepted only with 16-bit little-endian PCM and uses the same size and duration limits`() {
+        fun check(result: AudioProbeResult, size: Long = 1_000) = RecordingFileValidator(FakeProbe(result)).validate(file, size)
+
+        for (codec in listOf("pcm_f32le", "pcm_s24le", "pcm_u8", "pcm_s16be", "aac", null)) {
+            assertEquals(RecordingCheck.UnsupportedFormat, check(wav.copy(audioCodec = codec)), codec.toString())
+        }
+        // PCM16이라도 WAV가 아닌 컨테이너는 받지 않는다.
+        assertEquals(RecordingCheck.UnsupportedFormat, check(aac.copy(audioCodec = "pcm_s16le")))
+        assertEquals(RecordingCheck.UnsupportedFormat, check(wav.copy(formatNames = setOf("aiff"))))
+        assertEquals(RecordingCheck.UnsupportedFormat, check(wav.copy(sampleRate = 0)))
+        assertEquals(RecordingCheck.TooLarge, check(wav, size = 20_971_521))
+        assertEquals(RecordingCheck.InvalidDuration, check(wav.copy(durationSeconds = 601.0)))
+        assertEquals(RecordingCheck.InvalidDuration, check(wav.copy(durationSeconds = 0.0)))
     }
 
     @Test

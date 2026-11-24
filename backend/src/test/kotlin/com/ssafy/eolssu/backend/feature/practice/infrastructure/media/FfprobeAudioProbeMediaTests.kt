@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.practice.infrastructure.media
 import com.ssafy.eolssu.backend.feature.practice.domain.AudioProbeException
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingCheck
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFileValidator
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFormat
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingMetadata
 import java.nio.file.Files
 import java.nio.file.Path
@@ -48,8 +49,20 @@ class FfprobeAudioProbeMediaTests {
         val stereo = sine("stereo.m4a", 44_100, 2)
         val mono = sine("mono.m4a", 48_000, 1)
 
-        assertEquals(RecordingCheck.Accepted(RecordingMetadata(stereo.fileSize(), 2_000, 44_100, 2)), check(stereo))
-        assertEquals(RecordingCheck.Accepted(RecordingMetadata(mono.fileSize(), 2_000, 48_000, 1)), check(mono))
+        assertEquals(RecordingCheck.Accepted(RecordingMetadata(stereo.fileSize(), 2_000, 44_100, 2), RecordingFormat.AAC_MP4), check(stereo))
+        assertEquals(RecordingCheck.Accepted(RecordingMetadata(mono.fileSize(), 2_000, 48_000, 1), RecordingFormat.AAC_MP4), check(mono))
+    }
+
+    @Test
+    fun `accepts 16kHz mono PCM16 WAV for conversion and rejects other PCM WAV`() {
+        val web = sine("web.wav", 16_000, 1, codec = "pcm_s16le")
+        val float = sine("float.wav", 16_000, 1, codec = "pcm_f32le")
+        val renamedWav = Files.copy(web, dir.resolve("renamed.m4a"))
+
+        assertEquals(RecordingCheck.Accepted(RecordingMetadata(web.fileSize(), 2_000, 16_000, 1), RecordingFormat.PCM_WAV), check(web))
+        // 확장자가 아니라 내용으로 판정한다.
+        assertEquals(RecordingFormat.PCM_WAV, (check(renamedWav) as RecordingCheck.Accepted).format)
+        assertEquals(RecordingCheck.UnsupportedFormat, check(float))
     }
 
     @Test

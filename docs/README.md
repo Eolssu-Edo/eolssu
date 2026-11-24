@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [녹음 업로드 WAV 허용과 서버 AAC 변환 저장 (1272)](plans/S15P31E102-1272.md) · [스펙](specs/recording-file.md)
 - [iOS QA Jenkins 잡이 Mac 오프라인 때 노드 대기로 ABORTED를 쌓지 않도록 수정 (1258)](plans/S15P31E102-1258.md) · [운영 안내](../infra/ios-qa/README.md)
 - [Android 출시 빌드 R8 코드 축소·난독화 적용과 benchmark 빌드 추가 (1120)](plans/S15P31E102-1120.md) · [설정 근거·크기·시작 시간 측정](knowledge/frontend/android-r8-release-build.md)
 - [새 버전 알림을 앱 실행마다 띄우고 FCM 토픽 푸시와 앱 안 업데이트로 확장 (1257)](plans/S15P31E102-1257.md) · [결정](decisions/frontend-in-app-update.md)
