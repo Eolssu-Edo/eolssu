@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.history
 
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
+import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
@@ -141,6 +142,24 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
         // 아직 만료 전이라 주소를 다시 받지 않고 지금 위치부터 잇는다.
         assertEquals(1, repo.asked)
         assertEquals(third, player.requestedPosition)
+    }
+
+    /** S15P31E102-1259: 재생기가 없는 플랫폼에서 재생을 눌러도 ‘로딩 중’ 막과 ‘재생 중’ 상태가 남지 않는다. */
+    @Test
+    fun unavailablePlayerFailsPlaybackWithoutEndlessLoading() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, 48_000)
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), UnavailableAudioPlayer(), now = { 0L }))
+        runCurrent()
+        assertTrue(model.uiState.value.canPlay)
+
+        model.togglePlay()
+        runCurrent()
+        val state = model.uiState.value
+        assertFalse(state.playing)
+        assertFalse(state.playbackLoading)
+        assertEquals(RecordNotice.PlaybackFailed, state.notice)
+        assertEquals(0, repo.asked, "재생할 수 없으면 녹음 주소를 받지 않는다")
     }
 
     @Test

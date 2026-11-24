@@ -50,7 +50,10 @@ CAT-05의 상대 `audioUrl`은 같은 서버의 재생 경로로 해석한다. �
 
 ## 플랫폼과 수명
 
-- 공통 `AudioPlayer`를 플랫폼 DI로 공급한다. Android는 화면마다 실제 `AndroidAudioPlayer`, iOS는 `IosAudioPlayer`(S15P31E102-373, Mac·실기기 미검증), Web은 명시적 `UnavailableAudioPlayer`다.
+- 공통 `AudioPlayer`를 플랫폼 DI로 공급한다. Android는 화면마다 실제 `AndroidAudioPlayer`, iOS는 `IosAudioPlayer`(S15P31E102-373, Mac·실기기 미검증), Web은 HTML `<audio>` 기반 `WebAudioPlayer`(S15P31E102-1259)다. 2026-11-23 이전의 Web은 `UnavailableAudioPlayer`였다.
+- `WebAudioPlayer`는 `AndroidAudioPlayer`와 같은 상태 전이를 따른다. 재생 중 위치를 50ms마다 읽어 `positionSampledAt`·`positionClockRate`를 보내고, 위치가 실제로 움직이기 전과 `waiting` 중에는 시계 배율을 0으로 둔다. 준비가 30초 안에 끝나지 않거나 `play()`가 거절되면 실패, 페이지가 가려지면 중단이다. 앱 저장소 파일(`LocalAudioFile`)은 웹에 없으므로 그런 요청은 바로 실패로 알린다.
+- 모범 연주·녹음은 주소를 받는 네트워크 대기 뒤에 `load()`가 불려 클릭 제스처를 벗어난다. iOS Safari는 제스처 안에서 한 번 `play()`한 요소만 이후 재생을 허락하므로 `<audio>` 요소를 재사용하고, 재생 중이 아닐 때 들어온 첫 `touchend`·`pointerup`·`click`·`keydown`에서 10ms 무음 WAV를 한 번 튼다. Chrome 계열은 페이지의 사용자 활성화가 남아 있어 이 처리 없이도 재생된다. iOS Safari 실기기 동작은 아직 확인하지 않았다.
+- 재생기를 쓸 수 없는 플랫폼(`available=false`)에서 기록 상세의 재생을 누르면 녹음 주소를 받지 않고 `PlaybackFailed` 안내로 끝낸다. 로딩 막과 ‘재생 중’ 상태가 남지 않는다.
 - MediaPlayer 생성·data source 설정·prepareAsync·seek·재생·release는 전용 HandlerThread 한 곳에서 실행한다. 준비/seek가 30초 내 끝나지 않으면 실패로 복구한다.
 - 재생 시작/재개 전에 오디오 포커스를 요청한다. 포커스 상실·일시 상실·duck 요청은 중단으로 처리하고 사용자가 눌러 재개한다. 헤드폰 분리 방송도 같은 중단 경로다. 자동 백그라운드 재생과 서비스는 추가하지 않았다.
 - ON_STOP/화면 폐기 때 위치를 보존하고 네이티브 플레이어·포커스를 해제한다. 중복 수명 알림으로 위치를 0으로 덮어쓰지 않는다. 평가 녹음 시작·화면 뒤로 가기·ViewModel 해제도 재생을 종료한다.

@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [웹 악보 파일 선택 취소 대체 처리와 큰 PDF 읽기 메모리 줄이기 (1266)](plans/web-parity/S15P31E102-1266-handoff.md)
+- [웹 오디오 재생기 연결로 모범 연주 듣기·기록 녹음 재생 살리고 기록 상세 무한 로딩 막기 (1259)](plans/web-parity/S15P31E102-1259-handoff.md) · [재생 구조](knowledge/frontend/model-audio-playback.md)
 - [웹 테스트 보강: 웹 Koin 정의 해석 검사와 develop 웹 브라우저 테스트 자동 예약 (1270)](plans/web-parity/S15P31E102-1270-handoff.md) · [자동 경로 근거·실측·스모크 검토](knowledge/infra/web-tests-ci.md) · [운영 적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)
 - [웹 셸 정비: 탭·홈 화면 아이콘과 manifest, 키보드 viewport, Safari 글꼴 미리 해석, 본문 글꼴 CFF 변환 (1267)](plans/web-parity/S15P31E102-1267-handoff.md) · [글꼴 변환 기록](knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)
 - [R2 파일과 DB를 대조하는 읽기 전용 점검 도구 추가 (1273)](plans/S15P31E102-1273.md) · [사용 방법](../infra/storage/README.md#주인-없는-파일-점검-s15p31e102-1273)
@@ -623,7 +625,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
 
-- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md)
+- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md) (S15P31E102-1124에서 제거)
 
 - [Android QA 실제 API 검증 결과와 미제공 콘텐츠](knowledge/frontend/android-qa-api-verification.md)
 - [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)

@@ -76,12 +76,9 @@ object AuthDestination {
 /**
  * 로그인한 회원이 있으면 홈, 없으면 로그인에서 시작한다([startNeedsLogin]). 처음 켠 기기, 로그아웃 뒤 다시 켠 기기, 세션이 만료된 기기가 로그인으로 간다.
  * 약관 동의는 회원가입 흐름([AuthDestination.SIGNUP_CONSENT])에서, 마이크 권한은 처음 녹음을 시작할 때 연습 화면에서 받는다.
- * TEMP S15P31E102-309: [qaSkipConsent]는 첫 실행 약관 동의를 건너뛰던 QA 빌드 값이다. 첫 실행에 약관 화면이 없어져 시작 화면은 같다.
  */
-@Suppress("UNUSED_PARAMETER")
 fun startDestination(
     firstRunCompleted: Boolean,
-    qaSkipConsent: Boolean = false,
     sessionExpired: Boolean = false,
     signedIn: Boolean = true,
 ): String = if (startNeedsLogin(firstRunCompleted, sessionExpired, signedIn)) AuthDestination.LOGIN else EolssuDestination.HOME

@@ -163,8 +163,6 @@ fun EolssuNavHost(
     onNavHostReady: suspend (NavController) -> Unit = {},
     navController: NavHostController = rememberNavController(),
     browserBackGuard: BrowserBackGuard? = null,
-    // TEMP S15P31E102-309: remove together with the startDestination branch.
-    qaSkipConsent: Boolean = false,
     sessionExpired: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
@@ -174,8 +172,8 @@ fun EolssuNavHost(
     // 앱을 켤 때의 로그인 여부. 로그아웃 뒤 다시 켜면 회원이 없어 만료 안내 없이 로그인에서 시작한다.
     val firstRunCompleted = remember { firstRunRepository.isCompleted() }
     val signedInAtStart = remember { member.id != null }
-    val start = remember(qaSkipConsent, sessionExpired) {
-        startDestination(firstRunCompleted, qaSkipConsent, sessionExpired, signedInAtStart)
+    val start = remember(sessionExpired) {
+        startDestination(firstRunCompleted, sessionExpired, signedInAtStart)
     }
     val performance = remember(navController) { PerformanceNavigation(navController) }
     val scope = rememberCoroutineScope()

@@ -24,7 +24,6 @@ class FirstRunStartTest {
     @Test
     fun expiredSessionReturnsCompletedDeviceToLoginWithoutSkippingFirstRun() {
         assertEquals(AuthDestination.LOGIN, startDestination(true, sessionExpired = true))
-        assertEquals(AuthDestination.LOGIN, startDestination(true, qaSkipConsent = true, sessionExpired = true))
         assertEquals(AuthDestination.LOGIN, startDestination(false, sessionExpired = true))
     }
 
@@ -38,20 +37,6 @@ class FirstRunStartTest {
         // 처음 켠 기기도 마이크 안내 없이 로그인에서 시작한다(마이크 권한은 녹음을 시작할 때 받는다).
         assertEquals(AuthDestination.LOGIN, startDestination(false, signedIn = false))
         assertTrue(startNeedsLogin(firstRunCompleted = false, sessionExpired = false, signedIn = false))
-    }
-
-    // TEMP S15P31E102-309: QA 옵션 제거 시 아래 두 검사도 제거한다.
-    @Test
-    fun qaFirstLaunchSkipsOnlyConsentWithoutPersistingCompletion() {
-        val repository = FirstRunRepository(FakeKeyValueStore())
-        assertEquals(AuthDestination.LOGIN, startDestination(repository.isCompleted(), qaSkipConsent = true))
-        assertFalse(repository.isCompleted())
-        assertEquals(AuthDestination.LOGIN, startDestination(repository.isCompleted()))
-    }
-
-    @Test
-    fun qaCompletedLaunchStillStartsAtHome() {
-        assertEquals(EolssuDestination.HOME, startDestination(true, qaSkipConsent = true))
     }
 
     @Test
