@@ -3,14 +3,12 @@ package com.ssafy.eolssu.platform
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import com.ssafy.eolssu.app.di.appModule
-import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.diagnostics.PerformanceVisit
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
-import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
@@ -55,9 +53,7 @@ class WebKoinResolutionTest {
      * 웹에 구현이 없는 플랫폼 기능에만 기대는 정의와 그 기능. 쓰는 쪽은 그 기능을 `getOrNull`로 확인한 뒤에만 받아야 한다.
      * 웹에 구현이 생기면 [platformOnlyDefinitionsStayUnresolvedOnlyForTheirMissingFeature]가 이 목록에서 빼라고 알린다.
      */
-    private val platformOnly: Map<KClass<*>, KClass<*>> = mapOf(
-        RecordingUploads::class to RecordingFiles::class,
-    )
+    private val platformOnly: Map<KClass<*>, KClass<*>> = emptyMap() // 웹 RecordingFiles 등록으로 RecordingUploads를 뺐다(S15P31E102-1262).
 
     /**
      * 화면 인자(`parametersOf`)의 형식별 예시 값. 인자가 있는 ViewModel은 이 값으로 만든다.

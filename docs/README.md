@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [웹 녹음과 연주 평가: 16kHz WAV 녹음기·마이크 권한·분석 주소 직접 진입 안내 (1262)](plans/web-parity/S15P31E102-1262-handoff.md) · [스펙](specs/recording-file.md)
 - [웹 내 악보 생성 음원을 서명 URL로 바로 재생하고 완료 배너를 연습으로 연결 (1261)](plans/web-parity/S15P31E102-1261-handoff.md) · [웹 연습 재생 규칙](specs/sheet-audio.md#웹-연습-재생-s15p31e102-1261)
 - [운영 웹 최신 develop 기준선 배포와 웹 배포 주기(정기 수동 배포)·README 정정 (1269)](plans/web-parity/S15P31E102-1269-handoff.md) · [배포 주기 스펙](specs/jenkins-deploy-order.md#웹-배포-주기-s15p31e102-1269) · [웹 빌드·테스트·배포](../frontend/README.md#웹-빌드테스트배포)
 - [웹 장단 연습·장단 듣기·모범 연주 장단 반주를 Web Audio 예약 재생으로 지원 (1260)](plans/web-parity/S15P31E102-1260-handoff.md) · [브라우저 확인·제약](knowledge/frontend/web-jangdan-playback.md)

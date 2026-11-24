@@ -16,6 +16,7 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.AnalysisStatus
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.NoRecordingToAnalyze
 import com.ssafy.eolssu.data.practice.FakeRecordingFiles
 import com.ssafy.eolssu.data.practice.FakeUploader
 import com.ssafy.eolssu.data.practice.PendingRecording
@@ -69,6 +70,17 @@ class AnalysisSessionTest {
         assertEquals("evaluation-1", state.evaluationId)
         time.advanceBy(10_000)
         assertEquals(3, repository.queries)
+    }
+
+    /** 웹에서 분석 주소로 바로 들어오거나 새로 고치면 보낼 녹음이 없다. 서버 오류가 아니라 '다시 연주'를 안내한다. */
+    @Test
+    fun enteringWithoutARecordingAsksToPlayAgainInsteadOfShowingAServerError() {
+        repository.requestError = NoRecordingToAnalyze()
+        start()
+        assertEquals(UploadProblem.Missing, state.upload)
+        assertNull(state.failure)
+        time.advanceBy(10_000)
+        assertEquals(0, repository.queries)
     }
 
     @Test

@@ -112,6 +112,46 @@ class RecordingSupportTest {
         assertNull(vm.takeForEvaluation())
     }
 
+    @Test fun microphoneIsPreparedOnceDuringTheCountdownBeforeRecordingStarts() {
+        val recorder = FakePracticeRecorder()
+        recordingTest(recorder) { vm, _ ->
+            vm.grantMicAndStart()
+            runCurrent()
+            assertEquals(1, recorder.prepares)
+            assertEquals(0, recorder.starts)
+            advanceTimeBy(3100)
+            runCurrent()
+            assertEquals(1, recorder.starts)
+            assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        }
+    }
+
+    @Test fun microphoneThatCannotBeOpenedFailsTheTakeWithoutStartingIt() {
+        val recorder = FakePracticeRecorder(prepareFailure = IllegalStateException("NotAllowedError"))
+        recordingTest(recorder) { vm, _ ->
+            vm.grantMicAndStart()
+            advanceTimeBy(3100)
+            runCurrent()
+            assertEquals(0, recorder.starts)
+            assertEquals(PracticePopup.RecordFailed, vm.uiState.value.popup)
+            assertNull(vm.takeForEvaluation())
+        }
+    }
+
+    @Test fun cancellingTheCountdownClosesThePreparedMicrophone() {
+        val recorder = FakePracticeRecorder()
+        recordingTest(recorder) { vm, _ ->
+            vm.grantMicAndStart()
+            runCurrent()
+            vm.cancelCountdown()
+            advanceTimeBy(4000)
+            runCurrent()
+            assertEquals(1, recorder.cancels)
+            assertEquals(0, recorder.starts)
+            assertEquals(PracticeMode.Ready, vm.uiState.value.mode)
+        }
+    }
+
     @Test fun failedSaveCannotBeSubmittedForAnalysis() = recordingTest(FakePracticeRecorder(output = null)) { vm, _ ->
         vm.grantMicAndStart()
         finishSong(vm)
@@ -237,13 +277,23 @@ class RecordingSupportTest {
 }
 
 /** 파일 저장과 마이크만 대체한다. 화면 상태와 시간 진행은 실제 ViewModel을 사용한다. */
-internal class FakePracticeRecorder(private val output: RecordedAudio? = RecordedAudio("take.m4a", 1024)) : AudioRecorder {
+internal class FakePracticeRecorder(
+    private val output: RecordedAudio? = RecordedAudio("take.m4a", 1024),
+    /** 웹처럼 마이크를 여는 [prepare]가 실패하는 경우. */
+    private val prepareFailure: Exception? = null,
+) : AudioRecorder {
     var starts = 0
         private set
     var cancels = 0
         private set
+    var prepares = 0
+        private set
     override var interrupted = false
     override val measuresLevel = false
+    override suspend fun prepare() {
+        prepares++
+        prepareFailure?.let { throw it }
+    }
     override fun start() { starts++; interrupted = false }
     override fun pause() = Unit
     override fun resume() = Unit

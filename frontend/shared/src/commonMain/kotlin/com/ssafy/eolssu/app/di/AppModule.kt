@@ -160,8 +160,12 @@ val appModule = module {
     // 실제 세션과 결과만 사용한다. 테스트 대역은 테스트에서 직접 주입한다.
     single<EvaluationRepository> { ApiEvaluationRepository(get(), get(), member = get()) }
     single<PracticeSessionRepository> { HttpPracticeSessionRepository(get(), get()) }
-    single<RecordingUploader> { HttpRecordingUploader(get()) }
-    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android·iOS)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
+    // 녹음 파일은 RecordingFiles로 읽는다. 웹은 파일 시스템이 없어 메모리의 녹음을 준다(S15P31E102-1262).
+    single<RecordingUploader> {
+        val files = getOrNull<RecordingFiles>()
+        if (files == null) HttpRecordingUploader(get()) else HttpRecordingUploader(get(), files::size, files::open)
+    }
+    // 녹음 보관은 RecordingFiles가 있는 플랫폼만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
     single { RecordingUploads(get(), get(), get(), get(), get()) }
     single<PracticeRecordRepository> { HttpPracticeRecordRepository(get(), get(), get()) }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
@@ -171,7 +175,7 @@ val appModule = module {
 
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String, perf: PerformanceVisit?) -> SongDetailViewModel(songId, get(), perf) }
-    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
+    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(Android·iOS·Web).
     // 여섯째 인자 direct: 곡 정보에서 바로 시작한 연주 평가(S15P31E102-705).
     viewModel { parameters ->
         val (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) = parameters

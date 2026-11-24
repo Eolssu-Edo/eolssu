@@ -1,7 +1,7 @@
-package com.ssafy.eolssu.platform.audio
+package com.ssafy.eolssu.core.audio
 
 /**
- * 녹음 입력을 음높이 분석 창으로 자른다. Android 녹음기와 같은 [size]·[hop]으로, 녹음 파일의 샘플 위치를 함께 센다.
+ * 녹음 입력을 음높이 분석 창으로 자른다(iOS·웹 녹음기). Android 녹음기와 같은 [size]·[hop]으로, 녹음 파일의 샘플 위치를 함께 센다.
  * 입력 묶음 크기와 관계없이 [hop]마다 창 하나를 낸다. 일시정지 뒤에는 [reset]으로 이전 구간의 소리를 버린다.
  */
 internal class PitchWindows(private val size: Int, private val hop: Int) {
