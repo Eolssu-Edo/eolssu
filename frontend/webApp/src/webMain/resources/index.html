@@ -8,6 +8,20 @@
     <meta name="referrer" content="no-referrer">
     <title>얼쑤</title>
     <meta name="theme-color" content="#F9FAF9">
+    <script>
+        // 웹 간편 로그인 복귀 주소. 인가 코드·state를 웹 앱에 넘기려고 탭 저장소에 받아 두고, 주소창을 곧바로 /로 바꾼다.
+        // 코드가 주소창·방문 기록·이후 요청에 남지 않고, 아래 상대 경로(styles.css·webApp.js)가 / 기준으로 풀린다.
+        // 키 이름은 shared webMain의 WebOAuth.kt와 같아야 한다(docs/specs/social-auth.md 웹 간편 로그인).
+        (function () {
+            if (!/^\/auth\/oauth\/(kakao|google|naver)\/callback$/.test(location.pathname)) return;
+            try {
+                sessionStorage.setItem("eolssu.oauth_return", location.href);
+            } catch (e) {
+                // 탭 저장소를 막은 브라우저는 시도 상태도 남지 않으므로, 복귀 주소 없이 처음 화면으로 연다.
+            }
+            history.replaceState(null, "", "/");
+        })();
+    </script>
     <link type="text/css" rel="stylesheet" href="styles.css">
     <!-- 탭 아이콘과 홈 화면 추가(tools/web-icons/build_web_icons.py로 만든다). -->
     <link rel="icon" href="favicon.ico" sizes="any">
