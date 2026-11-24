@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.core.audio.SheetAudioPlayback
 import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.GrowthRepository
@@ -144,7 +145,10 @@ val appModule = module {
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get(), get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get(), getOrNull()) }
-    single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get(),
+            streamsAudio = getOrNull<SheetAudioPlayback>() == SheetAudioPlayback.Stream)
+    }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single { SheetAuthoringCatalog(get<InstrumentCatalog>()::load, get(), get(), get()) }

@@ -10,6 +10,7 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.data.practice.SessionSection
+import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
@@ -115,6 +116,19 @@ class WebKoinResolutionTest {
             }
         } finally {
             viewModels.clear()
+            close(app)
+        }
+    }
+
+    /** 웹은 기기 저장소 없이 내 악보 음원을 서명 URL로 바로 튼다(S15P31E102-1261). 앱 모듈이 웹 등록을 읽는지 본다. */
+    @Test
+    fun sheetPracticeStreamsPersonalAudioOnTheWeb() {
+        val app = webApp()
+        try {
+            val practice = app.koin.get<SheetPracticeRepository>()
+            assertTrue(practice.streamsAudio, "웹 플랫폼 모듈의 SheetAudioPlayback.Stream이 연습 저장소에 전달돼야 한다")
+            assertTrue(practice.personalAudioPlayable)
+        } finally {
             close(app)
         }
     }

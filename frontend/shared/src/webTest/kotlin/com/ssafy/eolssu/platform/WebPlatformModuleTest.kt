@@ -4,6 +4,8 @@ import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
+import com.ssafy.eolssu.core.audio.SheetAudioPlayback
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.platform.audio.WebAudioRecorder
 import com.ssafy.eolssu.platform.audio.WebRecordingFiles
@@ -25,6 +27,9 @@ class WebPlatformModuleTest {
         try {
             assertEquals(window.location.origin, app.koin.get<ServerAddress>().baseUrl)
             assertIs<WebKeyValueStore>(app.koin.get<KeyValueStore>())
+            // 내 악보 음원은 기기에 받지 않고 서명 URL로 바로 튼다(S15P31E102-1261).
+            assertEquals(false, app.koin.get<SheetAudioDeviceStore>().available)
+            assertEquals(SheetAudioPlayback.Stream, app.koin.get<SheetAudioPlayback>())
         } finally {
             app.close()
         }

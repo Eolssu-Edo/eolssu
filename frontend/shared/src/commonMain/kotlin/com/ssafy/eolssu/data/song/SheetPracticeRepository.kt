@@ -12,7 +12,11 @@ import com.ssafy.eolssu.core.network.inSession
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** 같은 계정이 확정 악보 버전으로 기기에 내려받은 음원만 연습에 연결한다. */
+/**
+ * 같은 계정이 확정 악보 버전으로 기기에 내려받은 음원만 연습에 연결한다.
+ * [streamsAudio]이면(웹, S15P31E102-1261) 기기에 받지 않고 SHT-13이 주는 서명 URL을 바로 연결한다.
+ * 서버는 완료 뒤 10분만 링크를 주고 파일을 지우므로, 그 뒤에는 음원이 없는 것으로 보고 다시 만들게 한다.
+ */
 class SheetPracticeRepository(
     private val documents: SheetDocumentRepository,
     private val deviceAudio: SheetAudioDeviceStore,
@@ -21,8 +25,10 @@ class SheetPracticeRepository(
     private val member: SignedInMember,
     private val sheetAudio: SheetAudioRepository,
     private val now: () -> Long,
+    val streamsAudio: Boolean = false,
 ) : ModelAudioRepository {
-    val deviceAudioAvailable: Boolean get() = deviceAudio.available
+    /** 이 플랫폼에서 내 악보 음원을 연습에 틀 수 있다(기기 저장 또는 서명 URL 스트리밍). */
+    val personalAudioPlayable: Boolean get() = deviceAudio.available || streamsAudio
     suspend fun load(sheetId: String): Song? {
         val document = documents.get(sheetId) ?: return null
         if (document.id != sheetId) throw CatalogUnavailable()
@@ -74,7 +80,7 @@ class SheetPracticeRepository(
      * 편집기 등에서 이미 요청한 생성을 연습 화면이 '음원 다운로드'로 잘못 안내하지 않게 한다. 새 생성은 요청하지 않는다.
      */
     suspend fun generationStatus(song: Song): SheetAudioStatus? = member.inSession {
-        if (!deviceAudio.available) return@inSession null
+        if (!personalAudioPlayable) return@inSession null
         val version = song.scoreVersion?.takeIf { it > 0 }?.toString() ?: return@inSession null
         (sheetAudio.status(song.id) as? SheetAudioLookup.Found)?.audio?.takeIf { it.generating(song.id, version) }?.status
     }
@@ -83,11 +89,12 @@ class SheetPracticeRepository(
      * 사용자가 요청한 확정 악보의 M4A만 내려받는다. 장단은 연습 플레이어에서 별도로 켠다.
      * [resume]이면 SHT-12를 보내지 않고 이미 진행 중인 생성(SHT-13)만 기다린다. 끝난 음원이 연습 설정과 다르면 [SheetPracticeDownload.NotStarted]다.
      * [onStatus]는 기다리는 동안 서버 생성 상태(대기·생성)를 알린다.
+     * [streamsAudio]이면 완료된 파일을 확인만 하고 저장하지 않은 채 [SheetPracticeDownload.Saved]로 끝낸다. 재생할 링크는 [get]이 새로 받는다.
      */
     suspend fun download(
         song: Song, resume: Boolean = false, onStatus: (SheetAudioStatus) -> Unit = {}, onDownloading: () -> Unit = {},
     ): SheetPracticeDownload = member.inSession {
-        if (!deviceAudio.available) return@inSession SheetPracticeDownload.Failed
+        if (!personalAudioPlayable) return@inSession SheetPracticeDownload.Failed
         val accountId = member.id ?: return@inSession SheetPracticeDownload.Failed
         val version = song.scoreVersion?.takeIf { it > 0 }?.toString() ?: return@inSession SheetPracticeDownload.Failed
         if (deviceAudio.find(accountId, song.id, version) != null) return@inSession SheetPracticeDownload.Saved
@@ -135,6 +142,7 @@ class SheetPracticeRepository(
         if (file.contentType != "audio/mp4" || file.expiresWithin(now(), 0)) return@inSession SheetPracticeDownload.Failed
         val sha256 = file.sha256 ?: return@inSession SheetPracticeDownload.Failed
         val durationMs = file.durationMs ?: return@inSession SheetPracticeDownload.Failed
+        if (streamsAudio) return@inSession SheetPracticeDownload.Saved
         ensureAccountSession()
         onDownloading()
         val saved = deviceAudio.save(accountId, song.id, version, SheetAudioDownload(
@@ -147,6 +155,7 @@ class SheetPracticeRepository(
         val accountId = member.id ?: return@inSession null
         val version = song.scoreVersion?.takeIf { it > 0 } ?: return@inSession null
         val bpmUnit = song.score.timing?.bpmUnit?.name ?: return@inSession null
+        if (streamsAudio) return@inSession streamed(song, version, bpmUnit)
         val file = deviceAudio.find(accountId, song.id, version.toString()) ?: return@inSession null
         val audio = ModelAudio(
             songId = song.id,
@@ -167,6 +176,43 @@ class SheetPracticeRepository(
             audio
         }
     }
+
+    /**
+     * 웹: 이 확정 판본의 완료된 최신 M4A 링크를 SHT-13으로 받아 바로 튼다. 생성 설정은 기기 저장본처럼 따지지 않는다.
+     * 링크가 [STREAM_START_MARGIN_MS] 안에 끝나면(서버가 곧 파일을 지운다) 없는 것으로 본다. 연결 실패는 [CatalogUnavailable]이다.
+     */
+    private suspend fun streamed(song: Song, version: Int, bpmUnit: String): ModelAudio? {
+        val audio = when (val lookup = sheetAudio.status(song.id)) {
+            is SheetAudioLookup.Found -> lookup.audio
+            SheetAudioLookup.None -> return null
+            SheetAudioLookup.Unavailable -> throw CatalogUnavailable()
+        }
+        val current = version.toString()
+        if (audio.sheetId != song.id || audio.status != SheetAudioStatus.Done || audio.outdated ||
+            audio.scoreVersion != current || audio.currentScoreVersion != current) return null
+        val file = audio.audio ?: return null
+        if (file.contentType != "audio/mp4" || file.expiresWithin(now(), STREAM_START_MARGIN_MS)) return null
+        val sha256 = file.sha256 ?: return null
+        val durationMs = file.durationMs ?: return null
+        val streamed = ModelAudio(
+            songId = song.id,
+            scoreVersion = version,
+            audioUrl = file.url,
+            bpm = audio.bpm,
+            bpmUnit = bpmUnit,
+            durationMs = durationMs,
+            startOffsetMs = 0,
+            contentType = file.contentType,
+            sha256 = sha256,
+            sheetPlayback = SheetPlayback(audio.withJangdan, localFile = null),
+        )
+        val performance = file.performance?.takeIf { it.matchesFile(sha256, current) } ?: return streamed
+        return try {
+            streamed.withPerformance(performance.timeline.toString(), song, performance.sourceCommonSha256)
+        } catch (_: IllegalArgumentException) {
+            streamed
+        }
+    }
 }
 
 class SheetPracticeNeedsReview : Exception()
@@ -175,6 +221,9 @@ class SheetPracticeNeedsReview : Exception()
 enum class SheetPracticeDownload { Saved, Failed, VersionChanged, UnsupportedPitches, NotStarted }
 
 private const val AUDIO_GENERATION_LIMIT_MS = 12 * 60 * 1000L
+
+/** 웹 스트리밍을 시작할 때 링크에 남아 있어야 하는 시간. 이보다 짧으면 재생 중 파일이 지워질 수 있어 다시 만들게 한다. */
+internal const val STREAM_START_MARGIN_MS = 30_000L
 
 /** 진행 중인 생성이 이 악보 판본·설정의 요청인지 본다. `outdated`는 보관 중인 이전 파일의 상태라 여기서 보지 않는다. */
 private fun SheetAudio.requestMatches(sheetId: String, version: String, settings: SheetAudioSettings): Boolean =
