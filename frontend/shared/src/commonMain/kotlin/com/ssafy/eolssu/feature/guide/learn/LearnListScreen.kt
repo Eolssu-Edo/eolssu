@@ -173,7 +173,8 @@ internal fun LearnListContent(
             }
             // 호랑이는 카드가 자리 잡기를 기다리지 않고, 아래 카드가 가고 있는 단계로 바로 건너간다(S15P31E102-1102).
             // '초기화하기'는 상단 바 오른쪽 화살표로 옮겼다([LearnResetAction], S15P31E102-1238). 그 줄(48dp)이 빠진 만큼 카드가 커지고, 지도와 카드 사이에는 여백만 둔다.
-            LearnTrailMap(state, viewedStage = aimedStage ?: currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = 16.dp))
+            // 지도와 카드가 붙어 보이지 않도록 여백을 28dp로 넓혔다(S15P31E102-1276).
+            LearnTrailMap(state, viewedStage = aimedStage ?: currentStage, onShowStage = actions.onShowCard, onCelebrated = actions.onFinishCelebrated, modifier = Modifier.padding(bottom = TrailCardGap))
             LearnStageCarousel(
                 state,
                 currentStage,
@@ -228,6 +229,9 @@ private fun LearnResetDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
         EolssuButton(stringResource(Res.string.common_cancel), onCancel, Modifier.fillMaxWidth(), style = EolssuButtonStyle.Secondary, qaTarget = QaTarget.LEARN_LIST_SCREEN_BUTTON_02)
     }
 }
+
+/** 달리기 지도와 단계 카드 사이 여백. */
+private val TrailCardGap = 28.dp
 
 /** 낮은 화면에서 줄인 단계 카드의 최소 한 변. 이보다 낮으면 줄이지 않고 스크롤한다. */
 private val LearnCardMinSize = 160.dp

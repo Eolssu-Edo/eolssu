@@ -180,21 +180,31 @@ internal fun TourPanel(
     }
 }
 
-/** 진행 막대: '할 일 n / 전체'와 마친 만큼 부드럽게 차오르는 막대. 다 마치면 축하 문구로 바뀐다. */
+/**
+ * 진행 막대: 마친 만큼 부드럽게 차오르는 막대와 그 오른쪽의 '할 일 n / 전체'를 한 줄에 둔다(S15P31E102-1276).
+ * 악기 칩과 같은 줄에 들어가 좁으므로 다 마쳐도 문구 길이는 그대로 두고 글자색만 축하 색으로 바꾼다. 화면 읽기에는 축하 문구로 읽힌다.
+ */
 @Composable
 internal fun StepProgress(done: Int, total: Int, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     val fraction by animateFloatAsState(if (total == 0) 0f else done.toFloat() / total, tween(600, easing = FastOutSlowInEasing), label = "stepProgress")
     val allDone = done >= total
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            if (allDone) stringResource(Res.string.learn_step_all_done) else stringResource(Res.string.learn_step_progress, done, total),
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-            color = if (allDone) colors.accentText else colors.textMuted,
-        )
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(colors.line)) {
+    val count = stringResource(Res.string.learn_step_progress, done, total)
+    val description = if (allDone) stringResource(Res.string.learn_step_all_done) else count
+    Row(
+        modifier.clearAndSetSemantics { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.weight(1f).height(8.dp).clip(CircleShape).background(colors.line)) {
             Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().clip(CircleShape).background(colors.primary))
         }
+        Text(
+            count,
+            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            color = if (allDone) colors.accentText else colors.textMuted,
+            maxLines = 1,
+        )
     }
 }
 
