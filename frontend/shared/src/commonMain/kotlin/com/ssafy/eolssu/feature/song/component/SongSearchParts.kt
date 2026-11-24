@@ -55,7 +55,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuLevelChip
-import com.ssafy.eolssu.core.ui.component.PageHeading
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.song.SongLevelFilter
 import com.ssafy.eolssu.feature.song.SongListActions
@@ -95,7 +94,8 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
     val selectedId = if (twoPane) state.selectedSong?.id else null
     // 붙었을 때 검색칸이 상단 바에 닿지 않도록 12dp를 검색칸 위로 옮긴다. 붙기 전 간격(머리 아래 22dp)은 그대로다.
     item(key = "heading") {
-        PageHeading(
+        // 홈 AI 평가 버튼과 같은 글씨체로 한 줄에 한 글자씩 적는다(S15P31E102-1280).
+        SongListHeading(
             title = stringResource(Res.string.song_list_heading),
             modifier = Modifier.padding(bottom = 22.dp - SearchStickyTopGap),
         )
