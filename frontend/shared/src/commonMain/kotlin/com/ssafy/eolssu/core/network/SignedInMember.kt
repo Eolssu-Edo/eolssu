@@ -25,7 +25,9 @@ class SignedInMember(private val store: KeyValueStore) {
     private val state = MutableStateFlow(AccountSession(store.getString(KEY)?.ifEmpty { null }, 0))
     val session = state.asStateFlow()
     val id: String? get() = state.value.memberId
-    private val listeners = MutableStateFlow<List<() -> Unit>>(emptyList())
+    private val listeners = MutableStateFlow<List<Listener>>(emptyList())
+
+    private class Listener(val ownChangesOnly: Boolean, val action: () -> Unit)
 
     /** 대기열에 들어가기 전에 소유자를 잡는다. 대기 중 로그인 변경 시 새 쿠키로 보내지 않는다. */
     suspend fun <T> whileSignedIn(block: suspend (String?) -> T): T {
@@ -50,13 +52,27 @@ class SignedInMember(private val store: KeyValueStore) {
     /** [changing] 안에서 호출한다. 앱 시작의 세션 만료 처리에도 사용한다. */
     fun set(memberId: String?) {
         store.putString(KEY, memberId.orEmpty())
-        state.update { AccountSession(memberId, it.epoch + 1) }
-        listeners.value.forEach { it() }
+        change(memberId, own = true)
     }
 
-    fun onChange(clear: () -> Unit): () -> Unit {
-        listeners.update { it + clear }
-        return { listeners.update { it - clear } }
+    /**
+     * 다른 탭(웹)이 저장소의 로그인 회원을 바꿨을 때 이 탭도 따른다. 세대가 바뀌어 이전 계정의 진행 중 작업은 결과를 버린다.
+     * 저장소는 이미 바뀌었으므로 다시 쓰지 않고, 저장소를 고치는 리스너([onChange]의 ownChangesOnly)는 부르지 않는다.
+     */
+    fun follow(memberId: String?) {
+        if (memberId != id) change(memberId, own = false)
+    }
+
+    private fun change(memberId: String?, own: Boolean) {
+        state.update { AccountSession(memberId, it.epoch + 1) }
+        listeners.value.forEach { if (own || !it.ownChangesOnly) it.action() }
+    }
+
+    /** 회원이 바뀌면 [clear]를 부른다. [ownChangesOnly]면 이 실행이 바꿨을 때만 부른다([follow]는 제외). */
+    fun onChange(ownChangesOnly: Boolean = false, clear: () -> Unit): () -> Unit {
+        val listener = Listener(ownChangesOnly, clear)
+        listeners.update { it + listener }
+        return { listeners.update { it - listener } }
     }
 
     internal suspend fun <T> request(block: suspend () -> T): T {
@@ -72,7 +88,10 @@ class SignedInMember(private val store: KeyValueStore) {
         }
     }
 
-    companion object { private const val KEY = "auth.member_id" }
+    companion object {
+        /** 로그인 회원을 남기는 [KeyValueStore] 키. 웹은 다른 탭의 변경을 이 키로 알아챈다. */
+        const val KEY = "auth.member_id"
+    }
 }
 
 private class AuthenticationLock(val member: SignedInMember) : AbstractCoroutineContextElement(Key) {

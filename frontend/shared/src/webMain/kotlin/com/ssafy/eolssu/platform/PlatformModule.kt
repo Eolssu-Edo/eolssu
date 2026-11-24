@@ -14,7 +14,10 @@ import com.ssafy.eolssu.app.di.OAuthAttemptStore
 import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.browser.ExternalBrowser
 import com.ssafy.eolssu.core.browser.IncomingLinks
+import com.ssafy.eolssu.core.network.LaunchSession
+import com.ssafy.eolssu.core.network.OtherTabSignIns
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SharedRefreshLock
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import com.ssafy.eolssu.core.storage.SecureStore
 import com.ssafy.eolssu.data.user.OAuthRoute
@@ -32,7 +35,10 @@ import com.ssafy.eolssu.platform.browser.TabSessionStore
 import com.ssafy.eolssu.platform.browser.WebExternalBrowser
 import com.ssafy.eolssu.platform.browser.takeWebOAuthReturn
 import com.ssafy.eolssu.platform.permission.WebMicPermission
+import com.ssafy.eolssu.platform.storage.BrowserLaunchSession
 import com.ssafy.eolssu.platform.storage.WebKeyValueStore
+import com.ssafy.eolssu.platform.storage.WebRefreshLock
+import com.ssafy.eolssu.platform.storage.WebTabSignIns
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.js.Js
 import kotlinx.browser.window
@@ -44,6 +50,7 @@ import org.koin.dsl.module
  * 서버는 페이지와 같은 주소(운영 Nginx가 `/api`를 백엔드로 넘긴다)이고, 로그인 쿠키는 브라우저가 보관한다.
  * 간편 로그인은 같은 탭에서 제공자 화면으로 이동하고 같은 주소의 웹 복귀 경로([WebOAuthCallback])로 돌아온다.
  * 돌아온 페이지가 시작할 때 `index.html`이 받아 둔 복귀 주소를 [IncomingLinks]로 넘긴다.
+ * 모든 탭이 같은 로그인 쿠키를 쓰므로 토큰 갱신·로그인 회원·자동 로그인 끔의 실행 범위를 탭 사이에서 맞춘다(S15P31E102-1264).
  */
 internal fun webPlatformModule(): Module = module {
     factory<AudioPlayer> { WebAudioPlayer() }
@@ -68,4 +75,9 @@ internal fun webPlatformModule(): Module = module {
     single<MicPermission> { WebMicPermission() }
     single<RecordingFiles> { WebRecordingFiles(get()) }
     factory<JangdanVolumeLimit> { WebJangdanVolumeLimit }
+    // S15P31E102-1264: 브라우저 세션 표지는 로그인 여부와 상관없이 페이지를 열 때마다 써야 하므로 모듈을 만들 때 바로 만든다.
+    val launch = BrowserLaunchSession()
+    single<LaunchSession> { launch }
+    single<SharedRefreshLock> { WebRefreshLock(get()) }
+    single<OtherTabSignIns> { WebTabSignIns(get()) }
 }

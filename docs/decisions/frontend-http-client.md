@@ -34,6 +34,7 @@
   - 웹은 브라우저가 보관하고 같은 주소 요청에 붙인다. 앱 코드는 쿠키를 다루지 않는다.
   - Android는 Keystore의 AES-GCM 열쇠로 암호화해 `SharedPreferences`(`eolssu_secure`)에, iOS는 Keychain(`AfterFirstUnlockThisDeviceOnly`)에 둔다(`SecureStore`, `SecureCookiesStorage`). 앱을 다시 켜도 리프레시 토큰이 살아 있는 동안(최대 14일) 로그인이 이어진다. 암호화하지 않은 `KeyValueStore`에는 두지 않는다.
 - 로그인이 필요한 요청이 401이면 `/api/auth/refresh`로 갱신하고 같은 요청을 한 번 더 보낸다. 리프레시 토큰은 쓸 때마다 바뀌므로 갱신은 한 번에 하나만 하고, 기다리는 동안 다른 요청이 갱신했으면 그 결과를 쓴다. 로그인·가입·갱신 자체의 401은 갱신하지 않는다.
+  - 웹은 모든 탭이 같은 쿠키를 쓰므로 탭 사이에서도 한 번에 하나만 갱신한다(Web Locks와 localStorage 갱신 세대, [S15P31E102-1264 인계 문서](../plans/web-parity/S15P31E102-1264-handoff.md) 3.1절). 웹은 쿠키를 앱이 지울 수 없어, 서버에 닿지 못한 로그아웃은 다음 시작 때 다시 보낸다.
 
 ## 다른 API를 붙일 때
 

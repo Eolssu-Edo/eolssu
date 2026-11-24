@@ -14,6 +14,12 @@ interface AuthRepository {
     /** 서버 로그아웃을 요청하고 기기의 로그인 쿠키를 지운다. 화면이 바로 넘어가도 끝까지 하도록 기다리지 않는다. */
     fun logOut()
 
+    /**
+     * 지난 실행의 로그아웃이 서버에 닿지 못했으면 다시 보낸다. 앱 시작 때 한 번 부르고 기다리지 않는다.
+     * 쿠키를 앱이 지울 수 없는 웹만 남겨 두고, 앱은 로그아웃 때 기기의 쿠키를 지우므로 아무 일도 하지 않는다.
+     */
+    fun retrySignOut() = Unit
+
     suspend fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult
 
     suspend fun confirmCode(verificationId: String, code: String): ConfirmCodeResult
