@@ -253,8 +253,10 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 | 너비 `Expanded` (`ExpandedMinWidth`) | 840dp 이상 | 태블릿 가로·넓은 웹 창. 와이어프레임 가로 아트보드(1280×800) |
 | 내용 최대 너비 (`ContentMaxWidth`) | 1120dp | 넓은 창에서는 내용을 이 너비로 가운데에 둔다 |
 | 낮은 높이 (`LandscapeLayoutMinHeight`, `isShortHeight`) | 650dp 미만 | 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣으려면 약 650dp가 필요하다. 너비는 넓지만 높이가 낮은 창(납작한 웹 창, 태블릿 화면 분할)을 가려낸다 |
+| 아주 낮은 높이 (`MediumMinHeight`, `isCompactHeight`) | 480dp 미만 | Material 3의 Compact 높이 기준. 휴대폰 가로 웹 창(800×380, 844×390 등)처럼 어느 배치도 한 화면에 담기 어려운 창을 가려낸다 |
 
-- 낮은 높이의 창에서 무엇을 보여줄지(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 지금은 `isShortHeight` 판정 값만 제공하고 화면은 이 값을 쓰지 않는다.
+- 아주 낮은 높이(`isCompactHeight`)의 창에서 연습 화면은 너비로 고른 배치를 650dp(`LandscapeLayoutMinHeight`) 높이로 그리고 페이지 전체를 세로로 스크롤한다. 스낵바는 창 아래에 따로 띄운다([S15P31E102-1268](https://ssafy.atlassian.net/browse/S15P31E102-1268), 2026-11-24 결정). 연주 중 하단 버튼이 창 밖에 있을 수 있다.
+- 480~650dp(`isShortHeight`만 참)의 창과 연습 외 화면의 낮은 창 처리(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 화면은 `isShortHeight`를 쓰지 않는다.
 - 연습·결과 화면도 같은 기준값을 쓴다. 기준값을 바꾸면 이 표와 `WindowBreakpoints`를 함께 고치고 상대 개발자에게 알린다.
 
 ### 화면 방향

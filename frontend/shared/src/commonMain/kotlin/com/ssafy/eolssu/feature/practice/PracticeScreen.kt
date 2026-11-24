@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,12 +35,15 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuBottomBar
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.core.ui.component.EolssuSnackbarHost
 import com.ssafy.eolssu.feature.practice.component.PracticeBoardScore
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.core.ui.component.BeatCountdownOverlay
@@ -86,6 +93,10 @@ class PracticeScreenActions(
  * 평가 시작 카운트다운은 배치와 관계없이 정간보 화면 위에 겹쳐 띄운다([CountdownOverlay]).
  * 화면과 보조 패널 시트의 입력은 연습 시간의 활동으로 알린다.
  * [livePitch]는 평가 연주에서 음마다 모은 실시간 음높이 안내([livePitchMarks])로, 정간보 악보의 그 음 자리에 칠한다.
+ *
+ * [compactHeight]면(휴대폰 가로 웹 창처럼 아주 낮은 창) 어느 배치도 한 화면에 담기지 않으므로, 고른 배치를
+ * [CompactHeightPageHeight] 높이로 그리고 페이지 전체를 세로로 스크롤한다(S15P31E102-1268). 스낵바는 페이지와 함께
+ * 밀려나지 않도록 창 아래에 따로 띄운다.
  */
 @Composable
 fun PracticeScreen(
@@ -94,16 +105,28 @@ fun PracticeScreen(
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
     livePitch: Map<ScoreUnitKey, LivePitchCell> = emptyMap(),
+    compactHeight: Boolean = currentWindowLayout().isCompactHeight,
 ) {
     if (state.song == null) {
         PracticeSongLoadScreen(state, actions, snackbarHostState)
         return
     }
     Box(Modifier.fillMaxSize().reportUserActivity(actions.onUserActivity)) {
-        when (widthClass) {
-            WindowWidthClass.Compact -> PracticeCompactLayout(state, snackbarHostState, actions, livePitch)
-            WindowWidthClass.Medium -> PracticeMediumLayout(state, snackbarHostState, actions, livePitch)
-            WindowWidthClass.Expanded -> PracticeExpandedLayout(state, snackbarHostState, actions, livePitch)
+        val pageScroll = rememberScrollState()
+        val pageSnackbar = remember { SnackbarHostState() }
+        val layoutSnackbar = if (compactHeight) pageSnackbar else snackbarHostState
+        Box(
+            if (compactHeight) Modifier.fillMaxWidth().verticalScroll(pageScroll).height(CompactHeightPageHeight)
+            else Modifier.fillMaxSize(),
+        ) {
+            when (widthClass) {
+                WindowWidthClass.Compact -> PracticeCompactLayout(state, layoutSnackbar, actions, livePitch)
+                WindowWidthClass.Medium -> PracticeMediumLayout(state, layoutSnackbar, actions, livePitch)
+                WindowWidthClass.Expanded -> PracticeExpandedLayout(state, layoutSnackbar, actions, livePitch)
+            }
+        }
+        if (compactHeight) {
+            EolssuSnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
         }
         // 평가 시작 3·2·1은 리듬 게임처럼 정간보 화면 위에 겹쳐 띄운다(배치와 관계없이, 아래 악보가 비쳐 보인다).
         if (state.mode == PracticeMode.Countdown) CountdownOverlay(state, actions.onCancelCountdown)
@@ -123,6 +146,12 @@ fun PracticeScreen(
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
         ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo, evaluation = state.direct) }
 }
+
+/**
+ * 아주 낮은 창([compactHeight][PracticeScreen])에서 연습 배치를 그리는 높이. 태블릿 가로 배치가 12정간 줄을
+ * 세로 스크롤 없이 담는 높이와 같고, 휴대폰·태블릿 세로 배치도 이 높이에서 잘리지 않는다.
+ */
+private val CompactHeightPageHeight = WindowBreakpoints.LandscapeLayoutMinHeight
 
 /** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */
 @Composable
