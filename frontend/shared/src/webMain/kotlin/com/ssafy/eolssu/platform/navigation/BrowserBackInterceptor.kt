@@ -11,9 +11,9 @@ import org.w3c.dom.events.Event
  * 되돌리며 생기는 `popstate`도 그래프에 넘기지 않는다. 같은 대상(window)의 리스너 중 캡처 단계 리스너가 먼저 불린다.
  * 화면의 동작은 주소를 되돌린 뒤에 불러, 그 동작이 화면을 닫아도 그래프가 맞춘 주소를 되돌리기가 덮지 않게 한다.
  *
- * 앞 기록이 없으면(주소창에서 `#경로`를 바꿨거나 앞으로 가기로 마지막 기록에 왔으면) `history.forward()`가 아무 일도 하지 않는다.
- * 그때는 [RESTORE_TIMEOUT_MS] 뒤에 한 칸 뒤로 가서 주소를 화면에 맞추고 같은 동작을 부른다.
- * 기다리는 동작이 남아 다음 브라우저 이동을 잘못 막는 일을 없앤다.
+ * 앞 기록이 없으면(같은 주소로 다시 이동했거나 주소창에서 `#경로`를 바꿨으면) `history.forward()`가 아무 일도 하지 않는다.
+ * 그때는 [RESTORE_TIMEOUT_MS] 뒤에 주소는 그대로 두고 화면의 동작만 부른다. 기다리는 동작이 남아 다음 브라우저 이동을
+ * 잘못 막는 일을 없앤다. 주소창에서 다른 `#경로`를 넣은 경우에는 화면이 다음 이동 전까지 주소와 다를 수 있다.
  *
  * 새로고침·탭 닫기(`beforeunload`)는 저장하지 않은 변경이 있을 때만 브라우저의 떠나기 확인을 띄운다.
  * 앱이 떠 있는 동안 한 번만 건다.
@@ -39,7 +39,9 @@ internal fun installBrowserBackInterceptor(guard: BrowserBackGuard) {
                     window.history.forward()
                     fallback = requestTimeout({
                         fallback = null
-                        if (restoring != null) window.history.back()
+                        val late = restoring
+                        restoring = null
+                        late?.invoke()
                     }, RESTORE_TIMEOUT_MS)
                 }
             }
