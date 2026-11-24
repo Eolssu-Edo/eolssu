@@ -133,16 +133,24 @@ fun SongSearchField(
  * 곡 이름 정렬 버튼: 정렬 아이콘과 지금 순서('ㄱ→ㅎ'·'ㅎ→ㄱ')를 보이고, 누르면 반대 순서로 바꾼다.
  * 화면 읽기에는 화살표 표기 대신 '가나다순'·'가나다 역순'으로 읽힌다.
  * 고르기 칩과 같은 36dp(15sp) 흰 알약이고, [small]이면 목록 위 안내 줄에 맞춘 28dp(13sp)다.
+ * [field]이면 검색칸 옆에 맞춘 46dp · 모서리 10dp 상자다([SongSearchBar]).
  */
 @Composable
-fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false, bordered: Boolean = true) {
+fun SongSortButton(
+    order: SongSortOrder,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    small: Boolean = false,
+    bordered: Boolean = true,
+    field: Boolean = false,
+) {
     val colors = EolssuTheme.colors
     val ascending = order == SongSortOrder.Ascending
     val description = stringResource(if (ascending) Res.string.song_sort_ascending_description else Res.string.song_sort_descending_description)
     Surface(
         onClick = UserActionLog.click(QaTarget.SONG_SEARCH_CONTROLS_03, onToggle),
-        modifier = modifier.heightIn(min = if (small) 28.dp else 36.dp),
-        shape = CircleShape,
+        modifier = modifier.heightIn(min = if (field) 46.dp else if (small) 28.dp else 36.dp),
+        shape = if (field) RoundedCornerShape(10.dp) else CircleShape,
         color = colors.surface,
         contentColor = colors.textSub,
         border = if (bordered) BorderStroke(1.dp, colors.lineSoft) else null,
@@ -157,9 +165,29 @@ fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifie
                 stringResource(if (ascending) Res.string.song_sort_ascending else Res.string.song_sort_descending),
                 modifier = Modifier.clearAndSetSemantics { contentDescription = description },
                 // 낱자(ㄱ·ㅎ)는 글꼴에서 작게 그려져 아이콘보다 1sp 크게 둔다.
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (small) 13.sp else 15.sp, fontWeight = FontWeight.Medium),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (field) 14.sp else if (small) 13.sp else 15.sp, fontWeight = FontWeight.Medium),
                 maxLines = 1,
             )
         }
+    }
+}
+
+/**
+ * 곡 제목 검색칸과 그 오른쪽 곡 이름 정렬 버튼을 한 줄에 둔다(연습곡 고르기 · 평가할 곡 고르기).
+ * 정렬이 목록 위에 따로 한 줄을 차지하지 않게 한다. [sortOrder]가 null이면 정렬 버튼 없이 검색칸만 채운다.
+ */
+@Composable
+fun SongSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
+    sortOrder: SongSortOrder?,
+    onToggleSort: () -> Unit,
+    modifier: Modifier = Modifier,
+    bordered: Boolean = true,
+) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SongSearchField(query, onQueryChange, onClear, Modifier.weight(1f), bordered = bordered)
+        if (sortOrder != null) SongSortButton(sortOrder, onToggleSort, bordered = bordered, field = true)
     }
 }
