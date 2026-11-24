@@ -78,12 +78,22 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
             }
         },
     ) {
-        val choosingKind = !state.expired && state.acceptedId == null
         // 제목을 입력하다 여백을 누르면 키보드를 내린다(S15P31E102-1079).
-        Column(Modifier.fillMaxSize().hideKeyboardOnTapOutside()) {
-            // 내 악보 가져오기에서 바로 들어오므로 종류는 여기서 고른다. 정간보일 때만 장단 칸을 보인다(S15P31E102-997).
-            // 종류 카드는 위에 고정하고 그 아래 카드만 스크롤한다(S15P31E102-1243).
-            if (choosingKind) Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp)) {
+        Column(
+            Modifier.fillMaxSize().hideKeyboardOnTapOutside().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (state.expired) {
+                UploadCard { Text(stringResource(Res.string.sheet_upload_expired), style = MaterialTheme.typography.bodyMedium) }
+            } else if (state.acceptedId != null) {
+                UploadCard {
+                    Text(stringResource(Res.string.sheet_upload_accepted), style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                    Text(stringResource(Res.string.sheet_upload_accepted_help), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
+                }
+            } else {
+                // 내 악보 가져오기에서 바로 들어오므로 종류는 여기서 고른다. 정간보일 때만 장단 칸을 보인다(S15P31E102-997).
+                // 종류 카드를 위에 고정하지 않고 아래 카드와 함께 스크롤한다(S15P31E102-1284).
                 UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_kind))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -93,107 +103,90 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                 }
-            }
-            Column(
-                // 위 여백을 스크롤 안에 두어, 올라간 카드가 종류 카드와의 틈에서 잘리게 한다.
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
-                    .padding(start = 20.dp, end = 20.dp, top = if (choosingKind) 12.dp else 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (state.expired) {
-                    UploadCard { Text(stringResource(Res.string.sheet_upload_expired), style = MaterialTheme.typography.bodyMedium) }
-                } else if (state.acceptedId != null) {
-                    UploadCard {
-                        Text(stringResource(Res.string.sheet_upload_accepted), style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                        Text(stringResource(Res.string.sheet_upload_accepted_help), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
-                    }
-                } else {
-                    UploadCard {
-                        EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
-                            value = state.title,
-                            onValueChange = UserActionLog.change(QaTarget.SHEET_IMPORT_SCREEN_02, { if (editable) onTitle(it) }),
-                            label = stringResource(Res.string.sheet_upload_name),
-                            placeholder = stringResource(Res.string.sheet_upload_name_placeholder),
-                            maxLength = InputLimit.SHEET_TITLE,
-                            bordered = false,
-                            containerColor = colors.groupedBackground,
-                            imeAction = ImeAction.Done,
-                            error = if (SheetImportField.Title in inputErrors) stringResource(fieldErrorText(SheetImportField.Title)) else null,
-                            errorColor = colors.recText,
-                        )
-                    }
-                    if (state.loading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.text) }
-                    if (state.catalogFailed) {
-                        UploadCard {
-                            Text(stringResource(Res.string.sheet_upload_catalog_failed), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
-                            EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary,
-                                containerColor = colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_04)
-                        }
-                    }
-                    if (state.instruments.isNotEmpty()) UploadCard {
-                        UploadLabel(stringResource(Res.string.sheet_upload_instrument))
-                        // 앱의 다른 악기 선택처럼 이름 앞에 악기 그림을 둔다. 모르는 악기 코드는 그림 없이 이름만 보인다(S15P31E102-1079).
-                        // 그림이 들어가 휴대폰 폭에 네 칩이 한 줄에 들어가지 않으므로, 한 칩만 다음 줄에 남지 않게 두 칸씩 같은 폭으로 놓는다.
-                        // 칩의 보이지 않는 터치 여백만큼 줄 간격을 줄여 위아래도 좌우와 같은 8dp로 보이게 한다(S15P31E102-1233).
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp - PillChipTouchInset * 2)) {
-                            state.instruments.chunked(2).forEach { pair ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    pair.forEach { item ->
-                                        val picture = instrumentOfServerCode(item.code)
-                                        PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }),
-                                            modifier = Modifier.weight(1f), enabled = editable,
-                                            leading = picture?.let { { InstrumentPicture(it) } })
-                                    }
-                                    if (pair.size == 1) Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                        if (SheetImportField.Instrument in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Instrument)))
-                    }
-                    if (kind == ImportKind.Jeongganbo && state.jangdans.isNotEmpty()) UploadCard {
-                        UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
-                        // 고정 설명 없이, 고르지 않고 업로드했을 때만 카드 밑에 빨간 안내를 보인다(S15P31E102-1248).
-                        SheetJangdanSelect(state.jangdans, state.jangdanId, onJangdan, enabled = editable,
-                            unsure = state.jangdanUnsure, onUnsure = onJangdanUnsure.takeIf { state.canChooseJangdanUnsure },
-                            isError = SheetImportField.Jangdan in inputErrors)
-                        if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
-                    }
-                    UploadCard {
-                        // 잘 읽히는 악보 안내와 파일 제한은 카드 본문 대신 ⓘ 말풍선으로 보인다(S15P31E102-1230·1231).
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            UploadLabel(stringResource(Res.string.sheet_upload_files))
-                            SheetUploadInfoButton()
-                        }
-                        state.files.forEachIndexed { index, file ->
-                            Row(
-                                Modifier.fillMaxWidth().background(colors.groupedBackground, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text("${index + 1}", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = colors.accentText)
-                                Text(file.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                        Box {
-                            // 다시 고르면 기존 파일을 바꾸므로, 이미 고른 파일이 있으면 '추가'처럼 보이는 + 대신 교체 문구를 보인다.
-                            val replacing = state.files.isNotEmpty()
-                            val pickLabel = when {
-                                state.picking -> Res.string.sheet_upload_reading
-                                replacing -> Res.string.sheet_upload_replace
-                                else -> Res.string.sheet_upload_pick
-                            }
-                            EolssuButton(stringResource(pickLabel), startPick,
-                                style = EolssuButtonStyle.Secondary, enabled = editable, icon = if (replacing) EolssuIcons.Restart else EolssuIcons.Plus,
-                                containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_05)
-                            if (sourceMenuOpen) SheetFileSourceMenu(sources,
-                                onPick = { source -> sourceMenuOpen = false; onPick(source) },
-                                onDismiss = { sourceMenuOpen = false })
-                        }
-                        if (SheetImportField.Files in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Files)))
-                    }
-                    if (state.busy) Text(stringResource(Res.string.sheet_upload_sending), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
+                UploadCard {
+                    EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
+                        value = state.title,
+                        onValueChange = UserActionLog.change(QaTarget.SHEET_IMPORT_SCREEN_02, { if (editable) onTitle(it) }),
+                        label = stringResource(Res.string.sheet_upload_name),
+                        placeholder = stringResource(Res.string.sheet_upload_name_placeholder),
+                        maxLength = InputLimit.SHEET_TITLE,
+                        bordered = false,
+                        containerColor = colors.groupedBackground,
+                        imeAction = ImeAction.Done,
+                        error = if (SheetImportField.Title in inputErrors) stringResource(fieldErrorText(SheetImportField.Title)) else null,
+                        errorColor = colors.recText,
+                    )
                 }
+                if (state.loading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.text) }
+                if (state.catalogFailed) {
+                    UploadCard {
+                        Text(stringResource(Res.string.sheet_upload_catalog_failed), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
+                        EolssuButton(stringResource(Res.string.sheet_upload_reload), onReload, style = EolssuButtonStyle.Secondary,
+                            containerColor = colors.groupedBackground, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_04)
+                    }
+                }
+                if (state.instruments.isNotEmpty()) UploadCard {
+                    UploadLabel(stringResource(Res.string.sheet_upload_instrument))
+                    // 앱의 다른 악기 선택처럼 이름 앞에 악기 그림을 둔다. 모르는 악기 코드는 그림 없이 이름만 보인다(S15P31E102-1079).
+                    // 그림이 들어가 휴대폰 폭에 네 칩이 한 줄에 들어가지 않으므로, 한 칩만 다음 줄에 남지 않게 두 칸씩 같은 폭으로 놓는다.
+                    // 칩의 보이지 않는 터치 여백만큼 줄 간격을 줄여 위아래도 좌우와 같은 8dp로 보이게 한다(S15P31E102-1233).
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp - PillChipTouchInset * 2)) {
+                        state.instruments.chunked(2).forEach { pair ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                pair.forEach { item ->
+                                    val picture = instrumentOfServerCode(item.code)
+                                    PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }),
+                                        modifier = Modifier.weight(1f), enabled = editable,
+                                        leading = picture?.let { { InstrumentPicture(it) } })
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    if (SheetImportField.Instrument in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Instrument)))
+                }
+                if (kind == ImportKind.Jeongganbo && state.jangdans.isNotEmpty()) UploadCard {
+                    UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
+                    // 고정 설명 없이, 고르지 않고 업로드했을 때만 카드 밑에 빨간 안내를 보인다(S15P31E102-1248).
+                    SheetJangdanSelect(state.jangdans, state.jangdanId, onJangdan, enabled = editable,
+                        unsure = state.jangdanUnsure, onUnsure = onJangdanUnsure.takeIf { state.canChooseJangdanUnsure },
+                        isError = SheetImportField.Jangdan in inputErrors)
+                    if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
+                }
+                UploadCard {
+                    // 잘 읽히는 악보 안내와 파일 제한은 카드 본문 대신 ⓘ 말풍선으로 보인다(S15P31E102-1230·1231).
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        UploadLabel(stringResource(Res.string.sheet_upload_files))
+                        SheetUploadInfoButton()
+                    }
+                    state.files.forEachIndexed { index, file ->
+                        Row(
+                            Modifier.fillMaxWidth().background(colors.groupedBackground, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text("${index + 1}", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = colors.accentText)
+                            Text(file.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    Box {
+                        // 다시 고르면 기존 파일을 바꾸므로, 이미 고른 파일이 있으면 '추가'처럼 보이는 + 대신 교체 문구를 보인다.
+                        val replacing = state.files.isNotEmpty()
+                        val pickLabel = when {
+                            state.picking -> Res.string.sheet_upload_reading
+                            replacing -> Res.string.sheet_upload_replace
+                            else -> Res.string.sheet_upload_pick
+                        }
+                        EolssuButton(stringResource(pickLabel), startPick,
+                            style = EolssuButtonStyle.Secondary, enabled = editable, icon = if (replacing) EolssuIcons.Restart else EolssuIcons.Plus,
+                            containerColor = colors.accentTint, contentColor = colors.accentText, borderColor = Color.Transparent, qaTarget = QaTarget.SHEET_IMPORT_SCREEN_BUTTON_05)
+                        if (sourceMenuOpen) SheetFileSourceMenu(sources,
+                            onPick = { source -> sourceMenuOpen = false; onPick(source) },
+                            onDismiss = { sourceMenuOpen = false })
+                    }
+                    if (SheetImportField.Files in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Files)))
+                }
+                if (state.busy) Text(stringResource(Res.string.sheet_upload_sending), style = MaterialTheme.typography.bodyMedium, color = colors.textSub)
             }
         }
     }
