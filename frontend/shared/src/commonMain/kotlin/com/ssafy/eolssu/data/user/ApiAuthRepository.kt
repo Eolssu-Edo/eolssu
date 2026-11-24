@@ -5,8 +5,10 @@ import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.storage.KeyValueStore
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
+import io.ktor.client.statement.HttpResponse
 import kotlin.time.Instant
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -25,6 +27,10 @@ import kotlinx.serialization.Serializable
  * 로그인에 성공하면 응답의 `userId`를, 로그아웃하면 빈 값을 [member]에 남긴다(회원별 기록을 다른 회원으로 보내지 않기 위해).
  * 간편 로그인 완료·계정 연결도 로그인이므로 같은 방식으로 [member]를 바꾼다. 둘 다 1회용 값을 써서 HTTP 클라이언트가 401에 재전송하지 않는다.
  * 이메일·간편 가입의 201도 로그인 쿠키를 주므로 응답의 `userId`를 [member]에 남긴다.
+ *
+ * 웹은 로그인 쿠키가 HttpOnly라 서버 응답으로만 지워진다. 그래서 로그아웃을 보내기 전에 [store]에 표시를 남기고 서버에 닿았을 때만
+ * 지운다. 닿지 못했으면(오프라인·5xx·응답 전에 탭을 닫음) 다음 시작 때 [retrySignOut]이 다시 보낸다(S15P31E102-1264).
+ * 앱은 [cookies]를 직접 지우므로 표시를 남기지 않는다.
  */
 class ApiAuthRepository(
     private val client: HttpClient,
@@ -32,6 +38,7 @@ class ApiAuthRepository(
     private val member: SignedInMember,
     private val scope: CoroutineScope,
     private val route: OAuthRoute = OAuthRedirect,
+    private val store: KeyValueStore? = null,
 ) : AuthRepository {
     private var signingOut: Job? = null
 
@@ -64,10 +71,34 @@ class ApiAuthRepository(
         signingOut = scope.launch {
             member.changing {
                 member.set(null)
-                client.sendOrNull { post("/api/auth/sign-out") }
+                // 응답을 기다리는 동안 탭을 닫아도 남도록 보내기 전에 표시한다(공용 PC에서 로그아웃하고 바로 닫는 경우).
+                markPendingSignOut(true)
+                val reached = client.sendOrNull { post("/api/auth/sign-out") }.reachedServer()
                 cookies?.clear()
+                if (reached) markPendingSignOut(false)
             }
         }
+    }
+
+    override fun retrySignOut() {
+        if (cookies != null || store?.getString(PENDING_SIGN_OUT_KEY) != "true") return
+        signingOut = scope.launch {
+            member.changing {
+                // 그사이 다시 로그인했으면 남은 쿠키는 새 로그인의 것이므로 보내지 않는다.
+                if (member.id != null) return@changing markPendingSignOut(false)
+                if (client.sendOrNull { post("/api/auth/sign-out") }.reachedServer()) markPendingSignOut(false)
+            }
+        }
+    }
+
+    /**
+     * 서버가 로그아웃을 처리했거나 쿠키를 지웠는지. 연결 실패·시간 초과·5xx는 쿠키가 남는다.
+     * 401은 액세스 토큰이 만료돼 갱신까지 실패한 경우로, 갱신 실패 응답이 쿠키를 지웠으므로 닿은 것으로 본다.
+     */
+    private fun HttpResponse?.reachedServer(): Boolean = this != null && status.value < 500
+
+    private fun markPendingSignOut(pending: Boolean) {
+        if (cookies == null) store?.putString(PENDING_SIGN_OUT_KEY, if (pending) "true" else "")
     }
 
     override suspend fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult {
@@ -245,6 +276,11 @@ class ApiAuthRepository(
 
     @Serializable private class RetryError(val errorCode: String, val details: RetryDetails? = null)
     @Serializable private class RetryDetails(val retryAvailableAt: String? = null)
+
+    companion object {
+        /** 서버에 닿지 못한 로그아웃이 남았는지(웹). 다른 탭도 보도록 [KeyValueStore](웹은 localStorage)에 둔다. */
+        const val PENDING_SIGN_OUT_KEY = "auth.pending_sign_out"
+    }
 }
 
 internal fun String.toMillis(): Long? = runCatching { Instant.parse(this).toEpochMilliseconds() }.getOrNull()

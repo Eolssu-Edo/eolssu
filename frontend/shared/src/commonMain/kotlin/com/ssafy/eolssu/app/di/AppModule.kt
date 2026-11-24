@@ -60,7 +60,10 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnPracticeViewModel
 import com.ssafy.eolssu.feature.guide.learn.loadLearnCriteria
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
+import com.ssafy.eolssu.core.network.LaunchSession
+import com.ssafy.eolssu.core.network.ProcessLaunch
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
+import com.ssafy.eolssu.core.network.SharedRefreshLock
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.data.user.ApiAuthRepository
@@ -141,7 +144,7 @@ val OAuthAttemptStore = named("oauthAttemptStore")
 val appModule = module {
     // 화면이 사라져도 끝내야 하는 일(로그아웃 요청 등)을 하는 앱 전체의 범위.
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
-    single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
+    single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>(), getOrNull<SharedRefreshLock>()) }
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get(), get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get(), getOrNull()) }
@@ -219,14 +222,14 @@ val appModule = module {
     single { FirstRunRepository(get()) }
     single<LessonApi> { HttpLessonApi(get(), get()) }
     single { LearnProgressRepository(get(), get(), get()) }
-    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
+    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, store = get()) }
     single { AccountDraft() }
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
     viewModel { (document: PublishedLegalDocument) -> LegalDocumentViewModel(document, get()) }
     // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
-    single { LoginPreferences(get(), getOrNull(), get()) }
+    single { LoginPreferences(get(), getOrNull(), get(), getOrNull<LaunchSession>() ?: ProcessLaunch) }
     viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
