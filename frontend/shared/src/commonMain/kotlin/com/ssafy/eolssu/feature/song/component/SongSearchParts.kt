@@ -79,21 +79,32 @@ import org.jetbrains.compose.resources.stringResource
 /** 빈 결과의 井 글자색(보드 `--faint`). 테마에 없는 장식 색이라 이 화면에만 둔다. */
 private val EmptySymbolColor = Color(0xFFB9B3A6)
 
+/** 목록 위에 붙은 검색칸과 상단 바 사이 간격. */
+private val SearchStickyTopGap = 12.dp
+
 /**
  * SONG-01 본문을 목록에 채운다(휴대폰·태블릿 공통, 보드 `Song-List` 순서):
  * 페이지 머리 · 검색칸 · 난이도 칩 · 곡 수 · 연습곡 고르기와 같은 곡 줄([ProvidedSongRow]), 결과가 없으면 '찾는 곡이 없어요.', 목록을 받지 못했으면 [SongLoadNotice].
  * [twoPane]은 태블릿 가로 두 칸 배치로, 오른쪽에 정보를 보이는 곡 줄을 연두로 표시한다.
+ *
+ * 페이지 머리는 목록과 함께 올라가고, 검색칸 · 난이도 칩은 목록 위에 닿으면 붙어서 계속 보인다(S15P31E102-1279).
+ * 붙은 칸이 아래 곡 줄을 가리도록 세 배치가 함께 쓰는 목록 바탕색(`groupedBackground`)으로 칠한다.
+ * 검색어·난이도를 바꿔도 목록 스크롤을 맨 위로 되돌리지 않는다(S15P31E102-1255와 같은 방식).
  */
 internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongListActions, twoPane: Boolean = false) {
     val selectedId = if (twoPane) state.selectedSong?.id else null
+    // 붙었을 때 검색칸이 상단 바에 닿지 않도록 12dp를 검색칸 위로 옮긴다. 붙기 전 간격(머리 아래 22dp)은 그대로다.
     item(key = "heading") {
         PageHeading(
             title = stringResource(Res.string.song_list_heading),
-            modifier = Modifier.padding(bottom = 22.dp),
+            modifier = Modifier.padding(bottom = 22.dp - SearchStickyTopGap),
         )
     }
-    item(key = "search") {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    stickyHeader(key = "search") {
+        Column(
+            Modifier.fillMaxWidth().background(EolssuTheme.colors.groupedBackground).padding(top = SearchStickyTopGap),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
             SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp), bordered = false)
         }
