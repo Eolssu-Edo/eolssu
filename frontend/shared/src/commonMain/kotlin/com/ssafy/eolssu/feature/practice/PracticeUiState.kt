@@ -135,8 +135,10 @@ data class PracticeUiState(
     val sheetPerformanceBpm: Int? = null,
     /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
     val modelClock: ModelClock? = null,
-    /** 기기 음원 저장을 지원하는 내 악보 연습에만 표시한다. */
+    /** 내 악보 음원을 틀 수 있는 플랫폼(기기 저장·웹 스트리밍)의 내 악보 연습에만 표시한다. */
     val personalAudio: PracticePersonalAudio? = null,
+    /** 웹: 기기에 받지 않고 서버가 만든 음원을 바로 튼다. 버튼은 '음원 다운로드' 대신 '음원 만들기'다(S15P31E102-1261). */
+    val personalAudioStreams: Boolean = false,
 ) {
     val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
 

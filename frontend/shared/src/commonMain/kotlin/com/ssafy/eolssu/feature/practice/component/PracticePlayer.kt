@@ -71,6 +71,7 @@ import com.ssafy.eolssu.feature.practice.playerNotice
 import com.ssafy.eolssu.feature.practice.playerTotalSeconds
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** 플레이어가 한 번에 옮기는 시간(↺5·↻5). */
@@ -196,7 +197,7 @@ private fun PracticePlayerControls(state: PracticeUiState, actions: PracticeBott
     val personalAudio = state.personalAudioControl
     PlaybackControlRow(horizontalArrangement = if (eval == null) Arrangement.Center else Arrangement.spacedBy(12.dp)) {
         if (personalAudio != null) {
-            PersonalAudioControl(personalAudio, actions.onDownloadSheetAudio, Modifier.weight(1f))
+            PersonalAudioControl(personalAudio, state.personalAudioStreams, actions.onDownloadSheetAudio, Modifier.weight(1f))
         } else {
             PlaybackSkipGroup(
                 playing = playing,
@@ -217,23 +218,11 @@ private fun PracticePlayerControls(state: PracticeUiState, actions: PracticeBott
 
 /**
  * 내 악보 음원을 아직 받지 않았거나 준비 중일 때 재생 묶음 자리(높이 52dp)에 두는 안내.
- * 받을 수 있으면(없음·실패) 같은 높이의 ‘음원 받기’ 버튼이다.
+ * 받을 수 있으면(없음·실패) 같은 높이의 ‘음원 다운로드’(웹은 [streams]라 ‘음원 만들기’) 버튼이다.
  */
 @Composable
-private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownload: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(
-        when (personalAudio) {
-            PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
-            PracticePersonalAudio.Queued -> Res.string.practice_sheet_audio_queued
-            PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
-            PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
-            PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
-            PracticePersonalAudio.UnsupportedPitches -> Res.string.practice_sheet_audio_support
-            PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
-            PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
-            else -> Res.string.practice_sheet_audio_download
-        },
-    )
+private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, streams: Boolean, onDownload: () -> Unit, modifier: Modifier = Modifier) {
+    val label = stringResource(personalAudioLabel(personalAudio, streams))
     Box(modifier.height(52.dp), contentAlignment = Alignment.Center) {
         if (personalAudio == PracticePersonalAudio.Missing || personalAudio == PracticePersonalAudio.Failed) {
             PlaybackActionButton(label, onDownload, Modifier.fillMaxWidth())
@@ -249,6 +238,19 @@ private fun PersonalAudioControl(personalAudio: PracticePersonalAudio, onDownloa
             )
         }
     }
+}
+
+/** 내 악보 음원 칸의 문구. 웹([streams])은 기기에 받지 않고 서버에 만들기만 요청하므로 없음일 때 ‘음원 만들기’다(S15P31E102-1261). */
+internal fun personalAudioLabel(personalAudio: PracticePersonalAudio, streams: Boolean): StringResource = when (personalAudio) {
+    PracticePersonalAudio.Checking -> Res.string.practice_sheet_audio_checking
+    PracticePersonalAudio.Queued -> Res.string.practice_sheet_audio_queued
+    PracticePersonalAudio.Preparing -> Res.string.practice_sheet_audio_preparing
+    PracticePersonalAudio.Downloading -> Res.string.practice_sheet_audio_downloading
+    PracticePersonalAudio.Unsupported -> Res.string.practice_player_unsupported
+    PracticePersonalAudio.UnsupportedPitches -> Res.string.practice_sheet_audio_support
+    PracticePersonalAudio.Failed -> Res.string.practice_sheet_audio_retry
+    PracticePersonalAudio.VersionChanged -> Res.string.practice_sheet_audio_version_changed
+    else -> if (streams) Res.string.practice_sheet_audio_create else Res.string.practice_sheet_audio_download
 }
 
 /** 확인·대기·생성·다운로드처럼 기다리는 상태. 버튼 자리에 눌린 버튼 모양으로 회전 표시와 한 줄 문구를 둔다(S15P31E102-1039). */

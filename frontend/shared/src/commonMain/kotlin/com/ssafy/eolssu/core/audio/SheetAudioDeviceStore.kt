@@ -75,6 +75,13 @@ object UnavailableSheetAudioDeviceStore : SheetAudioDeviceStore {
     override suspend fun delete(accountId: String, sheetId: String) = Unit
 }
 
+/**
+ * 내 악보 음원을 연습에서 트는 방식(S15P31E102-1261). 웹 플랫폼 모듈만 [Stream]을 등록하고, 등록이 없으면 [Device]다.
+ * [Device]는 [SheetAudioDeviceStore]에 받은 파일만 튼다. [Stream]은 기기에 받지 않고 SHT-13 서명 URL을 바로 튼다.
+ * 서버는 완료 뒤 10분만 링크를 주고 파일을 지우므로, [Stream]은 그 안에서만 들을 수 있고 지나면 다시 만들어야 한다.
+ */
+enum class SheetAudioPlayback { Device, Stream }
+
 /** One metadata pointer per sheet. A failed download cannot replace a previously saved file. */
 internal class FileSheetAudioDeviceStore(
     private val root: Path,

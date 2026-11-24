@@ -217,10 +217,9 @@ fun EolssuNavHost(
     val appSnackbar = remember { SnackbarHostState() }
     val completionBanner = remember { SnackbarHostState() }
     val sheetAudio = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetAudioRepository>()
-    val deviceSheetAudio = koinInject<com.ssafy.eolssu.core.audio.SheetAudioDeviceStore>()
+    val sheetPractice = koinInject<com.ssafy.eolssu.data.song.SheetPracticeRepository>()
     SheetAudioCompletionEffect(sheetAudio, member, completionBanner) { sheetId ->
-        navController.openCompletedSheet(sheetId,
-            if (deviceSheetAudio.available) SheetCompletionTarget.Practice else SheetCompletionTarget.Editor)
+        navController.openCompletedSheet(sheetId, sheetAudioCompletionTarget(sheetPractice.personalAudioPlayable))
     }
     val sheetConversions = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository>()
     SheetConversionCompletionEffect(sheetConversions, member, completionBanner) { sheetId ->
