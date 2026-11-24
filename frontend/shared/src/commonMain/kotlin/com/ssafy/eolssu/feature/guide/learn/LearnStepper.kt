@@ -55,7 +55,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -66,9 +65,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import eolssu.shared.generated.resources.learn_step_all_done
 import eolssu.shared.generated.resources.learn_step_box_description
-import eolssu.shared.generated.resources.learn_step_progress
 import eolssu.shared.generated.resources.learn_step_state_done
 import eolssu.shared.generated.resources.learn_step_state_locked
 import eolssu.shared.generated.resources.learn_step_state_open
@@ -124,7 +121,7 @@ internal fun stepTotal(taskCount: Int, practice: StepPractice?): Int =
 /**
  * 할 일 박스 묶음. [figure]는 펼친 박스에 보일 그림이다. [practice]가 있으면 마지막에 연습 박스를 붙인다.
  * 할 일 박스를 모두 마치면 연습 박스가 펼쳐지고, 연습 박스가 없으면 [onAllDone]을 부른다.
- * 진행 막대([StepProgress])는 스크롤해도 보이도록 단계 머리(고정 영역)에 두고 여기서는 그리지 않는다(S15P31E102-1244).
+ * 할 일 진행([StepProgress])은 스크롤해도 보이도록 단계 머리(고정 영역)에 두고 여기서는 그리지 않는다(S15P31E102-1244).
  */
 @Composable
 internal fun TourPanel(
@@ -177,34 +174,6 @@ internal fun TourPanel(
         // 통과한 뒤 듣는 박스가 접혀 있으면 '다음 단계로'가 보이도록 박스 묶음 아래에 둔다.
         val listeningBoxClosed = segment != null || tour.open != tasks.size
         if (practice != null && practice.passed && listeningBoxClosed) practice.primary?.invoke(Modifier.fillMaxWidth())
-    }
-}
-
-/**
- * 진행 막대: 마친 만큼 부드럽게 차오르는 막대와 그 오른쪽의 '할 일 n / 전체'를 한 줄에 둔다(S15P31E102-1276).
- * 악기 칩과 같은 줄에 들어가 좁으므로 다 마쳐도 문구 길이는 그대로 두고 글자색만 축하 색으로 바꾼다. 화면 읽기에는 축하 문구로 읽힌다.
- */
-@Composable
-internal fun StepProgress(done: Int, total: Int, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    val fraction by animateFloatAsState(if (total == 0) 0f else done.toFloat() / total, tween(600, easing = FastOutSlowInEasing), label = "stepProgress")
-    val allDone = done >= total
-    val count = stringResource(Res.string.learn_step_progress, done, total)
-    val description = if (allDone) stringResource(Res.string.learn_step_all_done) else count
-    Row(
-        modifier.clearAndSetSemantics { contentDescription = description },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(Modifier.weight(1f).height(8.dp).clip(CircleShape).background(colors.line)) {
-            Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().clip(CircleShape).background(colors.primary))
-        }
-        Text(
-            count,
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-            color = if (allDone) colors.accentText else colors.textMuted,
-            maxLines = 1,
-        )
     }
 }
 

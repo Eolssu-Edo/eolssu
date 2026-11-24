@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.guide.component
 import com.ssafy.eolssu.core.diagnostics.UserActionLog
 import com.ssafy.eolssu.core.diagnostics.QaTarget
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ import com.ssafy.eolssu.feature.guide.FingeringInstrumentOption
  * 메뉴는 알약 오른쪽 끝에 맞춰 아래로 열리고(아래가 모자라면 위로), 바깥을 누르면 [onDismiss]로 닫힌다.
  * 악기 목록을 받기 전에는 [enabled]를 끄고, 받는 중이면 [loading]으로 꺽쇠 대신 작은 로딩 표시를 둔다.
  * 놓인 자리가 좁으면 그림과 꺽쇠는 두고 악기 이름만 말줄임한다. 누르는 높이는 48dp를 유지한다.
+ * 흰 바탕 화면(기초 배우기 단계 상세)에서는 [bordered]로 옅은 테두리를 둔다. 기초 배우기는 [toggleTarget]·[selectTarget]으로 QA 대상을 따로 남긴다(S15P31E102-1281).
  */
 @Composable
 internal fun InstrumentDropdown(
@@ -61,13 +63,16 @@ internal fun InstrumentDropdown(
     options: List<FingeringInstrumentOption>? = null,
     enabled: Boolean = true,
     loading: Boolean = false,
+    bordered: Boolean = false,
+    toggleTarget: QaTarget = QaTarget.INSTRUMENT_DROPDOWN_01,
+    selectTarget: QaTarget = QaTarget.INSTRUMENT_DROPDOWN_02,
 ) {
     val colors = EolssuTheme.colors
     val selectedLabel = options?.firstOrNull { it.instrument == selected }?.name ?: stringResource(selected.label)
     val menuLabel = stringResource(Res.string.guide_instrument_select)
     Box(modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
         Surface(
-            onClick = UserActionLog.click(QaTarget.INSTRUMENT_DROPDOWN_01, onToggle),
+            onClick = UserActionLog.click(toggleTarget, onToggle),
             enabled = enabled,
             modifier = Modifier.semantics(mergeDescendants = true) {
                 role = Role.DropdownList
@@ -78,6 +83,7 @@ internal fun InstrumentDropdown(
             // 회색 바탕 위에 놓이므로 연습곡 고르기처럼 테두리 없는 흰 알약으로 둔다.
             color = colors.surface,
             contentColor = colors.text,
+            border = if (bordered) BorderStroke(1.dp, colors.lineSoft) else null,
         ) {
             Row(
                 Modifier.padding(start = 8.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
@@ -111,7 +117,7 @@ internal fun InstrumentDropdown(
                 EolssuMenuPanel(width = 168.dp) {
                     (options?.map { it.instrument } ?: GuideInstrument.entries).forEach { instrument ->
                         val label = options?.firstOrNull { it.instrument == instrument }?.name ?: stringResource(instrument.label)
-                        InstrumentMenuItem(instrument, instrument == selected, onClick = UserActionLog.click(QaTarget.INSTRUMENT_DROPDOWN_02, { onSelect(instrument) }), label = label)
+                        InstrumentMenuItem(instrument, instrument == selected, onClick = UserActionLog.click(selectTarget, { onSelect(instrument) }), label = label)
                     }
                 }
             }
