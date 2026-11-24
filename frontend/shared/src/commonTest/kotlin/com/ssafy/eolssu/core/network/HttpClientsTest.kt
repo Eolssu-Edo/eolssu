@@ -188,6 +188,11 @@ class HttpClientsTest {
     fun tabsSharingTheRefreshLockRefreshOnceAndBothResend() = runTest {
         val tabs = TabsRefreshLock()
         var refreshes = 0
+        // 두 탭의 첫 요청이 모두 도착한 뒤에 401을 돌려준다. MockEngine은 실제 스레드에서 돌아,
+        // 막지 않으면 한 탭이 갱신을 끝낸 뒤에야 다른 탭의 첫 요청이 도착해 바로 200을 받을 수 있다.
+        val firstRequests = Mutex()
+        var arrived = 0
+        val bothArrived = CompletableDeferred<Unit>()
         // 서버는 리프레시 토큰을 쓸 때마다 바꾸고, 이미 바뀐 토큰이 다시 오면 재사용으로 보고 거절한다(401).
         val server: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { request ->
             when {
@@ -196,7 +201,11 @@ class HttpClientsTest {
                     if (++refreshes == 1) respond("", HttpStatusCode.OK) else respond("", HttpStatusCode.Unauthorized)
                 }
                 refreshes > 0 -> respond("", HttpStatusCode.OK)
-                else -> respond("", HttpStatusCode.Unauthorized)
+                else -> {
+                    firstRequests.withLock { if (++arrived == 2) bothArrived.complete(Unit) }
+                    bothArrived.await()
+                    respond("", HttpStatusCode.Unauthorized)
+                }
             }
         }
         val tabA = client(sharedRefresh = tabs, handler = server)
