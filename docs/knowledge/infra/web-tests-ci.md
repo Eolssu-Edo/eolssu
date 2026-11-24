@@ -52,6 +52,15 @@
 - 고친 방법: `WebSoundPlayer`가 주소 만들기 함수(`uriOf`, 기본값 `Res.getUri`)를 받게 하고, 테스트는 해석할 수 없는 `data:` 주소를 넣는다. 서버 요청이 없어 경고가 생기지 않고, 'error' 이벤트로 false를 돌려주는 경로는 그대로 검사한다.
 - 규칙: 웹 테스트에서 실패 경로를 만들 때 없는 리소스·주소를 요청하지 않는다. `data:` 주소나 주입한 가짜로 만든다. 확인 방법은 Gradle 출력에 `404:` 줄이 없는지 보는 것이다.
 
+## 브라우저 테스트 하나의 제한 시간은 10초다 (S15P31E102-1287)
+
+2026-11-24 운영 웹 잡 #27·#28(develop `e7866da4`)이 브라우저 테스트 1개의 `Timeout of 2000ms exceeded`로 배포 전에 멈췄다. #27은 Wasm `PracticeStepReplayTest.sogeumTunedOver50CentsHighNeverPassesTheFirstNote`, #28은 JS `PcmWavWriterTest.outputLengthMatchesTheInputDuration`이었다(나머지 Wasm 2,104개, JS 4,209개 통과).
+
+- 2초는 Karma 안에서 도는 Mocha의 기본값이다. Kotlin Gradle 플러그인 DSL에는 Karma용 Mocha 제한 시간 설정이 없다.
+- 두 테스트는 1초 분량 오디오 재표본화·실측 음높이 재생처럼 계산이 많다. 같은 `edo1` 서버에서 백엔드 빌드나 Android 출시 빌드가 함께 돌 때 2초를 넘겼다. 같은 커밋을 다시 돌리면 다른 테스트가 넘기기도 했다.
+- 고친 방법: `frontend/shared/karma.config.d/mocha-timeout.js`에서 `config.client.mocha.timeout`을 10,000ms로 둔다. 플러그인이 모듈 폴더(`project.projectDir`)의 `karma.config.d` 파일을 생성된 `karma.conf.js` 끝에 붙이므로 JS·Wasm 브라우저 테스트에 함께 적용된다.
+- 테스트를 빼거나 건너뛰지 않았다. 느려진 테스트를 찾으려면 Gradle 테스트 보고서의 테스트별 시간을 본다.
+
 ## 웹 스모크 자동화 검토
 
 티켓 범위의 '운영·스테이징 웹 최소 스모크(로딩·로그인 화면·곡 목록)'는 검토만 하고 별도 Task [S15P31E102-1274](https://ssafy.atlassian.net/browse/S15P31E102-1274)로 넘겼다(2026-11-24 사용자 결정).
