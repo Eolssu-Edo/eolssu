@@ -38,6 +38,38 @@ pipeline {
             }
         }
 
+        // S15P31E102-1270: 웹 빌드 입력이 바뀐 develop 커밋은 웹 브라우저 테스트 전용 잡(배포 없음)에 넘긴다.
+        // 백엔드 검사·배포 결과와 관계없이 웹 테스트를 돌리도록 백엔드 단계보다 먼저 예약한다.
+        stage('Queue web tests') {
+            steps {
+                script {
+                    def changed = sh(returnStatus: true, script: '''
+                        base="$IOS_QA_BASE"
+                        if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+                            base=$(git rev-parse --verify "${GIT_COMMIT}^1" 2>/dev/null) ||
+                                base=$(git hash-object -t tree /dev/null)
+                        fi
+                        echo "Web test diff: $base .. $GIT_COMMIT"
+                        git diff --quiet --no-ext-diff "$base" "$GIT_COMMIT" -- \
+                            frontend/shared/src/commonMain/ frontend/shared/src/commonTest/ \
+                            frontend/shared/src/webMain/ frontend/shared/src/webTest/ \
+                            frontend/shared/src/jsMain/ frontend/shared/src/jsTest/ \
+                            frontend/shared/src/wasmJsMain/ frontend/shared/src/wasmJsTest/ \
+                            frontend/shared/build.gradle.kts frontend/build.gradle.kts \
+                            frontend/settings.gradle.kts frontend/gradle.properties frontend/gradle/ frontend/gradlew \
+                            frontend/kotlin-js-store/
+                    ''')
+                    if (changed == 1) {
+                        build job: 'eolssu-web-tests', parameters: [string(name: 'REVISION', value: env.GIT_COMMIT)], wait: false
+                    } else if (changed == 0) {
+                        echo 'Web tests skipped: no web build inputs changed'
+                    } else {
+                        unstable("Web tests skipped: Git diff failed (exit ${changed})")
+                    }
+                }
+            }
+        }
+
         stage('Backend image tool tests') {
             steps {
                 sh 'python3 -B -m unittest discover -s infra/jenkins/tests -p test_build_backend_image.py -v'

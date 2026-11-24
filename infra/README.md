@@ -40,6 +40,7 @@
 | --- | --- |
 | [jenkins/backend.Jenkinsfile](jenkins/backend.Jenkinsfile) | backend 검증·이미지·운영 DB 마이그레이션·블루그린 배포(`eolssu-backend`, 서버 복사본 `/opt/eolssu/config/backend.Jenkinsfile`) |
 | [jenkins/frontend.Jenkinsfile](jenkins/frontend.Jenkinsfile) | 검증된 `REVISION`의 웹 빌드·배포(수동 잡) |
+| [jenkins/web-tests.Jenkinsfile](jenkins/web-tests.Jenkinsfile) | 웹 빌드 입력이 바뀐 develop 커밋의 웹 브라우저 테스트만 실행(`eolssu-web-tests`, backend 잡이 예약, 배포 없음) |
 | [qa-phone/android.Jenkinsfile](qa-phone/android.Jenkinsfile) · [ios-qa/ios.Jenkinsfile](ios-qa/ios.Jenkinsfile) | Android·iOS QA 앱 빌드·배포 |
 | [release/release-candidate.Jenkinsfile](release/release-candidate.Jenkinsfile) | 릴리스 후보 검사 잡 초안([릴리스 절차](release/README.md)) |
 
