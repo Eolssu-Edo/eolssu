@@ -123,8 +123,15 @@ import com.ssafy.eolssu.feature.practice.SectionSelectViewModel
 import com.ssafy.eolssu.feature.result.SectionResultViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import kotlin.time.Clock
+
+/**
+ * 간편 로그인 시도 상태를 둘 저장소의 이름. 웹은 일반 [com.ssafy.eolssu.core.storage.SecureStore](로그인 쿠키 등)가 없으므로,
+ * 제공자 화면에 다녀오는 동안만 시도를 남길 탭 저장소(sessionStorage)를 이 이름으로 따로 등록한다. 없으면 일반 SecureStore를 쓴다.
+ */
+val OAuthAttemptStore = named("oauthAttemptStore")
 
 /**
  * 앱 전체에서 쓰는 객체 등록. 화면은 `koinViewModel()`로 ViewModel을 받는다.
@@ -216,9 +223,9 @@ val appModule = module {
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
     viewModel { (social: Boolean) -> ProfileSetupViewModel(get(), get(), get(), get(), get(), social) }
-    // 간편 로그인·연결. 외부 브라우저와 복귀 주소는 플랫폼 모듈에 구현이 있을 때만 쓴다(Android App Links, iOS 중계).
+    // 간편 로그인·연결. 외부 브라우저와 복귀 주소는 플랫폼 모듈에 구현이 있을 때만 쓴다(Android App Links, iOS 중계, 웹 같은 탭 이동).
     // 복귀 경로(OAuthRoute)를 등록하지 않은 플랫폼은 Android 주소를 쓴다.
-    single { OAuthAttempts(getOrNull(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, get()) }
+    single { OAuthAttempts(getOrNull(OAuthAttemptStore) ?: getOrNull(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, get()) }
     viewModel { (provider: SocialProvider) -> OAuthViewModel(provider, get(), get(), getOrNull(), getOrNull(), get(), get()) }
     viewModel { AccountLinkViewModel(get(), get(), get(), get()) }
 
