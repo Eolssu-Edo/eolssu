@@ -435,7 +435,7 @@ ml.save(OUT + "/home_tablet_landscape_refined_mock.png")
 # 비교 그림: 위 줄은 휴대폰(채택본)·태블릿 세로·같은 모의 화면, 아래 줄은 태블릿 가로와 모의 화면.
 phone = Image.open(OUT + "/home_phone_refined.png").convert("RGB")
 phone_m = Image.open(OUT + "/home_phone_refined_mock.png").convert("RGB")
-lf = ImageFont.truetype(RES + "/font/pretendard_semibold.otf", 30)
+lf = ImageFont.truetype(RES + "/font/eolssu_sans_kr_semibold.otf", 30)
 th = 1000
 items_top = [(phone, "휴대폰 세로 (채택본)"), (phone_m, "휴대폰 모의 화면"), (portrait, "태블릿 세로"), (mp, "태블릿 세로 모의 화면")]
 tops = [im.resize((int(im.width * th / im.height), th), Image.LANCZOS) for im, _ in items_top]

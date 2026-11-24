@@ -41,7 +41,7 @@ internal actual fun PrepareHomeFonts() {
     val family = MaterialTheme.typography.bodyLarge.fontFamily as? FontListFontFamily ?: return
     val resolver = LocalFontFamilyResolver.current
     LaunchedEffect(family, resolver) {
-        if (!supportsIdleCallback() || family.fonts.none { it.weight == FontWeight.Bold }) return@LaunchedEffect
+        if (family.fonts.none { it.weight == FontWeight.Bold }) return@LaunchedEffect
         withFrameNanos { }
         for (weight in listOf(FontWeight.Bold, FontWeight.SemiBold, FontWeight.Normal)) {
             awaitBrowserIdle()
@@ -50,9 +50,20 @@ internal actual fun PrepareHomeFonts() {
     }
 }
 
+/** Safari에는 `requestIdleCallback`이 없어 짧은 `setTimeout`으로 대신 기다린다. 지원 여부는 한 번만 확인한다. */
+private val idleCallbackSupported: Boolean by lazy { supportsIdleCallback() }
+
+private const val IDLE_FALLBACK_DELAY_MS = 100
+
 private suspend fun awaitBrowserIdle() = suspendCancellableCoroutine<Unit> { continuation ->
-    val handle = requestIdle { continuation.resume(Unit) }
-    continuation.invokeOnCancellation { cancelIdle(handle) }
+    val resume = { continuation.resume(Unit) }
+    if (idleCallbackSupported) {
+        val handle = requestIdle(resume)
+        continuation.invokeOnCancellation { cancelIdle(handle) }
+    } else {
+        val handle = requestTimeout(resume, IDLE_FALLBACK_DELAY_MS)
+        continuation.invokeOnCancellation { cancelTimeout(handle) }
+    }
 }
 
 @OptIn(ExperimentalWasmJsInterop::class)
@@ -63,3 +74,9 @@ private fun requestIdle(action: () -> Unit): Int = js("window.requestIdleCallbac
 
 @OptIn(ExperimentalWasmJsInterop::class)
 private fun cancelIdle(handle: Int): Unit = js("window.cancelIdleCallback(handle)")
+
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun requestTimeout(action: () -> Unit, delayMs: Int): Int = js("window.setTimeout(action, delayMs)")
+
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun cancelTimeout(handle: Int): Unit = js("window.clearTimeout(handle)")

@@ -282,7 +282,7 @@ gap = 24
 lab_h = 70
 row = Image.new("RGB", (W * 3 + gap * 4, H + lab_h + gap), (245, 242, 235))
 dl = ImageDraw.Draw(row)
-lf = ImageFont.truetype(RES + "/font/pretendard_semibold.otf", 40)
+lf = ImageFont.truetype(RES + "/font/eolssu_sans_kr_semibold.otf", 40)
 for i, (im, name) in enumerate(((cap, "캡처 (그대로 키움)"), (Image.fromarray(img), "개선한 그림 (글자 없음)"), (mock.convert("RGB"), "글자를 얹은 모의 화면"))):
     x = gap + i * (W + gap)
     row.paste(im, (x, lab_h))
