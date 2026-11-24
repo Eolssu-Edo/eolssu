@@ -3,6 +3,7 @@ package com.ssafy.eolssu.platform.audio
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.CaptureBoundary
 import com.ssafy.eolssu.core.audio.PitchConfirmation
+import com.ssafy.eolssu.core.audio.PitchWindows
 import com.ssafy.eolssu.core.audio.PitchGate
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
