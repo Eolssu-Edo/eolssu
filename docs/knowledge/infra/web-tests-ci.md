@@ -43,6 +43,15 @@
 
 운영 `edo1-web`의 빈 작업 공간에서는 Wasm·JS 컴파일과 두 브라우저 테스트가 합계 약 9분 걸렸다([프론트 CI 캐시 측정](frontend-ci-cache.md)). 테스트 잡의 20분 제한은 이 첫 실행을 기준으로 잡았다.
 
+## 브라우저 테스트는 없는 파일을 요청하지 않는다 (S15P31E102-1285)
+
+2026-11-24 운영 웹 잡 #25(develop `f15cbb93`)가 `:shared:jsTest` 2,102개 중 1개 실패로 배포 전에 멈췄다. 실패한 `PcmWavWriterTest.outputLengthMatchesTheInputDuration`의 오류 내용은 Karma 서버 경고 `404: /context.html./composeResources/.../files/eolssu-test/missing.mp3` 한 줄이었다.
+
+- 이 요청은 1270의 `WebSoundPlayerTest`가 일부러 없는 파일을 재생해 생겼다. Karma 웹 서버는 404를 경고로 기록하고, Kotlin Gradle 플러그인의 Karma 보고는 그 경고를 **그때 돌던 테스트**의 실패로 붙인다. 경고가 늦게 도착하면 상관없는 테스트가 실패한다.
+- 이 Mac의 실행 기록(Wasm·JS 모두)에도 같은 경고가 매번 찍혔다. 다만 테스트 사이에 도착해 실패로 붙지 않았을 뿐이다. 통과했다고 안전한 것이 아니었다.
+- 고친 방법: `WebSoundPlayer`가 주소 만들기 함수(`uriOf`, 기본값 `Res.getUri`)를 받게 하고, 테스트는 해석할 수 없는 `data:` 주소를 넣는다. 서버 요청이 없어 경고가 생기지 않고, 'error' 이벤트로 false를 돌려주는 경로는 그대로 검사한다.
+- 규칙: 웹 테스트에서 실패 경로를 만들 때 없는 리소스·주소를 요청하지 않는다. `data:` 주소나 주입한 가짜로 만든다. 확인 방법은 Gradle 출력에 `404:` 줄이 없는지 보는 것이다.
+
 ## 웹 스모크 자동화 검토
 
 티켓 범위의 '운영·스테이징 웹 최소 스모크(로딩·로그인 화면·곡 목록)'는 검토만 하고 별도 Task [S15P31E102-1274](https://ssafy.atlassian.net/browse/S15P31E102-1274)로 넘겼다(2026-11-24 사용자 결정).
