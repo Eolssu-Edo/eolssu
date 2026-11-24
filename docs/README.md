@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [운영 웹 최신 develop 기준선 배포와 웹 배포 주기(정기 수동 배포)·README 정정 (1269)](plans/web-parity/S15P31E102-1269-handoff.md) · [배포 주기 스펙](specs/jenkins-deploy-order.md#웹-배포-주기-s15p31e102-1269) · [웹 빌드·테스트·배포](../frontend/README.md#웹-빌드테스트배포)
 - [웹 간편 로그인과 계정 연결·탈퇴 재인증 지원: 같은 탭 이동과 웹 복귀 주소 (1263)](plans/web-parity/S15P31E102-1263-handoff.md) · [스펙](specs/social-auth.md#웹-간편-로그인-s15p31e102-1263)
 - [웹 마우스 끌기 가로 스크롤과 휴대폰 가로 웹 창의 연습 화면 세로 스크롤 (1268)](plans/web-parity/S15P31E102-1268-handoff.md) · [창 크기 기준값](../frontend/docs/architecture.md#기준값)
 - [웹 악보 파일 선택 취소 대체 처리와 큰 PDF 읽기 메모리 줄이기 (1266)](plans/web-parity/S15P31E102-1266-handoff.md)

@@ -15,7 +15,7 @@
 | Gradle | 9.5.1 (Wrapper로 자동 설치) |
 | Android | minSdk 24 (Android 7.0), targetSdk 37 |
 | iOS | 18.2 이상 |
-| Web | Kotlin/Wasm (운영 배포, Wasm GC를 지원하는 최신 브라우저), Kotlin/JS (빌드·테스트만, 배포하지 않음) |
+| Web | Kotlin/Wasm (운영 배포, [지원 브라우저](#웹-지원-브라우저)), Kotlin/JS (빌드·테스트만, 배포하지 않음) |
 
 버전은 모두 [`gradle/libs.versions.toml`](gradle/libs.versions.toml)에서 관리합니다.
 
@@ -68,6 +68,29 @@ Gradle 프로젝트명은 `eolssu`, Android 앱 표시명은 `얼쑤`입니다. 
 첫 화면(`webApp/src/webMain/resources/index.html`)은 앱을 불러오는 동안 로고와 로딩 표시를 보여 줍니다. 앱 파일을 받지 못하거나 시작 중 오류가 나면 실패 안내를, 20초가 지나면 지연 안내를, 브라우저가 Wasm GC를 지원하지 않으면 다른 브라우저 안내를 새로고침 버튼과 함께 띄웁니다. 안내가 뜬 뒤에도 앱이 화면을 붙이면 안내는 사라집니다.
 
 탭 아이콘(`favicon.ico`)·홈 화면 아이콘(`apple-touch-icon.png`, `icon-*.png`)과 `manifest.webmanifest`도 같은 폴더에 있습니다. 홈 화면에 추가하면 주소창 없는 단독 창(`standalone`)으로 열립니다. 아이콘은 iOS 앱 아이콘(`iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png`)에서 `frontend/`의 `python -P tools/web-icons/build_web_icons.py`(Pillow 13.0.0)로 다시 만듭니다.
+
+### 웹 지원 브라우저
+
+Kotlin/Wasm은 WebAssembly GC와 예외 처리(legacy) 제안을 지원하는 브라우저에서만 실행됩니다. 아래 버전은 Kotlin 공식 문서([Browser versions](https://kotlinlang.org/docs/wasm-configuration.html#browser-versions))에서 별도 설정 없이 동작한다고 밝힌 최소 버전입니다.
+
+| 브라우저 | 최소 버전 |
+| --- | --- |
+| Chrome, Edge 등 Chromium 기반 | 119 이상 |
+| Firefox | 120 이상 |
+| Safari | 18.2 이상 (macOS 15.2, iOS·iPadOS 18.2) |
+| iPhone·iPad의 모든 브라우저 | iOS·iPadOS 18.2 이상 (WebKit을 사용) |
+
+이보다 낮은 버전에서는 첫 화면이 다른 브라우저 안내를 띄웁니다. 이 표는 공식 문서의 기준이며 각 버전을 실제 기기에서 확인한 결과가 아닙니다.
+
+### 웹에서 아직 지원하지 않는 기능
+
+2026-11-24 `develop`(`4a4a9adf`) 기준입니다. 웹 구현(`shared/src/webMain/.../platform/PlatformModule.kt`)에 해당 플랫폼 기능(녹음기·마이크 권한, 장단 샘플 재생기, 악보 음원 저장소)이 등록되어 있지 않아 앱과 다르게 동작합니다. 작업이 병합되면 그 MR에서 해당 줄을 지웁니다. 운영 웹은 마지막으로 배포한 커밋 기준이므로 [웹 빌드·테스트·배포](#웹-빌드테스트배포)의 방법으로 배포 커밋을 확인합니다.
+
+| 기능 | 웹 동작 | 작업 |
+| --- | --- | --- |
+| 장단 반주, 장단 연습 모드, 장단 듣기 | 비활성화되고 미지원 안내 | [S15P31E102-1260](https://ssafy.atlassian.net/browse/S15P31E102-1260) |
+| 내 악보 생성 음원으로 연습 | '재생을 지원하지 않아요' 표시 | [S15P31E102-1261](https://ssafy.atlassian.net/browse/S15P31E102-1261) |
+| 녹음, 연주 평가, 한 음씩 연습의 음 판정, 기초 배우기 듣기 단계, 구간 재평가 | 동작하지 않음 | [S15P31E102-1262](https://ssafy.atlassian.net/browse/S15P31E102-1262) |
 
 ## 🍎 iOS 실행 (Mac)
 
@@ -342,11 +365,16 @@ release 키가 없으면 이 스크립트는 중단하며 debug 키로 대체하
 - [Kotlin/Wasm](https://kotl.in/wasm/)
 
 
-## 웹 자동 빌드·테스트·배포
+## 웹 빌드·테스트·배포
 
-운영 Jenkins는 develop의 백엔드 잡이 성공한 뒤 동일 SHA로 프론트 웹 잡을 시작합니다. `:shared:wasmJsTest`, `:shared:jsTest`, `:webApp:wasmJsBrowserDistribution`을 실행하고 JUnit·웹 산출물을 보관한 뒤 후보 자산 검증과 운영 배포를 수행합니다. 프론트 잡 이름은 `eolssu-frontend`이며 Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경입니다. Android·iOS 패키지는 이 흐름에 포함하지 않습니다.
+운영 웹(`https://k15e102.p.ssafy.io`)은 develop에 병합해도 바뀌지 않습니다. 담당자가 Jenkins `eolssu-frontend-web-수동배포용` 잡의 **Build with Parameters**에서, 성공한 `eolssu-backend` 빌드의 develop 전체 커밋 SHA를 `REVISION`에 넣어 실행해야 바뀝니다. 잡은 그 SHA가 develop 이력에 있는지 확인한 뒤 `:shared:wasmJsTest`, `:shared:jsTest`, production Wasm 최적화와 `:webApp:wasmJsBrowserDistribution`을 실행합니다. 후보 자산 검증을 통과하면 프론트 컨테이너만 교체하고, 배포 검사가 실패하면 이전 웹으로 자동 복구합니다. 백엔드·DB는 건드리지 않으며 교체할 때 몇 초 연결이 끊길 수 있습니다. Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경이고 Android·iOS 패키지는 포함하지 않습니다.
 
-동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 이 잡의 테스트 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.
+- **배포 주기:** 웹에 영향 있는 MR 묶음이 병합되면 그날 안에 배포합니다. 그런 MR이 없어도 develop이 운영 웹보다 앞서 있으면 평일 1회 배포합니다. 담당은 우동균입니다(2026-11-24 결정). 반복 부담이 커지면 하루 1회 예약 배포를 별도 작업으로 검토합니다.
+- **걸리는 시간:** 잡에는 20분 제한이 있습니다. Gradle 캐시가 데워져 있으면 약 8분, 캐시가 비어 있으면 18분 가까이 걸립니다(2026-11-24 #24, 1,061초). 제한 시간으로 ABORTED되면 운영은 바뀌지 않으므로 같은 SHA로 한 번 더 실행합니다.
+- **배포 커밋 확인:** `curl -fsS https://k15e102.p.ssafy.io/__eolssu_release.json`의 `sha`가 `REVISION`과 같아야 합니다.
+- **develop 웹 테스트:** `eolssu-web-tests` 잡([web-tests.Jenkinsfile](../infra/jenkins/web-tests.Jenkinsfile))은 웹 빌드 입력이 바뀐 develop 커밋마다 `eolssu-backend`가 예약하며, `:shared:wasmJsTest`·`:shared:jsTest`만 돌리고 배포하지 않습니다. 배포 잡과 같은 `edo1-web` 노드를 써서 두 잡이 겹치면 나중 잡이 기다립니다. 정의는 develop에 있고, 운영 Jenkins 적용은 [S15P31E102-1275](https://ssafy.atlassian.net/browse/S15P31E102-1275)에서 [적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)대로 합니다.
+
+설치·실패 복구·이전 릴리스로 되돌리기는 [운영 문서](../infra/runtime/README.md#프론트-웹-수동-배포), 배포 순서 규칙은 [Jenkins 배포 순서](../docs/specs/jenkins-deploy-order.md#프론트-웹-수동-배포-s15p31e102-520)를 따릅니다. 잡의 테스트 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.
 
 ### 악보 작성 지원음
 
