@@ -33,7 +33,7 @@
 
 ## 로컬 실측
 
-2026-11-24, macOS arm64, JDK 21(zulu 21.0.11), Gradle 9.5.1, ChromeHeadless 158, `--max-workers=2`. 같은 worktree에서 순서대로 실행했고 Gradle 데몬·전역 캐시를 재사용했다. 서버 실측이 아니며 운영 Jenkins 첫 실행에서 다시 잰다.
+2026-11-24, macOS arm64, JDK 21(zulu 21.0.11), Gradle 9.5.1, ChromeHeadless 158, `--max-workers=2`. 같은 worktree에서 순서대로 실행했고 Gradle 데몬·전역 캐시를 재사용했다. 서버 실측은 [운영 적용](#운영-적용-s15p31e102-1275)에 있다.
 
 | 실행 | 결과 | 시간(초) |
 | --- | --- | ---: |
@@ -42,6 +42,20 @@
 | `:shared:wasmJsTest :shared:jsTest`(JS 본문·테스트 컴파일 포함) | Wasm·JS 각 2,016개 통과, 실패 0 | 89 |
 
 운영 `edo1-web`의 빈 작업 공간에서는 Wasm·JS 컴파일과 두 브라우저 테스트가 합계 약 9분 걸렸다([프론트 CI 캐시 측정](frontend-ci-cache.md)). 테스트 잡의 20분 제한은 이 첫 실행을 기준으로 잡았다.
+
+## 운영 적용 (S15P31E102-1275)
+
+2026-11-24 17:35~17:41 KST에 develop `9191c23c6` 기준으로 [적용 절차](../../../infra/jenkins/controller/README.md#웹-테스트-잡) 1~4단계를 마쳤다. 시작 전 Jenkins 대기열과 실행 중 빌드는 비어 있었다.
+
+| 단계 | 결과 |
+| --- | --- |
+| 1. 잡 등록 | `declarative-linter`를 통과했다. 등록 파일의 check → apply → 재check 결과가 "already matches"였다. |
+| 2. 수동 실행 #1 | SUCCESS, 154초(`wasmJsTest` 1분 15초, `jsTest` 1분 7초). Wasm·JS 각 2,105개가 통과했고 실패·건너뜀은 0이다. 로그에 `404:` 줄과 테스트 시간 초과가 없었다. |
+| 3. 백엔드 잡 갱신 | 잡 config.xml과 서버 사본을 `/var/backups/eolssu-jenkins-1275-20261124T083945Z/`(root 전용)에 백업한 뒤 바꿨다. 바뀐 것은 스크립트의 `Queue web tests` 단계뿐이고 sandbox·`pollSCM` 트리거는 그대로다. |
+| 4. 일치 점검 | `jenkins:eolssu-backend`·`jenkins:eolssu-web-tests`·`/opt/eolssu/config/backend.Jenkinsfile` 모두 '일치'다. |
+| 5. 자동 예약 | 적용 뒤 develop에 웹 빌드 입력을 바꾼 커밋이 없었다. 건너뜀 경로는 이 기록을 담은 문서 커밋의 백엔드 빌드에서 처음 돈다. 예약 경로는 다음 웹 빌드 입력 변경 커밋에서 처음 돌며, 실패하면 [Jenkins 실패 알림](../../../infra/jenkins/notifications/README.md)이 Mattermost로 온다(2026-11-25 사용자 결정으로 1275 완료). |
+
+첫 실행이 빈 작업 공간 기준 약 9분보다 훨씬 짧았던 것은 Gradle 빌드 캐시 덕분이다. 작업 공간은 새로 만들었지만 Kotlin 컴파일 6개 작업(Wasm·JS 각각 본문·테스트·테스트 실행 파일)이 `FROM-CACHE`였다. 직전 웹 수동 배포 잡 #29가 같은 커밋을 같은 `edo1-web` 노드에서 빌드했기 때문이다. 캐시에 없는 커밋은 컴파일이 다시 돌아 더 오래 걸린다.
 
 ## 브라우저 테스트는 없는 파일을 요청하지 않는다 (S15P31E102-1285)
 
