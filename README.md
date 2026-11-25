@@ -7,14 +7,14 @@
 
 ## 제출 산출물
 
-최종 제출 문서는 `main` 브랜치의 [`exec/`](https://lab.ssafy.com/s15-final/S15P31E102/-/tree/main/exec)에만 있고, `develop`에는 없습니다. 소스를 받은 뒤 빌드·배포하려면 포팅 매뉴얼부터 읽습니다.
+최종 제출 문서는 [`exec/`](exec/README.md)에 있습니다. 소스를 받은 뒤 빌드·배포하려면 포팅 매뉴얼부터 읽습니다.
 
-| 산출물 | 파일(`main` 브랜치) |
+| 산출물 | 파일 |
 | --- | --- |
-| 포팅 매뉴얼(빌드·배포 절차, 제품 버전, 환경 변수, 배포 특이사항) | [exec/1-porting-manual.md](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/1-porting-manual.md) |
-| 외부 서비스 정보(소셜 로그인, R2, SMTP, 스토어 등) | [exec/2-external-services.md](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/2-external-services.md) |
-| DB 덤프 최신본(구조 전체와 기준 데이터, 개인정보 행 제외) | [exec/3-eolssu-db-dump.sql](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/3-eolssu-db-dump.sql) |
-| 시연 시나리오 | [exec/4-demo-scenario.md](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/4-demo-scenario.md) |
+| 포팅 매뉴얼(빌드·배포 절차, 제품 버전, 환경 변수, 배포 특이사항) | [exec/1-porting-manual.md](exec/1-porting-manual.md) |
+| 외부 서비스 정보(소셜 로그인, R2, SMTP, 스토어 등) | [exec/2-external-services.md](exec/2-external-services.md) |
+| DB 덤프 최신본(구조 전체와 기준 데이터, 개인정보 행 제외) | [exec/3-eolssu-db-dump.sql](exec/3-eolssu-db-dump.sql) |
+| 시연 시나리오 | [exec/4-demo-scenario.md](exec/4-demo-scenario.md) |
 
 ## 주요 기능
 
@@ -84,6 +84,7 @@ S15P31E102/
 ├── data/         # 악보·음원 데이터 구축, 음원 생성기(playback), 집계 마트
 ├── infra/        # 운영 Compose·Nginx·Jenkins·백업·점검·릴리스
 ├── docs/         # 스펙·계약·지식·결정·작업 기록
+├── exec/         # 최종 제출 산출물(포팅 매뉴얼·외부 서비스·DB 덤프·시연 시나리오)
 ├── docker-compose.dev.yml · docker-compose.prod.yml   # 초기 backend·Nginx 예시(운영은 infra/runtime/compose.yml)
 ├── .env.dev.example · .env.prod.example               # 위 예시용 환경 변수 이름·용도
 └── .gitlab/      # MR 템플릿
@@ -94,7 +95,7 @@ S15P31E102/
 | 브랜치 | 역할 |
 | --- | --- |
 | `develop` | 기본·개발 통합 브랜치. 작업 브랜치는 여기서 만들고 여기로 MR하며, 운영 자동 배포의 기준입니다. |
-| `main` | 발표 시점의 `develop`을 반영한 제출 기준 브랜치. `develop`에 없는 `exec/` 제출 산출물을 함께 담습니다. |
+| `main` | 발표 시점의 `develop`을 반영한 제출 기준 브랜치. `exec/` 제출 산출물을 함께 담습니다. |
 | `blog` | 기술 블로그 글·설정. 서비스 코드가 아니어서 develop과 기록을 공유하지 않으며, 글 쓰는 방법은 `blog` 브랜치의 README를 따릅니다. |
 
 각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/raw/`, `data/processed/`, `ai/data/`, `ai/models/`는 Git 제외 대상이며, 소스와 작은 검증용 샘플은 추적 가능한 별도 경로에 둡니다.
