@@ -12,6 +12,8 @@
 
 </div>
 
+---
+
 제품 범위와 우선순위는 [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)를 기준으로 합니다. 기능별 확정 동작은 [문서 목록](docs/README.md)의 스펙을, 영역별 구현·실행 방법은 각 폴더의 README를 따릅니다.
 
 ## 📑 목차
