@@ -1,15 +1,44 @@
 package com.ssafy.eolssu.platform
 
 import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.JangdanVolumeLimit
+import com.ssafy.eolssu.core.audio.MicPermission
+import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.audio.SheetAudioDeviceStore
-import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
+import com.ssafy.eolssu.core.audio.SheetAudioPlayback
 import com.ssafy.eolssu.core.audio.UnavailableSheetAudioDeviceStore
 
+import com.ssafy.eolssu.app.di.OAuthAttemptStore
 import com.ssafy.eolssu.core.audio.SoundPlayer
+import com.ssafy.eolssu.core.browser.ExternalBrowser
+import com.ssafy.eolssu.core.browser.IncomingLinks
+import com.ssafy.eolssu.core.network.LaunchSession
+import com.ssafy.eolssu.core.network.OtherTabSignIns
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SharedRefreshLock
 import com.ssafy.eolssu.core.storage.KeyValueStore
+import com.ssafy.eolssu.core.storage.SecureStore
+import com.ssafy.eolssu.data.user.OAuthRoute
+import com.ssafy.eolssu.data.user.WebOAuthCallback
+import com.ssafy.eolssu.platform.audio.WebAudioOutput
+import com.ssafy.eolssu.platform.audio.WebAudioPlayer
+import com.ssafy.eolssu.platform.audio.WebJangdanSampleCache
+import com.ssafy.eolssu.platform.audio.WebJangdanSamplePlayer
+import com.ssafy.eolssu.platform.audio.WebAudioRecorder
+import com.ssafy.eolssu.platform.audio.WebJangdanVolumeLimit
+import com.ssafy.eolssu.platform.audio.WebRecordingFiles
+import com.ssafy.eolssu.platform.audio.WebRecordingStore
 import com.ssafy.eolssu.platform.audio.WebSoundPlayer
+import com.ssafy.eolssu.platform.browser.TabSessionStore
+import com.ssafy.eolssu.platform.browser.WebExternalBrowser
+import com.ssafy.eolssu.platform.browser.takeWebOAuthReturn
+import com.ssafy.eolssu.platform.permission.WebMicPermission
+import com.ssafy.eolssu.platform.storage.BrowserLaunchSession
 import com.ssafy.eolssu.platform.storage.WebKeyValueStore
+import com.ssafy.eolssu.platform.storage.WebRefreshLock
+import com.ssafy.eolssu.platform.storage.WebTabSignIns
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.js.Js
 import kotlinx.browser.window
@@ -19,12 +48,36 @@ import org.koin.dsl.module
 /**
  * Web(JS·Wasm) 구현 등록. webMain의 `App(onNavHostReady)`가 넘긴다.
  * 서버는 페이지와 같은 주소(운영 Nginx가 `/api`를 백엔드로 넘긴다)이고, 로그인 쿠키는 브라우저가 보관한다.
+ * 간편 로그인은 같은 탭에서 제공자 화면으로 이동하고 같은 주소의 웹 복귀 경로([WebOAuthCallback])로 돌아온다.
+ * 돌아온 페이지가 시작할 때 `index.html`이 받아 둔 복귀 주소를 [IncomingLinks]로 넘긴다.
+ * 모든 탭이 같은 로그인 쿠키를 쓰므로 토큰 갱신·로그인 회원·자동 로그인 끔의 실행 범위를 탭 사이에서 맞춘다(S15P31E102-1264).
  */
 internal fun webPlatformModule(): Module = module {
-    factory<AudioPlayer> { UnavailableAudioPlayer() }
+    factory<AudioPlayer> { WebAudioPlayer() }
     single<SheetAudioDeviceStore> { UnavailableSheetAudioDeviceStore }
+    // 내 악보 음원은 기기에 받지 않고 SHT-13 서명 URL을 바로 튼다(S15P31E102-1261).
+    single { SheetAudioPlayback.Stream }
     single<KeyValueStore> { WebKeyValueStore() }
     single<HttpClientEngine> { Js.create() }
     single { ServerAddress(window.location.origin) }
     single<SoundPlayer> { WebSoundPlayer() }
+    single<OAuthRoute> { WebOAuthCallback(window.location.origin) }
+    single<ExternalBrowser> { WebExternalBrowser() }
+    single { IncomingLinks().apply { takeWebOAuthReturn()?.let(::deliver) } }
+    single<SecureStore>(OAuthAttemptStore) { TabSessionStore() }
+    // 웹 장단(S15P31E102-1260). 평가 녹음 중 배율은 아래 WebJangdanVolumeLimit(1262)이 정한다.
+    single { WebJangdanSampleCache(get()) }
+    single { WebAudioOutput() }
+    factory<JangdanSamplePlayer> { WebJangdanSamplePlayer(get(), get()) }
+    // 웹 녹음과 연주 평가(S15P31E102-1262): 녹음은 16kHz WAV로 탭 메모리에 두고 서버가 m4a로 바꿔 저장한다.
+    single { WebRecordingStore() }
+    factory<AudioRecorder> { WebAudioRecorder(get()) }
+    single<MicPermission> { WebMicPermission() }
+    single<RecordingFiles> { WebRecordingFiles(get()) }
+    factory<JangdanVolumeLimit> { WebJangdanVolumeLimit }
+    // S15P31E102-1264: 브라우저 세션 표지는 로그인 여부와 상관없이 페이지를 열 때마다 써야 하므로 모듈을 만들 때 바로 만든다.
+    val launch = BrowserLaunchSession()
+    single<LaunchSession> { launch }
+    single<SharedRefreshLock> { WebRefreshLock(get()) }
+    single<OtherTabSignIns> { WebTabSignIns(get()) }
 }

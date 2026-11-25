@@ -355,6 +355,11 @@ class RecordDetailViewModel(
         if (!accountScope.isActive) return
         val record = _uiState.value.record ?: return
         playJob?.cancel()
+        // 재생기가 없는 플랫폼은 load가 상태를 보내지 않아 ‘로딩 중’ 막과 ‘재생 중’이 남는다. 주소도 받지 않고 바로 알린다.
+        if (!player.available) {
+            _uiState.update { it.copy(playing = false, playbackLoading = false, notice = RecordNotice.PlaybackFailed) }
+            return
+        }
         val cached = source?.takeIf { (s, expires) -> s.id.startsWith(record.id) && now() < expires - URL_MARGIN_MS }?.first
         // 녹음 주소를 새로 받는 처음 재생은 연습 화면처럼 ‘로딩 중’을 띄운다. 재생이 시작되거나 실패하면 내린다.
         _uiState.update { it.copy(playing = true, playbackLoading = cached == null) }

@@ -212,6 +212,11 @@ fun LearnStageRoute(
             onOpenStage = onOpenStage,
             onConfirmed = { next -> next?.let(onOpenStage) ?: onBack() },
             navigation = navigation,
+            // 악기를 바꿔도 이 단계에 머문다. 목록에 돌아가면 이 단계 카드가 펼쳐지도록 다시 남긴다(S15P31E102-1276).
+            onSelectInstrument = { instrument ->
+                viewModel.selectInstrument(instrument)
+                viewModel.viewCard(stageNumber)
+            },
         ),
         noteAudioContent = { note ->
             // 단계를 다시 열면 음원 목록을 새로 받는다. 그동안 문구 대신 비활성 버튼을 보여 칸 높이를 유지한다.
@@ -233,6 +238,7 @@ private fun learnStageActions(
     onOpenStage: (Int) -> Unit,
     onConfirmed: (Int?) -> Unit,
     navigation: LearnNavigation,
+    onSelectInstrument: (GuideInstrument) -> Unit = viewModel::selectInstrument,
 ) = LearnStageActions(
     onBack = onBack,
     onOpenStage = onOpenStage,
@@ -246,6 +252,9 @@ private fun learnStageActions(
     onRetryDetail = { viewModel.loadDetail(it, force = true) },
     stepsDone = viewModel::stepsDone,
     onStepsDone = viewModel::saveStepsDone,
+    onToggleDropdown = viewModel::toggleDropdown,
+    onDismissDropdown = viewModel::dismissDropdown,
+    onSelectInstrument = onSelectInstrument,
 )
 
 private fun SnackbarHostState.notifier(scope: CoroutineScope): (suspend () -> String) -> Unit =

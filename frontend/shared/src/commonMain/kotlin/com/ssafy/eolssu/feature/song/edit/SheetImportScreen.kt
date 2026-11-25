@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.data.song.SheetImportField
 import com.ssafy.eolssu.feature.song.edit.component.PillChip
+import com.ssafy.eolssu.feature.song.edit.component.PillChipTouchInset
 import com.ssafy.eolssu.feature.song.edit.component.SheetJangdanSelect
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -31,9 +32,8 @@ import com.ssafy.eolssu.feature.song.edit.component.SheetFileSourceMenu
 import androidx.compose.runtime.setValue
 import com.ssafy.eolssu.core.storage.SheetFileSource
 import com.ssafy.eolssu.core.storage.sheetFileSources
-import com.ssafy.eolssu.feature.song.edit.component.SheetUploadGuideCard
+import com.ssafy.eolssu.feature.song.edit.component.SheetUploadInfoButton
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.component.*
@@ -49,7 +49,8 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
     onTitle: (String) -> Unit, onKind: (ImportKind) -> Unit, onInstrument: (String) -> Unit, onJangdan: (String) -> Unit,
     onPick: (SheetFileSource) -> Unit, onSubmit: () -> Unit, onReload: () -> Unit, onDismissError: () -> Unit = {},
     sources: List<SheetFileSource> = sheetFileSources, onJangdanUnsure: () -> Unit = {}) {
-    BackHandler(enabled = state.busy) { }
+    // 올리는 중에는 Web 브라우저 뒤로 가기로도 화면을 떠나지 않는다(S15P31E102-1265).
+    ScreenBackHandler(enabled = state.busy) { }
     val editable = !state.busy && !state.picking && !state.expired && state.acceptedId == null
     val colors = EolssuTheme.colors
     // 가져올 곳이 여럿이면 버튼 아래로 메뉴(파일·갤러리)를 펼치고, 하나뿐이면 바로 연다(S15P31E102-997).
@@ -57,11 +58,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
     val startPick = { sources.singleOrNull()?.let(onPick) ?: run { sourceMenuOpen = true } }
     val kind = state.kind
     val inputErrors = state.inputErrors()
-    // 서버/파일 실패는 누락 필드로 추측하지 않고, 입력 오류는 첫 미해결 항목을 안내한다.
-    val feedback = state.error?.takeIf { it != "INPUT_REQUIRED" && fileProblem(it) == null }
-        ?.let { stringResource(importErrorText(it)) }
-        ?: SheetImportField.entries.firstOrNull { it in inputErrors }?.let { stringResource(fieldErrorText(it)) }
-        ?: state.error?.takeIf { it == "INPUT_REQUIRED" }?.let { stringResource(importErrorText(it)) }
+    val feedback = importFeedback(state.error, inputErrors)?.let { stringResource(it) }
     val showListAction = state.error in setOf("CONVERSION_IN_PROGRESS", "SHEET_LIMIT_EXCEEDED", "IDEMPOTENCY_CONFLICT")
     // 악보 추가 화면처럼 회색 바탕 위 흰 카드로 묶는다(S15P31E102-768).
     val contentMaxWidth = sheetAddContentMaxWidth()
@@ -81,8 +78,8 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
             }
         },
     ) {
+        // 제목을 입력하다 여백을 누르면 키보드를 내린다(S15P31E102-1079).
         Column(
-            // 제목을 입력하다 여백을 누르면 키보드를 내린다(S15P31E102-1079).
             Modifier.fillMaxSize().hideKeyboardOnTapOutside().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -96,6 +93,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                 }
             } else {
                 // 내 악보 가져오기에서 바로 들어오므로 종류는 여기서 고른다. 정간보일 때만 장단 칸을 보인다(S15P31E102-997).
+                // 종류 카드를 위에 고정하지 않고 아래 카드와 함께 스크롤한다(S15P31E102-1284).
                 UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_kind))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -105,7 +103,6 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         }
                     }
                 }
-                SheetUploadGuideCard(kind)
                 UploadCard {
                     EolssuTextField(qaTarget = QaTarget.SHEET_IMPORT_SCREEN_02,
                         value = state.title,
@@ -117,6 +114,7 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                         containerColor = colors.groupedBackground,
                         imeAction = ImeAction.Done,
                         error = if (SheetImportField.Title in inputErrors) stringResource(fieldErrorText(SheetImportField.Title)) else null,
+                        errorColor = colors.recText,
                     )
                 }
                 if (state.loading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.text) }
@@ -131,14 +129,15 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                     UploadLabel(stringResource(Res.string.sheet_upload_instrument))
                     // 앱의 다른 악기 선택처럼 이름 앞에 악기 그림을 둔다. 모르는 악기 코드는 그림 없이 이름만 보인다(S15P31E102-1079).
                     // 그림이 들어가 휴대폰 폭에 네 칩이 한 줄에 들어가지 않으므로, 한 칩만 다음 줄에 남지 않게 두 칸씩 같은 폭으로 놓는다.
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 칩의 보이지 않는 터치 여백만큼 줄 간격을 줄여 위아래도 좌우와 같은 8dp로 보이게 한다(S15P31E102-1233).
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp - PillChipTouchInset * 2)) {
                         state.instruments.chunked(2).forEach { pair ->
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 pair.forEach { item ->
                                     val picture = instrumentOfServerCode(item.code)
                                     PillChip(item.name, selected = state.instrumentId == item.instrumentId, onClick = UserActionLog.click(QaTarget.SHEET_IMPORT_SCREEN_03, { onInstrument(item.instrumentId) }),
                                         modifier = Modifier.weight(1f), enabled = editable,
-                                        leading = picture?.let { { InstrumentPicture(it, size = InstrumentPictureCompactSize) } })
+                                        leading = picture?.let { { InstrumentPicture(it) } })
                                 }
                                 if (pair.size == 1) Spacer(Modifier.weight(1f))
                             }
@@ -148,15 +147,18 @@ fun SheetImportScreen(state: SheetImportUiState, onBack: () -> Unit, onList: () 
                 }
                 if (kind == ImportKind.Jeongganbo && state.jangdans.isNotEmpty()) UploadCard {
                     UploadLabel(stringResource(Res.string.sheet_upload_jangdan))
-                    Text(stringResource(Res.string.sheet_upload_jangdan_help), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+                    // 고정 설명 없이, 고르지 않고 업로드했을 때만 카드 밑에 빨간 안내를 보인다(S15P31E102-1248).
                     SheetJangdanSelect(state.jangdans, state.jangdanId, onJangdan, enabled = editable,
                         unsure = state.jangdanUnsure, onUnsure = onJangdanUnsure.takeIf { state.canChooseJangdanUnsure },
                         isError = SheetImportField.Jangdan in inputErrors)
                     if (SheetImportField.Jangdan in inputErrors) UploadError(stringResource(fieldErrorText(SheetImportField.Jangdan)))
                 }
                 UploadCard {
-                    UploadLabel(stringResource(Res.string.sheet_upload_files))
-                    Text(stringResource(Res.string.sheet_upload_limits), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+                    // 잘 읽히는 악보 안내와 파일 제한은 카드 본문 대신 ⓘ 말풍선으로 보인다(S15P31E102-1230·1231).
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        UploadLabel(stringResource(Res.string.sheet_upload_files))
+                        SheetUploadInfoButton()
+                    }
                     state.files.forEachIndexed { index, file ->
                         Row(
                             Modifier.fillMaxWidth().background(colors.groupedBackground, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
@@ -221,7 +223,17 @@ private fun fieldErrorText(field: SheetImportField): StringResource = when (fiel
     SheetImportField.Files -> Res.string.sheet_upload_choose_files
 }
 
-/** 스크롤과 무관한 하단 요약과 필드 아래에서 같은 오류 안내를 사용한다. */
+/**
+ * 업로드 버튼 위 하단 안내. 칸에 속하지 않는 서버 오류만 보이고, 칸 입력 오류는 해당 칸 아래에서만 한 번 보인다(S15P31E102-1232).
+ * 안내 창으로 보이는 파일 오류도 뺀다. 입력 오류인데 표시할 칸이 없을 때만 일반 입력 안내를 보인다.
+ */
+internal fun importFeedback(error: String?, inputErrors: Set<SheetImportField>): StringResource? = when {
+    error == null || fileProblem(error) != null -> null
+    error == "INPUT_REQUIRED" -> if (inputErrors.isEmpty()) importErrorText(error) else null
+    else -> importErrorText(error)
+}
+
+/** 카드 안 칸 아래에 보이는 빨간 입력 오류 안내. */
 @Composable
 private fun UploadError(message: String) {
     val color = EolssuTheme.colors.recText

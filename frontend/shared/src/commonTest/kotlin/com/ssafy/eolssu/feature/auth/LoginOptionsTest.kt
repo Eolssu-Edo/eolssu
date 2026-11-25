@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.network.LaunchSession
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.core.storage.FakeSecureStore
@@ -166,5 +167,48 @@ class LoginOptionsTest {
         member.set(null)
         LoginPreferences.resetLaunchCheck()
         assertFalse(LoginPreferences(store, null, SignedInMember(store)).endSessionOnLaunch(), "로그아웃한 기기는 지울 세션이 없다")
+    }
+
+    /** 웹의 실행 범위 대역. [newBrowserSession]은 표지 쿠키가 없던 페이지(브라우저를 새로 연 첫 페이지)인지다. */
+    private class BrowserLaunch(private val newBrowserSession: Boolean) : LaunchSession {
+        private var claimed = false
+        override fun claim(): Boolean = !claimed && newBrowserSession.also { claimed = true }
+    }
+
+    @Test
+    fun webKeepsLoginWithoutAutoLoginUntilTheBrowserIsReopened() {
+        val store = FakeKeyValueStore()
+        val member = SignedInMember(store)
+        val preferences = LoginPreferences(store, null, member, BrowserLaunch(newBrowserSession = true))
+        assertFalse(preferences.endSessionOnLaunch(), "로그아웃 상태로 연 첫 페이지")
+        member.set("7")
+        preferences.saveEmailLogin("user@example.com", rememberEmail = false, keepSignedIn = false)
+
+        // 새로고침·새 탭: 같은 브라우저 세션이라 로그인을 이어 간다.
+        assertFalse(LoginPreferences(store, null, SignedInMember(store), BrowserLaunch(newBrowserSession = false)).endSessionOnLaunch())
+        assertFalse(LoginPreferences(store, null, SignedInMember(store), BrowserLaunch(newBrowserSession = false)).endSessionOnLaunch())
+
+        // 브라우저를 닫았다 연 첫 페이지에서만 로그아웃한다.
+        val reopened = LoginPreferences(store, null, SignedInMember(store), BrowserLaunch(newBrowserSession = true))
+        assertTrue(reopened.endSessionOnLaunch())
+        assertFalse(reopened.endSessionOnLaunch(), "같은 페이지에서 다시 묻지 않는다")
+    }
+
+    @Test
+    fun followingAnotherTabKeepsTheEndOfSessionMarkThatTabLeft() {
+        val store = FakeKeyValueStore()
+        // 탭 A·B가 같은 저장소(localStorage)를 쓴다.
+        val tabA = SignedInMember(store)
+        val tabB = SignedInMember(store)
+        val preferencesA = LoginPreferences(store, null, tabA, BrowserLaunch(newBrowserSession = false))
+        LoginPreferences(store, null, tabB, BrowserLaunch(newBrowserSession = false))
+
+        // 탭 A가 자동 로그인을 끄고 로그인한 뒤, 탭 B가 storage 이벤트로 늦게 따른다.
+        tabA.set("7")
+        preferencesA.saveEmailLogin("user@example.com", rememberEmail = false, keepSignedIn = false)
+        tabB.follow("7")
+
+        assertEquals("true", store.values[LoginPreferences.END_SESSION_KEY], "탭 B가 따르면서 탭 A의 표시를 지우지 않는다")
+        assertTrue(LoginPreferences(store, null, SignedInMember(store), BrowserLaunch(newBrowserSession = true)).endSessionOnLaunch())
     }
 }

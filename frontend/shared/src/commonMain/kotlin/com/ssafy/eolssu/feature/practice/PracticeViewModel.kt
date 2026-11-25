@@ -36,8 +36,10 @@ import com.ssafy.eolssu.data.song.SheetPracticeDownload
 import com.ssafy.eolssu.data.song.SheetPracticeNeedsReview
 import com.ssafy.eolssu.data.song.SheetPracticeRepository
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.CatalogUnreachable
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -121,6 +123,7 @@ class PracticeViewModel(
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo || mine, mine = mine, learn = learn, direct = direct && !solo && !mine && !learn && (recorder != null || sectionSource != null), fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true,
+            personalAudioStreams = mine && personalAudio?.streamsAudio == true,
             // 구간 재평가는 악보를 받기 전에도 제목이 ‘구간 재평가’로 보이게 구간을 먼저 둔다.
             sectionPractice = initialSection?.takeIf { sectionSource != null }?.let(::PracticeSectionState)),
     )
@@ -875,7 +878,7 @@ class PracticeViewModel(
     fun followNow() = _uiState.update { it.followNow() }
 
     // 내 악보 음원
-    private val supportsPersonalAudio: Boolean get() = mine && personalAudio?.deviceAudioAvailable == true
+    private val supportsPersonalAudio: Boolean get() = mine && personalAudio?.personalAudioPlayable == true
 
     private fun checkPersonalAudio(song: Song) {
         val repository = personalAudio ?: return
@@ -922,7 +925,7 @@ class PracticeViewModel(
         personalAudioJob = accountScope.launch { runPersonalDownload(repository, song, resume = false) }
     }
 
-    /** 생성 요청(또는 진행 중인 생성 대기)부터 기기 저장까지. 상태가 [PersonalAudioPending] 중 하나인 채로 부른다. */
+    /** 생성 요청(또는 진행 중인 생성 대기)부터 기기 저장까지(웹은 저장 없이 완료 확인까지). 상태가 [PersonalAudioPending] 중 하나인 채로 부른다. */
     private suspend fun runPersonalDownload(repository: SheetPracticeRepository, song: Song, resume: Boolean) {
         val result = try {
             repository.download(song, resume, onStatus = { status ->
@@ -1054,6 +1057,12 @@ class PracticeViewModel(
         whenCurrentScore { requestCurrentEvaluation() }
     }
 
+    /** 연결 끊김 안내([PracticePopup.ScoreOffline])의 ‘다시 시도’: 창을 닫고 현재 악보 확인부터 다시 한다. */
+    fun retryEvaluation() {
+        closePopup()
+        requestEvaluation()
+    }
+
     private fun requestCurrentEvaluation() {
         if (mine || !accountScope.isActive) return
         if (recorder == null) return
@@ -1101,13 +1110,15 @@ class PracticeViewModel(
         if (sectionSource != null) return currentSectionScore(sectionSource, song)
         val version = song.scoreVersion ?: return true
         if (mine || _uiState.value.solo) return true
+        var offline = false
         val current = try { songRepository.getSong(song.id) }
         catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: CatalogUnreachable) { offline = true; null }
         catch (_: Exception) { null }
         currentCoroutineContext().ensureActive()
         if (!accountScope.isActive || _uiState.value.song?.id != song.id || _uiState.value.song?.scoreVersion != version) return false
         val popup = when {
-            current == null -> PracticePopup.ScoreUnavailable
+            current == null -> if (offline) PracticePopup.ScoreOffline else PracticePopup.ScoreUnavailable
             current.scoreVersion != version -> PracticePopup.ScoreChanged
             else -> return true
         }
@@ -1118,15 +1129,17 @@ class PracticeViewModel(
 
     /** 구간 재평가: 바탕 세션의 악보가 지금도 공개 판본인지 확인한다. 바뀌었거나 확인하지 못하면 녹음하지 않고 알린다. */
     private suspend fun currentSectionScore(source: SectionEvaluationSource, song: Song): Boolean {
+        var offline = false
         val current = try { source.isCurrent() }
         catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: CatalogUnreachable) { offline = true; null }
         catch (_: Exception) { null }
         currentCoroutineContext().ensureActive()
         if (!accountScope.isActive || _uiState.value.song !== song) return false
         val popup = when (current) {
             true -> return true
             false -> PracticePopup.ScoreChanged
-            null -> PracticePopup.ScoreUnavailable
+            null -> if (offline) PracticePopup.ScoreOffline else PracticePopup.ScoreUnavailable
         }
         if (_uiState.value.mode == PracticeMode.Recording || _uiState.value.resume) cancelRecorder()
         _uiState.update { it.toReady().copy(popup = popup) }
@@ -1176,7 +1189,7 @@ class PracticeViewModel(
      * 연주 평가는 시작하지 않고, 기기가 더 묻지 않는 차단일 때만 설정 안내를 띄운다([denyMic]).
      */
     fun micDenied() {
-        if (_uiState.value.popup in setOf(PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable)) return
+        if (_uiState.value.popup in setOf(PracticePopup.ScoreChanged, PracticePopup.ScoreUnavailable, PracticePopup.ScoreOffline)) return
         if (_uiState.value.solo) {
             // 한 음씩은 아직 시작하지 않았다. 악보·진행 위치는 그대로 두고 안내만 띄운다.
             _uiState.update { it.copy(popup = if (micPermission?.isPermanentlyDenied() == true) PracticePopup.PermBlocked else PracticePopup.PermDenied) }
@@ -1193,6 +1206,8 @@ class PracticeViewModel(
 
     fun cancelCountdown() {
         countdownJob?.cancel()
+        // 새 연주의 카운트다운이면 준비해 둔 마이크를 닫는다(웹). 이어 연주는 일시정지한 녹음을 그대로 둔다.
+        if (!_uiState.value.resume) recorder?.cancel()
         _uiState.update { it.cancelCountdown() }
     }
 
@@ -1317,6 +1332,8 @@ class PracticeViewModel(
     private fun runCountdown() {
         countdownJob?.cancel()
         countdownJob = accountScope.launch {
+            // 웹은 마이크를 비동기로 연다. 새 연주는 카운트다운과 함께 열고 끝에서 기다린다. 이어 연주는 열린 마이크를 쓴다.
+            val prepared = if (_uiState.value.resume) null else async { prepareRecorder() }
             while (_uiState.value.count > 1) {
                 delay(1000)
                 _uiState.update { it.copy(count = it.count - 1) }
@@ -1324,7 +1341,7 @@ class PracticeViewModel(
             delay(1000)
             val resume = _uiState.value.resume
             val carry = _uiState.value.eventElapsedMs
-            if (!(if (resume) resumeRecorder() else startRecorder())) {
+            if (prepared?.await() == false || !(if (resume) resumeRecorder() else startRecorder())) {
                 _uiState.update { it.failRecording() }
                 return@launch
             }
@@ -1454,6 +1471,19 @@ class PracticeViewModel(
         if (!state.finished || (state.popup != PracticePopup.End && state.popup != PracticePopup.EndAtLimit)) return null
         if (take == null) _uiState.update { it.failRecording() } else handedToAnalysis = true
         return take
+    }
+
+    /** 녹음 장치를 연다(웹). 열지 못하면 false이고, 부르는 쪽은 시작 실패와 같이 다룬다. */
+    private suspend fun prepareRecorder(): Boolean {
+        val recorder = recorder ?: return false
+        return try {
+            recorder.prepare()
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun startRecorder(): Boolean {

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.guide.FingeringActions
@@ -23,11 +24,10 @@ import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.core.ui.score.HoleLegend
-import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
- * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-GuideFing-Land`): 왼쪽 300dp 칸에 악기 · 세로 취법 탭 · 범례,
+ * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-GuideFing-Land`): 왼쪽 300dp 칸에 세로 취법 탭 · 오른쪽 정렬 범례,
  * 맨 아래에 출처를 두고, 오른쪽 카드 격자만 따로 스크롤한다.
  * 카드 칸은 최소 300dp로, 내용 너비 1120dp에서는 와이어프레임처럼 두 칸, 좁은 창에서는 한 칸이 된다.
  */
@@ -44,17 +44,6 @@ internal fun FingeringExpandedLayout(
     ) {
         Column(Modifier.width(300.dp).fillMaxHeight().padding(bottom = 24.dp)) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp)) {
-                InstrumentDropdown(
-                    options = state.instrumentOptions,
-                    selected = instrument,
-                    open = state.isDropdownOpen,
-                    onToggle = actions.onToggleDropdown,
-                    onSelect = actions.onSelectInstrument,
-                    onDismiss = actions.onDismissDropdown,
-                    enabled = state.hasSelectedInstrument,
-                    loading = state.isInstrumentListLoading,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
                 BlowTabs(
                     state.blowTabs,
                     actions.onSelectBlow,
@@ -62,7 +51,7 @@ internal fun FingeringExpandedLayout(
                     large = true,
                     vertical = true,
                 )
-                HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
+                HoleLegend(Modifier.align(Alignment.End).padding(top = 2.dp, bottom = 6.dp))
             }
         }
         LazyVerticalGrid(

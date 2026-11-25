@@ -27,9 +27,13 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlin.test.Test
@@ -45,15 +49,32 @@ class HttpClientsTest {
 
     private val requests = mutableListOf<String>()
 
-    private fun client(cookies: SecureCookiesStorage? = null, handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData) =
-        createHttpClient(
-            MockEngine { request ->
-                requests += "${request.method.value} ${request.url.encodedPath}"
-                handler(request)
-            },
-            ServerAddress.Production,
-            cookies,
-        )
+    private fun client(
+        cookies: SecureCookiesStorage? = null,
+        sharedRefresh: SharedRefreshLock? = null,
+        handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
+    ) = createHttpClient(
+        MockEngine { request ->
+            requests += "${request.method.value} ${request.url.encodedPath}"
+            handler(request)
+        },
+        ServerAddress.Production,
+        cookies,
+        sharedRefresh,
+    )
+
+    /** 웹 탭 사이 잠금의 대역. 모든 탭이 같은 잠금과 세대를 본다. */
+    private class TabsRefreshLock : SharedRefreshLock {
+        private val mutex = Mutex()
+        override var generation = 0L
+            private set
+
+        override suspend fun <T> withLock(block: suspend () -> T): T = mutex.withLock { block() }
+
+        override fun advance() {
+            generation++
+        }
+    }
 
     @Test
     fun unauthorizedRefreshesOnceAndResends() = runTest {
@@ -161,6 +182,74 @@ class HttpClientsTest {
         val statuses = listOf("/api/a", "/api/b").map { path -> async { client.get(path).status } }.awaitAll()
         assertEquals(listOf(HttpStatusCode.OK, HttpStatusCode.OK), statuses)
         assertEquals(1, requests.count { it == "POST /api/auth/refresh" })
+    }
+
+    @Test
+    fun tabsSharingTheRefreshLockRefreshOnceAndBothResend() = runTest {
+        val tabs = TabsRefreshLock()
+        var refreshes = 0
+        // 두 탭의 첫 요청이 모두 도착한 뒤에 401을 돌려준다. MockEngine은 실제 스레드에서 돌아,
+        // 막지 않으면 한 탭이 갱신을 끝낸 뒤에야 다른 탭의 첫 요청이 도착해 바로 200을 받을 수 있다.
+        val firstRequests = Mutex()
+        var arrived = 0
+        val bothArrived = CompletableDeferred<Unit>()
+        // 서버는 리프레시 토큰을 쓸 때마다 바꾸고, 이미 바뀐 토큰이 다시 오면 재사용으로 보고 거절한다(401).
+        val server: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { request ->
+            when {
+                request.url.encodedPath == "/api/auth/refresh" -> {
+                    delay(10)
+                    if (++refreshes == 1) respond("", HttpStatusCode.OK) else respond("", HttpStatusCode.Unauthorized)
+                }
+                refreshes > 0 -> respond("", HttpStatusCode.OK)
+                else -> {
+                    firstRequests.withLock { if (++arrived == 2) bothArrived.complete(Unit) }
+                    bothArrived.await()
+                    respond("", HttpStatusCode.Unauthorized)
+                }
+            }
+        }
+        val tabA = client(sharedRefresh = tabs, handler = server)
+        val tabB = client(sharedRefresh = tabs, handler = server)
+
+        val statuses = listOf(tabA to "/api/a", tabB to "/api/b").map { (tab, path) -> async { tab.get(path).status } }.awaitAll()
+
+        assertEquals(setOf("GET /api/a", "GET /api/b"), requests.take(2).toSet(), "두 탭이 모두 만료된 토큰으로 401을 받았다")
+        assertEquals(listOf(HttpStatusCode.OK, HttpStatusCode.OK), statuses)
+        assertEquals(1, requests.count { it == "POST /api/auth/refresh" }, "늦은 탭은 다시 갱신하지 않고 새 쿠키로 재전송만 한다")
+        assertEquals(1L, tabs.generation)
+    }
+
+    @Test
+    fun cancelledCallerStillFinishesTheRefreshItStarted() = runTest {
+        val tabs = TabsRefreshLock()
+        val refreshing = CompletableDeferred<Unit>()
+        val answer = CompletableDeferred<Unit>()
+        val client = client(sharedRefresh = tabs) { request ->
+            if (request.url.encodedPath == "/api/auth/refresh") {
+                refreshing.complete(Unit)
+                answer.await() // 서버는 이미 리프레시 토큰을 바꿨고 응답만 남았다.
+                respond("", HttpStatusCode.OK)
+            } else {
+                respond("", HttpStatusCode.Unauthorized)
+            }
+        }
+
+        val call = launch { client.get("/api/a") }
+        refreshing.await()
+        call.cancel() // 화면을 닫았거나 다른 탭의 계정 변경으로 작업을 버렸다.
+        answer.complete(Unit)
+        call.join()
+
+        assertEquals(1L, tabs.generation, "끊지 않고 새 쿠키를 받아 세대를 올린다. 끊으면 다음 갱신이 옛 토큰을 보내 재사용으로 감지된다")
+    }
+
+    @Test
+    fun failedSharedRefreshDoesNotAdvanceTheGeneration() = runTest {
+        val tabs = TabsRefreshLock()
+        val client = client(sharedRefresh = tabs) { respond("", HttpStatusCode.Unauthorized) }
+
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/api/a").status)
+        assertEquals(0L, tabs.generation, "갱신에 실패하면 다른 탭이 재전송만 하지 않도록 세대를 그대로 둔다")
     }
 
     @Test

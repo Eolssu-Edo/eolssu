@@ -49,13 +49,11 @@ import com.ssafy.eolssu.feature.song.component.providedSongMeta
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
-import com.ssafy.eolssu.core.ui.component.SongSearchField
-import com.ssafy.eolssu.core.ui.component.SongSortButton
+import com.ssafy.eolssu.core.ui.component.SongSearchBar
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
-import eolssu.shared.generated.resources.mysongs_sheet_limit_note
 import com.ssafy.eolssu.feature.song.edit.MY_SHEET_LIMIT
 import eolssu.shared.generated.resources.mysongs_title
 import eolssu.shared.generated.resources.mysongs_other_instrument
@@ -127,20 +125,14 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
             )
         },
     ) {
-        MySongsBody(
-            state,
-            actions,
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
-        )
+        MySongsBody(state, actions, Modifier.fillMaxSize(), gutter = 20.dp, bottomPadding = 16.dp)
     }
 }
 
 /**
- * SONG-03 본문(`.body`, 간격 12dp): 탭 · 두 탭이 함께 쓰는 제목 검색칸 · 제공 곡(단계 필터 · 오른쪽 정렬 버튼 · 곡 줄)
+ * SONG-03 본문(`.body`, 간격 12dp): 탭 · 두 탭이 함께 쓰는 제목 검색칸 · 제공 곡(검색칸 옆 정렬 버튼 · 단계 필터 · 곡 줄)
  * 또는 내 악보(악보 추가 · 'n개' · 악보 줄, 검색에 맞는 악보가 없으면 '찾는 곡이 없어요.').
+ * 탭 · 검색칸 · 단계 필터는 위쪽에 고정하고 그 아래 목록만 스크롤한다(S15P31E102-1241). [modifier]에는 높이가 정해진 크기를 준다.
  * 개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
  */
 @Composable
@@ -148,49 +140,84 @@ internal fun MySongsBody(
     state: MySongsUiState,
     actions: MySongsActions,
     modifier: Modifier = Modifier,
+    gutter: Dp = 20.dp,
+    bottomPadding: Dp = 16.dp,
     columns: Int = 1,
     rowGap: Dp = 8.dp,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        MySongsTabSwitch(state.tab, state.songs.size, state.sheetCount, actions.onSelectTab, Modifier.padding(top = 4.dp))
-        SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, bordered = false)
-        val searching = state.query.isNotBlank()
-        when (state.tab) {
-            MySongsTab.Songs -> {
+        Column(Modifier.fillMaxWidth().padding(horizontal = gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // 목록을 받지 못했으면(불러오는 중·연결 끊김·오류) '제공 곡 0'·'내 악보 0'으로 보이지 않게 개수를 숨긴다.
+            MySongsTabSwitch(
+                state.tab,
+                state.songs.size.takeIf { state.loadState == SongLoadState.Ready },
+                state.sheetCount.takeIf { state.sheetLoadState == SongLoadState.Ready || it > 0 },
+                actions.onSelectTab,
+                Modifier.padding(top = 4.dp),
+            )
+            // 제공 곡의 이름 정렬 버튼은 목록 위 한 줄 대신 검색칸 오른쪽에 둔다. 내 악보 탭에는 정렬이 없어 검색칸만 둔다.
+            // 검색 결과가 비어도 버튼을 남겨, 입력할 때마다 검색칸 폭이 바뀌지 않게 한다.
+            val songsLoaded = state.loadState == SongLoadState.Ready && state.songs.isNotEmpty()
+            SongSearchBar(
+                state.query,
+                actions.onQueryChange,
+                actions.onClearQuery,
+                sortOrder = state.sort.takeIf { state.tab == MySongsTab.Songs && songsLoaded },
+                onToggleSort = actions.onToggleSort,
+                bordered = false,
+            )
+            if (state.tab == MySongsTab.Songs) {
                 SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true, bordered = false)
-                if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
-                    SongLoadNotice(state.loadState, actions.onRetry)
-                } else if (state.visibleSongs.isEmpty()) {
-                    // 검색어가 있으면 평가할 곡 고르기와 같은 '검색 조건 초기화'를, 단계 필터만 걸었으면 '전체 곡 보기'를 둔다.
-                    if (searching) SongEmptyResult(onReset = actions.onResetSongFilters)
-                    else SongEmptyResult(
-                        onReset = actions.onResetSongFilters,
-                        resetLabel = stringResource(Res.string.mysongs_reset_filter),
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true, bordered = false)
-                        CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
-                            ProvidedSongRow(song, providedSongMeta(song), onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_01, { actions.onOpenSong(song.id) }), modifier = rowModifier, bordered = false)
-                        }
-                    }
+            }
+        }
+        // 위쪽 탭·검색·단계 필터를 눌러도 맨 위로 되돌리지 않는다. 두 탭이 스크롤 위치 하나를 함께 쓰고,
+        // 바뀐 목록이 더 짧으면 끝으로 당겨진다(S15P31E102-1255).
+        val listScroll = rememberScrollState()
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(listScroll)
+                .padding(start = gutter, end = gutter, bottom = bottomPadding),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MySongsList(state, actions, columns, rowGap)
+        }
+    }
+}
+
+/** [MySongsBody]의 스크롤되는 아래쪽: 제공 곡(곡 줄) 또는 내 악보(악보 추가 · 개수 · 악보 줄). */
+@Composable
+private fun MySongsList(state: MySongsUiState, actions: MySongsActions, columns: Int, rowGap: Dp) {
+    val searching = state.query.isNotBlank()
+    when (state.tab) {
+        MySongsTab.Songs -> {
+            if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
+                SongLoadNotice(state.loadState, actions.onRetry)
+            } else if (state.visibleSongs.isEmpty()) {
+                // 검색어가 있으면 평가할 곡 고르기와 같은 '검색 조건 초기화'를, 단계 필터만 걸었으면 '전체 곡 보기'를 둔다.
+                if (searching) SongEmptyResult(onReset = actions.onResetSongFilters)
+                else SongEmptyResult(
+                    onReset = actions.onResetSongFilters,
+                    resetLabel = stringResource(Res.string.mysongs_reset_filter),
+                )
+            } else {
+                CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
+                    ProvidedSongRow(song, providedSongMeta(song), onClick = UserActionLog.click(QaTarget.MY_SONGS_SCREEN_01, { actions.onOpenSong(song.id) }), modifier = rowModifier, bordered = false)
                 }
             }
-            MySongsTab.Sheets -> {
-                AddSheetButton(actions.onAddSheet)
-                if (state.sheetLoadState != SongLoadState.Ready) SongLoadNotice(state.sheetLoadState, actions.onRetry)
-                if (state.sheetLoadState == SongLoadState.Ready && state.visibleSheets.isEmpty() && state.sheetCount > 0 && searching) {
-                    SongEmptyResult(onReset = actions.onClearQuery)
-                }
-                if (state.visibleSheets.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // 나누거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052).
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            ListNote(stringResource(Res.string.mysongs_sheet_count, state.sheetCount, MY_SHEET_LIMIT))
-                            ListNote(stringResource(Res.string.mysongs_sheet_limit_note, MY_SHEET_LIMIT))
-                        }
-                        MySheetGroups(state, actions, columns, rowGap, searching)
-                    }
+        }
+        MySongsTab.Sheets -> {
+            AddSheetButton(actions.onAddSheet)
+            if (state.sheetLoadState != SongLoadState.Ready) SongLoadNotice(state.sheetLoadState, actions.onRetry)
+            if (state.sheetLoadState == SongLoadState.Ready && state.visibleSheets.isEmpty() && state.sheetCount > 0 && searching) {
+                SongEmptyResult(onReset = actions.onClearQuery)
+            }
+            if (state.visibleSheets.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 나누거나 찾아도 저장 한도는 전체 개수로 센다(S15P31E102-1052). 한도 안내 문장은 두지 않는다(S15P31E102-1250).
+                    ListNote(stringResource(Res.string.mysongs_sheet_count, state.sheetCount, MY_SHEET_LIMIT))
+                    MySheetGroups(state, actions, columns, rowGap, searching)
                 }
             }
         }

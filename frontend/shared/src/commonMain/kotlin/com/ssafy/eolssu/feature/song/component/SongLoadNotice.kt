@@ -21,7 +21,7 @@ import com.ssafy.eolssu.feature.song.SongLoadState
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/** 목록의 빈 응답과 통신 실패, 상세의 404를 구분한다. 검색 결과 없음은 기존 필터 안내를 쓴다. */
+/** 목록의 빈 응답과 서버 오류·연결 끊김, 상세의 404를 구분한다. 검색 결과 없음은 기존 필터 안내를 쓴다. */
 @Composable
 internal fun SongLoadNotice(state: SongLoadState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Column(
@@ -34,6 +34,7 @@ internal fun SongLoadNotice(state: SongLoadState, onRetry: () -> Unit, modifier:
             SongLoadState.Loading -> Res.string.song_catalog_loading
             SongLoadState.Ready -> Res.string.song_catalog_empty
             SongLoadState.Failed -> Res.string.song_catalog_failed
+            SongLoadState.Offline -> Res.string.song_catalog_offline
             SongLoadState.NotFound -> Res.string.song_catalog_not_found
         }), textAlign = TextAlign.Center)
         if (state != SongLoadState.Loading) EolssuButton(stringResource(Res.string.song_catalog_retry), onRetry, qaTarget = QaTarget.SONG_LOAD_NOTICE_BUTTON_01)

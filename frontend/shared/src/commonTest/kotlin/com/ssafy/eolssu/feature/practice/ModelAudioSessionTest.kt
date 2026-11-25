@@ -221,6 +221,40 @@ class ModelAudioSessionTest {
         assertEquals(ModelAudioStatus.Playing, session.state.value.status)
     }
 
+    @Test fun streamedPersonalAudioIsLookedUpAgainForEachNewStartButResumesInPlace() = runTest {
+        // S15P31E102-1261: 웹의 내 악보 음원은 서버가 완료 10분 뒤 지우므로 새로 열 때마다 저장소(SHT-13)를 다시 거친다.
+        var lookups = 0
+        val streamed = audioFixture().copy(audioUrl = "https://r2.example/sheet-audio/42.m4a",
+            sheetPlayback = SheetPlayback(withJangdan = false, localFile = null))
+        val player = FakeAudioPlayer()
+        val session = ModelAudioSession(modelRepository { lookups++; streamed }, player, backgroundScope)
+        session.play(song, song.baseBpm); runCurrent()
+        assertEquals(1, lookups)
+        assertEquals(streamed.audioUrl, player.requestedSource?.url)
+        assertNull(player.requestedSource?.localFile)
+        player.emit(AudioPlaybackStatus.Playing, 500); runCurrent()
+        session.pause(); runCurrent()
+        session.play(song, song.baseBpm); runCurrent()
+        assertEquals(1, lookups, "제자리 이어 듣기는 받아 둔 요소를 그대로 쓴다")
+        assertEquals(1, player.loads)
+
+        session.pauseAtTick(4.0); runCurrent()
+        session.play(song, song.baseBpm); runCurrent()
+        assertEquals(2, lookups)
+        assertEquals(2, player.loads)
+
+        // 기기 파일 음원은 이전처럼 받아 둔 정보로 다시 연다.
+        var deviceLookups = 0
+        val device = streamed.copy(audioUrl = "", sheetPlayback = SheetPlayback(false, LocalAudioFile("/app/files/sheet-audio/42.m4a")))
+        val devicePlayer = FakeAudioPlayer()
+        val deviceSession = ModelAudioSession(modelRepository { deviceLookups++; device }, devicePlayer, backgroundScope)
+        deviceSession.play(song, song.baseBpm); runCurrent()
+        deviceSession.pauseAtTick(4.0); runCurrent()
+        deviceSession.play(song, song.baseBpm); runCurrent()
+        assertEquals(1, deviceLookups)
+        assertEquals(2, devicePlayer.loads)
+    }
+
     @Test fun unsupportedAndTruncatedFileAreNotSuccessfulPlayback() = runTest {
         val unavailable = ModelAudioSession(modelRepository { audioFixture() }, UnavailableAudioPlayer(), backgroundScope)
         unavailable.play(song, 60)

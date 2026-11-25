@@ -13,6 +13,7 @@ import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.song.ModelAudio
 import com.ssafy.eolssu.data.song.ModelAudioRepository
+import com.ssafy.eolssu.data.song.streamsSheetAudio
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -167,13 +168,14 @@ internal class ModelAudioSession(
             val resume = player.state.value.sourceId == sourceId &&
                 player.state.value.status == AudioPlaybackStatus.Paused
             val target = startTick?.let { song.modelMediaPosition(cached, it) } ?: previous.mediaPositionMs
-            if (cached.localFile == null || resume && target == previous.mediaPositionMs) {
+            if (cached.localFile == null && !cached.streamsSheetAudio || resume && target == previous.mediaPositionMs) {
                 perf?.reuse(PerfTarget.MODEL_AUDIO, song.id, PerfSource.RETAINED, song.scoreVersion)
                 prepareExisting(song, cached, target, resume && target == previous.mediaPositionMs)
                 return
             }
             // Released players reopen their file; the OS may have reclaimed it while the screen was hidden.
             // Go through the repository again to verify/restore the cached file before opening it.
+            // 웹의 내 악보 음원은 서버가 완료 10분 뒤 파일을 지운다. 새로 열 때마다 SHT-13으로 아직 있는지 확인한다(S15P31E102-1261).
         }
         active = true
         val request = ++requestId

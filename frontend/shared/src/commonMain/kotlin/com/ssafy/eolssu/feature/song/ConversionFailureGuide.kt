@@ -38,10 +38,10 @@ import org.jetbrains.compose.resources.StringResource
  * 서버가 원본을 보관하지 않아(SHT-14 409) 실패 화면에서 바로 다시 불러오는 버튼은 두지 않는다(S15P31E102-1140).
  */
 enum class ConversionNextAction {
-    /** 악보가 잘 보이게 다시 찍거나 악보 부분만 잘라 올린다. */
+    /** 악보가 또렷한 PDF로 다시 올리거나 악보 부분만 잘라 올린다. */
     Retake,
 
-    /** 다른 파일(사진·다시 저장한 PDF)로 올린다. */
+    /** 다른 PDF나 암호를 풀어 다시 저장한 PDF로 올린다. */
     OtherFile,
 
     /** 악보 문제가 아니거나 단정할 수 없으므로 잠시 뒤 같은 파일로 다시 올린다. */

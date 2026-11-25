@@ -55,7 +55,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -66,9 +65,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import eolssu.shared.generated.resources.learn_step_all_done
 import eolssu.shared.generated.resources.learn_step_box_description
-import eolssu.shared.generated.resources.learn_step_progress
 import eolssu.shared.generated.resources.learn_step_state_done
 import eolssu.shared.generated.resources.learn_step_state_locked
 import eolssu.shared.generated.resources.learn_step_state_open
@@ -115,8 +112,16 @@ class StepPractice(
 )
 
 /**
+ * 할 일 박스 [taskCount]개와 연습([practice])을 합친 '할 일 n / 전체'의 전체 수.
+ * 할 일 박스 안에서 듣는 연습([StepPractice.segment])은 박스를 따로 두지 않고, 그 밖의 연습은 마지막 박스 하나로 센다.
+ */
+internal fun stepTotal(taskCount: Int, practice: StepPractice?): Int =
+    taskCount + if (practice != null && (practice.segment == null || taskCount == 0)) 1 else 0
+
+/**
  * 할 일 박스 묶음. [figure]는 펼친 박스에 보일 그림이다. [practice]가 있으면 마지막에 연습 박스를 붙인다.
  * 할 일 박스를 모두 마치면 연습 박스가 펼쳐지고, 연습 박스가 없으면 [onAllDone]을 부른다.
+ * 할 일 진행([StepProgress])은 스크롤해도 보이도록 단계 머리(고정 영역)에 두고 여기서는 그리지 않는다(S15P31E102-1244).
  */
 @Composable
 internal fun TourPanel(
@@ -130,9 +135,8 @@ internal fun TourPanel(
     practice?.overlay?.invoke()
     val segment = practice?.segment?.takeIf { tasks.isNotEmpty() }
     val practiceBox = practice?.takeIf { segment == null }
-    val total = tasks.size + if (practiceBox != null) 1 else 0
+    val total = stepTotal(tasks.size, practice)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        StepProgress(done = tour.doneCount.coerceAtMost(total), total = total)
         tasks.forEachIndexed { i, task ->
             StepBox(
                 index = i,
@@ -170,24 +174,6 @@ internal fun TourPanel(
         // 통과한 뒤 듣는 박스가 접혀 있으면 '다음 단계로'가 보이도록 박스 묶음 아래에 둔다.
         val listeningBoxClosed = segment != null || tour.open != tasks.size
         if (practice != null && practice.passed && listeningBoxClosed) practice.primary?.invoke(Modifier.fillMaxWidth())
-    }
-}
-
-/** 진행 막대: '할 일 n / 전체'와 마친 만큼 부드럽게 차오르는 막대. 다 마치면 축하 문구로 바뀐다. */
-@Composable
-private fun StepProgress(done: Int, total: Int) {
-    val colors = EolssuTheme.colors
-    val fraction by animateFloatAsState(if (total == 0) 0f else done.toFloat() / total, tween(600, easing = FastOutSlowInEasing), label = "stepProgress")
-    val allDone = done >= total
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            if (allDone) stringResource(Res.string.learn_step_all_done) else stringResource(Res.string.learn_step_progress, done, total),
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-            color = if (allDone) colors.accentText else colors.textMuted,
-        )
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(colors.line)) {
-            Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().clip(CircleShape).background(colors.primary))
-        }
     }
 }
 

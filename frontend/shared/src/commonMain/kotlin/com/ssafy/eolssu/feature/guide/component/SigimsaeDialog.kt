@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide.component
 
+import com.ssafy.eolssu.core.ui.component.BrowserBackHandler
 import com.ssafy.eolssu.core.ui.component.QaModalObservation
 import com.ssafy.eolssu.core.ui.component.qaModalInput
 
@@ -139,6 +140,8 @@ internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> 
     val closeFocus = remember { FocusRequester() }
     var replay by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { closeFocus.requestFocus() }
+    // Web 브라우저 뒤로 가기도 창만 닫는다(S15P31E102-1265).
+    BrowserBackHandler(onBack = onDismiss)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         QaModalObservation()
         Box(

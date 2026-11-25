@@ -26,6 +26,7 @@ import kotlin.time.TimeSource
 
 /**
  * 기초부터 배우기 단계 연습(3~7단계). 녹음기로 소리 크기를 재고 녹음 파일은 남기지 않는다(멈추면 [AudioRecorder.cancel]).
+ * 3단계는 음높이 관측이 있으면 처음 낸 높이를 이어 내는지 판정한다([learnFirstSoundPlan], 기준을 받으면 그 허용 오차를 쓴다).
  * 4~6단계는 음높이 관측([AudioRecorder.pitchReadings])이 있고 판정 기준([loadCriteria])을 받으면 음높이로 통과를 판정한다.
  * 7단계는 음높이 관측이 있으면 첫 '투'와 같은 음만 센다([LearnTongueTracker], 기준을 받으면 그 허용 오차를 쓴다).
  * 녹음기·마이크 권한은 플랫폼 구현이 있을 때만 받는다(현재 Android·iOS). 없으면 스스로 확인해 완료로 표시하게 한다.
@@ -63,28 +64,33 @@ class LearnPracticeViewModel(
     private val tongue: LearnTongueTracker? = if (stage == 7 && recorder?.pitchReadings != null) LearnTongueTracker() else null
 
     /**
-     * 단계 내용을 받았을 때 음높이 판정을 준비한다. 4~6단계이고 음높이 관측과 판정 기준이 있을 때만 켜진다.
-     * 같은 악기·내용이면 다시 준비하지 않는다. 기준을 받지 못하면 스스로 확인으로 남는다.
+     * 단계 내용을 받았을 때 음높이 판정을 준비한다. 음높이 관측이 있을 때만 켜진다. 같은 악기·내용이면 다시 준비하지 않는다.
+     * 3단계는 곧바로 공통 값으로 켜고 기준을 받으면 그 허용 오차로 바꾼다. 4~6단계는 기준을 받아야 켜지고, 받지 못하면 스스로 확인으로 남는다.
      * 7단계는 기준을 받으면 혀치기 같은 음 판정의 허용 오차만 바꾼다(받지 못해도 공통 값으로 판정한다).
      */
     fun prepare(instrument: GuideInstrument, detail: LearnStageDetail) {
-        val load = loadCriteria ?: return
-        if (stage !in 4..7 || recorder?.pitchReadings == null || planKey == instrument to detail) return
+        if (stage !in 3..7 || recorder?.pitchReadings == null || planKey == instrument to detail) return
         planKey = instrument to detail
         planJob?.cancel()
+        if (stage == 3) usePlan(learnFirstSoundPlan(instrument, null))
+        val load = loadCriteria ?: return
         planJob = viewModelScope.launch {
             val criteria = load(instrument) ?: return@launch
             if (tongue != null) {
                 tongue.use(criteria)
                 return@launch
             }
-            val next = learnPitchPlan(stage, detail, instrument, criteria) ?: return@launch
-            plan = next
-            // 듣는 도중이면 판정 방식을 바꾸지 않고 다음 '듣기 시작'부터 쓴다.
-            if (_uiState.value.listening) return@launch
-            tracker = LearnPitchTracker(next)
-            _uiState.update { it.withPitchPlan(next) }
+            val next = if (stage == 3) learnFirstSoundPlan(instrument, criteria) else learnPitchPlan(stage, detail, instrument, criteria)
+            usePlan(next ?: return@launch)
         }
+    }
+
+    /** 판정 계획을 바꾼다. 듣는 도중이면 판정 방식을 바꾸지 않고 다음 '듣기 시작'부터 쓴다. */
+    private fun usePlan(next: LearnPitchPlan) {
+        plan = next
+        if (_uiState.value.listening) return
+        tracker = LearnPitchTracker(next)
+        _uiState.update { it.withPitchPlan(next) }
     }
 
     /** '듣기 시작'. OS 권한을 먼저 묻고, 허용되면 녹음기를 켜 소리 크기를 잰다. */
@@ -99,7 +105,7 @@ class LearnPracticeViewModel(
                 return@launch
             }
             val waiting = plan
-            if (waiting != null && _uiState.value.pitch == null) {
+            if (waiting != null && (_uiState.value.pitch == null || tracker?.plan != waiting)) {
                 tracker = LearnPitchTracker(waiting)
                 _uiState.update { it.withPitchPlan(waiting) }
             }
@@ -111,7 +117,17 @@ class LearnPracticeViewModel(
             recorder.pitchGate = plan?.takeIf { tracker != null }?.rule?.leniency?.gate ?: PitchGate.Default
             // 녹음보다 먼저 구독해야 첫 관측을 놓치지 않는다(관측 흐름은 지난 값을 다시 주지 않는다).
             watchPitch(recorder)
-            if (runCatching { recorder.start() }.isFailure) {
+            // 웹은 마이크를 비동기로 연 뒤 시작한다. 앱은 prepare()가 할 일이 없다.
+            val started = try {
+                recorder.prepare()
+                recorder.start()
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            if (!started) {
                 pitchJob?.cancel()
                 recorder.pitchGate = PitchGate.Default
                 _uiState.update { it.micUnavailable(LearnMicStatus.Failed) }

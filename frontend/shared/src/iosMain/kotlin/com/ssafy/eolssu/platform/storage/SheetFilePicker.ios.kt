@@ -12,9 +12,10 @@ import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 import platform.posix.memcpy
 
-actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files, SheetFileSource.Album)
+// 사진 악보 올리기는 지원하지 않는다(S15P31E102-1225). 고를 곳이 하나라 메뉴 없이 바로 문서 선택기를 연다.
+actual val sheetFileSources: List<SheetFileSource> = listOf(SheetFileSource.Files)
 
-/** 앨범은 PHPicker(권한 없이 사진만, 최대 10장, 호환 형식으로 받음), 파일은 문서 선택기(PDF·PNG·JPEG)로 연다. */
+/** 파일은 문서 선택기로 PDF 하나만 연다. 앨범은 PHPicker(권한 없이 사진만, 최대 10장)로 열지만 지금은 고를 곳에 없다. */
 @Composable
 actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (SheetFileSource) -> Unit {
     val callback by rememberUpdatedState(onResult)
@@ -84,10 +85,10 @@ actual fun rememberSheetFilePicker(onResult: (SheetFileSelection) -> Unit): (She
                     PHPickerViewController(configuration = configuration).also { it.delegate = albumDelegate }
                 }
                 SheetFileSource.Files -> UIDocumentPickerViewController(
-                    documentTypes = listOf("com.adobe.pdf", "public.png", "public.jpeg"),
+                    documentTypes = listOf("com.adobe.pdf"),
                     inMode = UIDocumentPickerMode.UIDocumentPickerModeOpen,
                 ).also {
-                    it.allowsMultipleSelection = true
+                    it.allowsMultipleSelection = false
                     it.delegate = documentDelegate
                 }
             }

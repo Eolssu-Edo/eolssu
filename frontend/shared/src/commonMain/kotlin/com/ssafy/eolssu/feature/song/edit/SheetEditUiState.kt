@@ -186,6 +186,12 @@ data class SheetEditUiState(
     val canRedo: Boolean get() = future.isNotEmpty()
     val canIncludeJangdan: Boolean get() = draft.original == null || serverSheetId == null || draft.jangdanId != null
     val canEditDetails: Boolean get() = draft.original != null && serverSheetId != null
+    /**
+     * 음역 맞추기 패널이 화면에 보이는지. 뒤로 가기는 보이는 패널만 먼저 닫는다.
+     * 내 악보는 음역 맞추기 탭으로 열리지만 변환된 악보는 입력판을 접은 채 열어 패널이 보이지 않으므로,
+     * 이때 뒤로 가기는 편집기를 닫는다(S15P31E102-1265).
+     */
+    val adaptationVisible: Boolean get() = tab == EditTab.Adaptation && adaptation != null && inputPanelExpanded
     /** 서버의 내 악보를 불러와 임시저장할 수 있는 편집인지. 닫기 확인에서 '임시저장하고 닫기'를 보일지 정한다. */
     val canSaveDraft: Boolean get() = serverSheetId != null && !documentFailed && !documentLoading && !saveConflict
 

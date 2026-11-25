@@ -38,6 +38,7 @@ import eolssu.shared.generated.resources.member_api_session_expired
 import eolssu.shared.generated.resources.my_nickname_changed
 import eolssu.shared.generated.resources.my_profile_image_changed
 import eolssu.shared.generated.resources.my_password_changed
+import eolssu.shared.generated.resources.my_inquiry_sent
 import eolssu.shared.generated.resources.my_withdrawn
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.getKoin
@@ -75,12 +76,9 @@ object AuthDestination {
 /**
  * 로그인한 회원이 있으면 홈, 없으면 로그인에서 시작한다([startNeedsLogin]). 처음 켠 기기, 로그아웃 뒤 다시 켠 기기, 세션이 만료된 기기가 로그인으로 간다.
  * 약관 동의는 회원가입 흐름([AuthDestination.SIGNUP_CONSENT])에서, 마이크 권한은 처음 녹음을 시작할 때 연습 화면에서 받는다.
- * TEMP S15P31E102-309: [qaSkipConsent]는 첫 실행 약관 동의를 건너뛰던 QA 빌드 값이다. 첫 실행에 약관 화면이 없어져 시작 화면은 같다.
  */
-@Suppress("UNUSED_PARAMETER")
 fun startDestination(
     firstRunCompleted: Boolean,
-    qaSkipConsent: Boolean = false,
     sessionExpired: Boolean = false,
     signedIn: Boolean = true,
 ): String = if (startNeedsLogin(firstRunCompleted, sessionExpired, signedIn)) AuthDestination.LOGIN else EolssuDestination.HOME
@@ -107,6 +105,9 @@ enum class StartNotice(val message: StringResource) {
     NicknameChanged(Res.string.my_nickname_changed),
     ProfileImageChanged(Res.string.my_profile_image_changed),
     MyPasswordChanged(Res.string.my_password_changed),
+
+    /** 마이페이지 문의하기를 보낸 뒤 마이페이지(S15P31E102-1240). */
+    InquirySent(Res.string.my_inquiry_sent),
 
     /** 마이페이지 간편 로그인 연결(MY-05) 뒤 마이페이지. */
     MyAccountLinked(Res.string.my_link_done),
@@ -306,16 +307,17 @@ private enum class SignUpNext(val route: String, val path: SignupPath) {
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }
 
-/**
- * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05·MY-04 재인증)이 주소를 받도록 그 화면으로 간다.
- * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
- * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
- */
 /** 이 플랫폼에서 보여 줄 간편 로그인 제공자. 플랫폼 모듈이 등록한 복귀 경로가 정한다(iOS만 Apple 포함). */
 @Composable
 internal fun socialProviders(): List<SocialProvider> =
     (getKoin().getOrNull<com.ssafy.eolssu.data.user.OAuthRoute>() ?: com.ssafy.eolssu.data.user.OAuthRedirect).providers
 
+/**
+ * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05·MY-04 재인증)이 주소를 받도록 그 화면으로 간다.
+ * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
+ * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
+ * 연결·탈퇴 재인증은 마치고 마이페이지로 돌아가도록, 화면 기록에 마이페이지가 없으면(웹은 복귀 때 페이지를 새로 연다) 먼저 깐다.
+ */
 @Composable
 fun OAuthReturnEffect(navController: NavController) {
     val links = getKoin().getOrNull<IncomingLinks>() ?: return
@@ -331,6 +333,8 @@ fun OAuthReturnEffect(navController: NavController) {
             links.take(uri)
             return@LaunchedEffect
         }
+        val myPageMissing = runCatching { navController.getBackStackEntry(ProfileDestination.MY_PAGE) }.isFailure
+        if (target.purpose != OAuthPurpose.LogIn && myPageMissing) navController.navigate(ProfileDestination.MY_PAGE)
         navController.navigate(
             when (target.purpose) {
                 OAuthPurpose.LogIn -> AuthDestination.oauth(target.provider)

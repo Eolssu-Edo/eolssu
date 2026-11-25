@@ -44,9 +44,11 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -90,8 +92,14 @@ private val authRefreshSkipped = AttributeKey<Unit>("AuthRefreshSkipped")
  * - 로그인이 필요한 요청이 401이면 `/api/auth/refresh`로 토큰을 갱신하고 같은 요청을 한 번 더 보낸다. 본문도 다시 보내므로,
  *   multipart의 파일 칸은 스트림을 매번 새로 여는 `ChannelProvider { ... }`나 바이트 배열로 넣는다(이미 연 스트림은 두 번째에 비어 있다).
  *   1회용 값(간편 로그인 state·mergeTicket)이나 비밀번호 시도 횟수를 쓰는 요청은 갱신·재전송하지 않고 원래 401을 돌려준다([skipsRefresh]).
+ * - 웹은 [sharedRefresh]로 탭 사이에서도 갱신을 한 번에 하나만 한다. 다른 탭이 먼저 갱신했으면 다시 갱신하지 않고 재전송만 한다.
  */
-fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: CookiesStorage? = null): HttpClient {
+fun createHttpClient(
+    engine: HttpClientEngine,
+    server: ServerAddress,
+    cookies: CookiesStorage? = null,
+    sharedRefresh: SharedRefreshLock? = null,
+): HttpClient {
     val client = HttpClient(engine) {
         expectSuccess = false
         install(ContentNegotiation) { json(ApiJson) }
@@ -102,7 +110,7 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
         if (cookies != null) install(HttpCookies) { storage = cookies }
         defaultRequest { url(server.baseUrl) }
     }
-    val refresher = TokenRefresher()
+    val refresher = TokenRefresher(sharedRefresh)
     client.plugin(HttpSend).intercept { request ->
         val seen = refresher.generation
         val path = request.url.encodedPath
@@ -319,15 +327,21 @@ internal fun HttpRequestBuilder.skipAuthRefresh() {
 }
 
 /** 공개 GET은 인증 변경과 독립적으로 실행하고, 응답을 사용할 때는 호출자의 로그인 세대를 확인한다. */
-internal suspend fun HttpClient.getPublicOrNull(
+internal suspend fun HttpClient.getPublic(
     path: String,
     configure: HttpRequestBuilder.() -> Unit = {},
-): HttpResponse? = (sendCatching(accountBound = false) {
+): NetworkResult = sendCatching(accountBound = false) {
     get(path) {
         skipAuthRefresh()
         configure()
     }
-} as? NetworkResult.Received)?.response
+}
+
+/** [getPublic]에서 연결 실패와 시간 초과를 나눌 필요가 없을 때 쓴다. 응답을 받지 못하면 null. */
+internal suspend fun HttpClient.getPublicOrNull(
+    path: String,
+    configure: HttpRequestBuilder.() -> Unit = {},
+): HttpResponse? = (getPublic(path, configure) as? NetworkResult.Received)?.response
 
 /** 본문을 공통 형식으로 읽는다. 형식이 아니면(프록시 오류 페이지 등) null. */
 suspend inline fun <reified T> HttpResponse.apiResponse(): ApiResponse<T>? = try {
@@ -342,17 +356,30 @@ suspend inline fun <reified T> HttpResponse.apiResponse(): ApiResponse<T>? = try
  * 갱신은 한 번에 하나만 한다. 리프레시 토큰은 쓸 때마다 바뀌므로, 동시에 401을 받은 요청들이 각자 갱신하면
  * 늦게 보낸 쪽이 이미 바뀐 토큰을 써서 로그아웃된다. 기다리는 동안 다른 요청이 갱신했으면 그 결과를 쓴다.
  */
-private class TokenRefresher {
+private class TokenRefresher(private val shared: SharedRefreshLock?) {
     private val mutex = Mutex()
 
     @Volatile
-    var generation = 0
-        private set
+    private var local = 0L
 
-    suspend fun refresh(seen: Int, refresh: suspend () -> Boolean): Boolean = mutex.withLock {
+    /** 요청을 보내기 전에 읽어 둔다. 탭 사이 잠금이 있으면 모든 탭이 함께 보는 세대를 쓴다. */
+    val generation: Long get() = shared?.generation ?: local
+
+    suspend fun refresh(seen: Long, refresh: suspend () -> Boolean): Boolean = mutex.withLock {
         if (generation != seen) return@withLock true
-        refresh().also { if (it) generation++ }
+        if (shared == null) return@withLock finish(refresh) { local++ }
+        shared.withLock {
+            // 잠금을 기다리는 동안 다른 탭이 갱신했으면 새 쿠키로 재전송만 한다. 같은 쿠키로 다시 갱신하면 서버가 재사용으로 본다.
+            if (generation != seen) true else finish(refresh) { shared.advance() }
+        }
     }
+
+    /**
+     * 시작한 갱신은 부른 쪽이 취소돼도(화면을 닫음, 다른 탭의 계정 변경) 응답까지 받는다. 중간에 끊으면 서버는 리프레시 토큰을 이미
+     * 바꿨는데 쿠키는 옛 토큰으로 남아, 다음 갱신이 재사용으로 감지되어 그 회원의 모든 기기가 로그아웃된다.
+     */
+    private suspend fun finish(refresh: suspend () -> Boolean, onSuccess: () -> Unit): Boolean =
+        withContext(NonCancellable) { refresh().also { if (it) onSuccess() } }
 }
 
 private const val REFRESH_PATH = "/api/auth/refresh"

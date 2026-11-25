@@ -1,7 +1,7 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.network.apiResponse
-import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.sendCatching
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.serialization.Serializable
@@ -13,7 +13,7 @@ data class CatalogInstrument(val instrumentId: String, val code: String, val nam
 /** 활성 악기 조회 API. 가입과 회원 preferences에 서버의 실제 ID를 전달한다. */
 class InstrumentCatalog(private val client: HttpClient) {
     suspend fun load(): List<CatalogInstrument> {
-        val response = client.sendOrNull { get("/api/instruments") } ?: throw CatalogUnavailable()
+        val response = client.sendCatching { get("/api/instruments") }.responseOrThrow()
         if (response.status.value != 200) throw CatalogUnavailable()
         val items = response.apiResponse<InstrumentList>()?.takeIf { it.isSuccess }?.result?.items ?: throw CatalogUnavailable()
         if (items.any { !validCatalogId(it.instrumentId) || it.code.isBlank() || it.name.isBlank() } ||

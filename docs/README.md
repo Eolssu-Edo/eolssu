@@ -1,5 +1,26 @@
 # 프로젝트 문서
 
+- [웹 로그인 세션 안정화: 탭 사이 토큰 갱신 잠금·브라우저 세션 단위 자동 로그인 끔·다른 탭 계정 따르기·대기 중 로그아웃 (1264)](plans/web-parity/S15P31E102-1264-handoff.md)
+- [웹 브라우저 뒤로 가기·새로고침에서 편집 미저장 확인과 패널·대화상자 닫기 (1265)](plans/web-parity/S15P31E102-1265-handoff.md)
+- [웹 녹음과 연주 평가: 16kHz WAV 녹음기·마이크 권한·분석 주소 직접 진입 안내 (1262)](plans/web-parity/S15P31E102-1262-handoff.md) · [스펙](specs/recording-file.md)
+- [웹 내 악보 생성 음원을 서명 URL로 바로 재생하고 완료 배너를 연습으로 연결 (1261)](plans/web-parity/S15P31E102-1261-handoff.md) · [웹 연습 재생 규칙](specs/sheet-audio.md#웹-연습-재생-s15p31e102-1261)
+- [운영 웹 최신 develop 기준선 배포와 웹 배포 주기(정기 수동 배포)·README 정정 (1269)](plans/web-parity/S15P31E102-1269-handoff.md) · [배포 주기 스펙](specs/jenkins-deploy-order.md#웹-배포-주기-s15p31e102-1269) · [웹 빌드·테스트·배포](../frontend/README.md#웹-빌드테스트배포)
+- [웹 장단 연습·장단 듣기·모범 연주 장단 반주를 Web Audio 예약 재생으로 지원 (1260)](plans/web-parity/S15P31E102-1260-handoff.md) · [브라우저 확인·제약](knowledge/frontend/web-jangdan-playback.md)
+- [웹 간편 로그인과 계정 연결·탈퇴 재인증 지원: 같은 탭 이동과 웹 복귀 주소 (1263)](plans/web-parity/S15P31E102-1263-handoff.md) · [스펙](specs/social-auth.md#웹-간편-로그인-s15p31e102-1263)
+- [웹 마우스 끌기 가로 스크롤과 휴대폰 가로 웹 창의 연습 화면 세로 스크롤 (1268)](plans/web-parity/S15P31E102-1268-handoff.md) · [창 크기 기준값](../frontend/docs/architecture.md#기준값)
+- [웹 악보 파일 선택 취소 대체 처리와 큰 PDF 읽기 메모리 줄이기 (1266)](plans/web-parity/S15P31E102-1266-handoff.md)
+- [웹 오디오 재생기 연결로 모범 연주 듣기·기록 녹음 재생 살리고 기록 상세 무한 로딩 막기 (1259)](plans/web-parity/S15P31E102-1259-handoff.md) · [재생 구조](knowledge/frontend/model-audio-playback.md)
+- [웹 테스트 보강: 웹 Koin 정의 해석 검사와 develop 웹 브라우저 테스트 자동 예약 (1270)](plans/web-parity/S15P31E102-1270-handoff.md) · [자동 경로 근거·실측·스모크 검토](knowledge/infra/web-tests-ci.md) · [운영 적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)
+- [웹 셸 정비: 탭·홈 화면 아이콘과 manifest, 키보드 viewport, Safari 글꼴 미리 해석, 본문 글꼴 CFF 변환 (1267)](plans/web-parity/S15P31E102-1267-handoff.md) · [글꼴 변환 기록](knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)
+- [R2 파일과 DB를 대조하는 읽기 전용 점검 도구 추가 (1273)](plans/S15P31E102-1273.md) · [사용 방법](../infra/storage/README.md#주인-없는-파일-점검-s15p31e102-1273)
+- [녹음 업로드 WAV 허용과 서버 AAC 변환 저장 (1272)](plans/S15P31E102-1272.md) · [스펙](specs/recording-file.md)
+- [iOS QA Jenkins 잡이 Mac 오프라인 때 노드 대기로 ABORTED를 쌓지 않도록 수정 (1258)](plans/S15P31E102-1258.md) · [운영 안내](../infra/ios-qa/README.md)
+- [Android 출시 빌드 R8 코드 축소·난독화 적용과 benchmark 빌드 추가 (1120)](plans/S15P31E102-1120.md) · [설정 근거·크기·시작 시간 측정](knowledge/frontend/android-r8-release-build.md)
+- [새 버전 알림을 앱 실행마다 띄우고 FCM 토픽 푸시와 앱 안 업데이트로 확장 (1257)](plans/S15P31E102-1257.md) · [결정](decisions/frontend-in-app-update.md)
+- [문의 API 추가 뒤 실패하던 OpenAPI 엔드포인트 개수 검사 바로잡기 (1252)](plans/S15P31E102-1252.md)
+- [JDK 자동 업데이트 뒤 Jenkins 에이전트가 예전 JVM으로 남아 빌드가 실패한 장애와 JDK 자동 업데이트 제외 (1229)](plans/S15P31E102-1229.md) · [운영 안내](../infra/needrestart/README.md)
+- [소금 도라지타령 앞 8각을 도라지타령 8각 새 곡으로 적재 (1227)](plans/S15P31E102-1227.md)
+- [연습 장단 설정의 박 표시를 장구 그림으로 보여 주고 장단 듣기와 함께 움직이기 (1222)](plans/S15P31E102-1222.md)
 - [기초 배우기 단계 카드를 빠르게 넘길 때 호랑이가 늦게 따라오는 문제 수정 (1102)](plans/S15P31E102-1102.md)
 - [악보 편집의 신뢰도 낮은 인식 칸을 저장을 막지 않는 노란 표시와 지우기로 변경 (1100)](plans/S15P31E102-1100.md)
 - [구간 빠르기를 바뀌는 곳마다 바로·점점 기호 하나로 단순화하고 편집 창 재설계 (1089)](plans/S15P31E102-1089.md) · [규칙](specs/jeonggan-tempo-edit.md#바뀌는-곳마다-기호-하나-s15p31e102-1089)
@@ -117,6 +138,9 @@
 - [루트·인프라 README 현행화와 문서 링크 검사 (942)](plans/S15P31E102-942.md) · [인프라 문서 안내](../infra/README.md)
 
 - [웹 정적 자산 gzip 압축과 캐시 헤더 (917)](plans/S15P31E102-917.md) · [운영 Nginx 규칙](../infra/runtime/README.md)
+
+- [Android 출시 잡의 Play 자동 업로드 (1254)](../infra/jenkins/controller/README.md#android-출시-잡) · [업로드 방식 선택 근거](knowledge/infra/android-play-upload.md)
+- [iOS App Store 출시 잡 (1256)](../infra/jenkins/controller/README.md#ios-출시-잡) · [서명·업로드 방식 선택 근거](knowledge/infra/ios-app-store-release.md)
 
 - [최종 발표 릴리스·시연 동결 절차 (916)](../infra/release/README.md) · [버전 단일화 방안](knowledge/infra/release-versioning.md) · [계획·질문](plans/S15P31E102-916.md)
 
@@ -379,6 +403,7 @@
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 - [소리 나는 버튼의 눌림 효과(elastic squash)](decisions/frontend-sound-button-press.md) (확정)
+- [프론트엔드 스토어 새 버전 확인과 인앱 업데이트 안내](decisions/frontend-in-app-update.md) (제안)
 - [운영 배포 구조와 Kubernetes 도입](decisions/kubernetes-adoption.md) (제안)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
@@ -414,6 +439,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [웹 장단 재생(Web Audio) 지원 범위와 브라우저 확인 (1260)](knowledge/frontend/web-jangdan-playback.md)
 - [Android 장단 타격·악보 진행 지연 수정 (805)](knowledge/frontend/android-jangdan-timing.md) · [수정 스펙](specs/practice-playback-timing.md) · [계획·검증](plans/S15P31E102-805.md)
 - [모범 연주 메타데이터와 시간표의 방문 간 재사용 (764)](plans/S15P31E102-764.md)
 - [모범 연주 음원 파일 캐시 (859)](specs/model-audio-file-cache.md) · [설계·검증 기록](knowledge/frontend/model-audio-playback.md#s15p31e102-859-모범-음원-파일-캐시)
@@ -608,7 +634,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
 
-- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md)
+- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md) (S15P31E102-1124에서 제거)
 
 - [Android QA 실제 API 검증 결과와 미제공 콘텐츠](knowledge/frontend/android-qa-api-verification.md)
 - [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)

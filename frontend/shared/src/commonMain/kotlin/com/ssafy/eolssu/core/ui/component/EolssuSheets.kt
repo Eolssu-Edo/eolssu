@@ -80,6 +80,8 @@ fun EolssuBottomSheet(
         UserActionLog.event(QaKind.MODAL_OPEN, QaTarget.DIALOG)
         onDispose { UserActionLog.event(QaKind.MODAL_CLOSE, QaTarget.DIALOG) }
     }
+    // 기기 뒤로 가기처럼 Web 브라우저 뒤로 가기도 패널만 닫는다(S15P31E102-1265).
+    BrowserBackHandler(onBack = onDismiss)
 
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     // 연두 보드 `.sheet`: 흰 바탕, 위 반지름 24, 손잡이 40×4(위 12 · 아래 2), 안쪽 여백 20 · 아래 34, 스크림 먹색 45%.
@@ -256,6 +258,8 @@ fun EolssuDialog(
         UserActionLog.event(QaKind.MODAL_OPEN, QaTarget.DIALOG)
         onDispose { UserActionLog.event(QaKind.MODAL_CLOSE, QaTarget.DIALOG) }
     }
+    // 기기 뒤로 가기처럼 Web 브라우저 뒤로 가기도 창만 닫는다. 닫지 않는 창([onDismissRequest]가 비었으면)은 화면을 떠나지 않게 막는다(S15P31E102-1265).
+    BrowserBackHandler(onBack = onDismissRequest)
 
     val colors = EolssuTheme.colors
     Dialog(onDismissRequest = onDismissRequest, properties = eolssuDialogProperties()) {

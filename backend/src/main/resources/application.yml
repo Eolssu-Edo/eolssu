@@ -62,6 +62,9 @@ eolssu:
         # 개발 앱(얼쑤 개발, Ad Hoc). 번들 ID와 그 앱 전용 복귀 주소가 모두 있어야 받는다.
         dev-client-id: ${AUTH_OAUTH_APPLE_DEV_CLIENT_ID:}
         dev-redirect-uris: ${AUTH_OAUTH_APPLE_DEV_REDIRECT_URIS:}
+  # 마이페이지 문의하기를 받을 개발자 메일(쉼표로 구분). 보내는 SMTP 계정은 위 AUTH_MAIL_*을 함께 쓴다.
+  inquiry:
+    recipients: ${INQUIRY_MAIL_RECIPIENTS:wdg0434@gmail.com,wdg0434@naver.com,kendyjenny@naver.com}
   security:
     jwt-secret: ${AUTH_JWT_SECRET:}
     non-expiring-user-ids: ${AUTH_NON_EXPIRING_USER_IDS:}

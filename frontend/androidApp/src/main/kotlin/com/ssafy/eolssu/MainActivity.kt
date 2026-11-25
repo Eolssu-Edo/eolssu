@@ -1,5 +1,6 @@
 package com.ssafy.eolssu
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -25,6 +26,8 @@ class MainActivity : ComponentActivity() {
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         qaInput.touch(event, window.decorView) { super.dispatchTouchEvent(event) }
 
+    // androidx.core가 공개 Activity API인 dispatchKeyEvent 재정의에 @RestrictTo를 붙여 lint가 오탐하므로 이 함수만 억제한다.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         qaInput.key(event) { super.dispatchKeyEvent(event) }
 
@@ -44,9 +47,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) deliverLink(intent)
 
         setContent {
-            App(context = applicationContext, serverAddress = ServerAddress(BuildConfig.API_BASE_URL), incomingLinks = incomingLinks,
-                // TEMP S15P31E102-309: Android debug QA build is the only opt-in entry.
-                qaSkipConsent = BuildConfig.DEBUG && BuildConfig.QA_SKIP_CONSENT)
+            App(context = applicationContext, serverAddress = ServerAddress(BuildConfig.API_BASE_URL), incomingLinks = incomingLinks)
         }
     }
 

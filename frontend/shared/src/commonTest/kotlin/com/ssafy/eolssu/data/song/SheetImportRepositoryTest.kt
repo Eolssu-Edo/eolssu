@@ -60,26 +60,31 @@ class SheetImportRepositoryTest {
         assertEquals(0, requests)
     }
 
-    @Test fun sendsOrderedImagesAndStaffPitchWithoutGuessingJangdan() = runTest {
-        val png = SheetFile("first.png", byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 13, 10, 26, 10) + "first-image".encodeToByteArray())
-        val jpeg = SheetFile("second.jpg", byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte()) + "second-image".encodeToByteArray())
+    @Test fun sendsStaffPitchWithoutGuessingJangdan() = runTest {
         val repository = ApiSheetImportRepository(createHttpClient(MockEngine { request ->
             val channel = ByteChannel(autoFlush = true)
             (request.body as io.ktor.http.content.OutgoingContent.WriteChannelContent).writeTo(channel)
             channel.close()
             val body = channel.readRemaining().readText()
-            assertTrue(body.contains("image/png")); assertTrue(body.contains("image/jpeg"))
-            assertTrue(body.indexOf("first-image") >= 0)
-            assertTrue(body.indexOf("second-image") > body.indexOf("first-image"))
             assertTrue(body.contains("\"hwangPitch\":\"Eb4\""))
             assertFalse(body.contains("\"jangdanId\":\""))
             respond("""{"isSuccess":false,"code":409,"result":{"errorCode":"CONVERSION_IN_PROGRESS"}}""", HttpStatusCode.Conflict,
                 headersOf(HttpHeaders.ContentType, "application/json"))
         }, ServerAddress.Production))
-        val input = SheetImportInput("이미지 악보", "STAFF", "4", null, "Eb4", listOf(png, jpeg))
-        assertEquals(SheetImportResult.Failed("CONVERSION_IN_PROGRESS"), repository.upload(input, "images-1"))
+        val input = SheetImportInput("오선보 악보", "STAFF", "4", null, "Eb4", listOf(pdf))
+        assertEquals(SheetImportResult.Failed("CONVERSION_IN_PROGRESS"), repository.upload(input, "staff-1"))
+    }
+
+    // 앱은 사진 악보를 올리지 않는다(S15P31E102-1225). 서버가 받는 PNG·JPEG도 앱 검사에서 막는다.
+    @Test fun acceptsOnlySinglePdf() {
+        val png = SheetFile("first.png", byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 13, 10, 26, 10) + "image".encodeToByteArray())
+        val jpeg = SheetFile("second.jpg", byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte()) + "image".encodeToByteArray())
+        val input = SheetImportInput("악보", "STAFF", "4", null, "Eb4", listOf(pdf))
+        assertTrue(input.valid())
+        assertFalse(input.copy(files = listOf(png)).valid())
+        assertFalse(input.copy(files = listOf(jpeg)).valid())
         assertFalse(input.copy(files = listOf(pdf, png)).valid())
-        assertFalse(input.copy(files = List(11) { png }).valid())
-        assertFalse(input.copy(files = listOf(SheetFile("broken.png", "not an image".encodeToByteArray()))).valid())
+        assertFalse(input.copy(files = emptyList()).valid())
+        assertFalse(input.copy(files = listOf(SheetFile("broken.pdf", "not a pdf".encodeToByteArray()))).valid())
     }
 }

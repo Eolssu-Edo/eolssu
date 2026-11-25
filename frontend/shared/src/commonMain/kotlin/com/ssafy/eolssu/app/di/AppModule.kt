@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.core.audio.SheetAudioPlayback
 import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.GrowthRepository
@@ -59,7 +60,10 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnPracticeViewModel
 import com.ssafy.eolssu.feature.guide.learn.loadLearnCriteria
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
+import com.ssafy.eolssu.core.network.LaunchSession
+import com.ssafy.eolssu.core.network.ProcessLaunch
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
+import com.ssafy.eolssu.core.network.SharedRefreshLock
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.data.user.ApiAuthRepository
@@ -89,6 +93,7 @@ import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
+import com.ssafy.eolssu.feature.profile.InquiryViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import com.ssafy.eolssu.feature.profile.ProfileImageViewModel
@@ -122,8 +127,15 @@ import com.ssafy.eolssu.feature.practice.SectionSelectViewModel
 import com.ssafy.eolssu.feature.result.SectionResultViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import kotlin.time.Clock
+
+/**
+ * 간편 로그인 시도 상태를 둘 저장소의 이름. 웹은 일반 [com.ssafy.eolssu.core.storage.SecureStore](로그인 쿠키 등)가 없으므로,
+ * 제공자 화면에 다녀오는 동안만 시도를 남길 탭 저장소(sessionStorage)를 이 이름으로 따로 등록한다. 없으면 일반 SecureStore를 쓴다.
+ */
+val OAuthAttemptStore = named("oauthAttemptStore")
 
 /**
  * 앱 전체에서 쓰는 객체 등록. 화면은 `koinViewModel()`로 ViewModel을 받는다.
@@ -132,11 +144,14 @@ import kotlin.time.Clock
 val appModule = module {
     // 화면이 사라져도 끝내야 하는 일(로그아웃 요청 등)을 하는 앱 전체의 범위.
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
-    single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
+    single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>(), getOrNull<SharedRefreshLock>()) }
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get(), get()) }
     single<ModelAudioRepository> { ApiModelAudioRepository(get(), getOrNull()) }
-    single { SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        SheetPracticeRepository(get(), get(), get(), get(), get(), get(), get(),
+            streamsAudio = getOrNull<SheetAudioPlayback>() == SheetAudioPlayback.Stream)
+    }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single { SheetAuthoringCatalog(get<InstrumentCatalog>()::load, get(), get(), get()) }
@@ -148,8 +163,12 @@ val appModule = module {
     // 실제 세션과 결과만 사용한다. 테스트 대역은 테스트에서 직접 주입한다.
     single<EvaluationRepository> { ApiEvaluationRepository(get(), get(), member = get()) }
     single<PracticeSessionRepository> { HttpPracticeSessionRepository(get(), get()) }
-    single<RecordingUploader> { HttpRecordingUploader(get()) }
-    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android·iOS)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
+    // 녹음 파일은 RecordingFiles로 읽는다. 웹은 파일 시스템이 없어 메모리의 녹음을 준다(S15P31E102-1262).
+    single<RecordingUploader> {
+        val files = getOrNull<RecordingFiles>()
+        if (files == null) HttpRecordingUploader(get()) else HttpRecordingUploader(get(), files::size, files::open)
+    }
+    // 녹음 보관은 RecordingFiles가 있는 플랫폼만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
     single { RecordingUploads(get(), get(), get(), get(), get()) }
     single<PracticeRecordRepository> { HttpPracticeRecordRepository(get(), get(), get()) }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
@@ -159,7 +178,7 @@ val appModule = module {
 
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String, perf: PerformanceVisit?) -> SongDetailViewModel(songId, get(), perf) }
-    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
+    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(Android·iOS·Web).
     // 여섯째 인자 direct: 곡 정보에서 바로 시작한 연주 평가(S15P31E102-705).
     viewModel { parameters ->
         val (songId: String, solo: Boolean, mine: Boolean, learn: Boolean, perf: PerformanceVisit?) = parameters
@@ -203,21 +222,21 @@ val appModule = module {
     single { FirstRunRepository(get()) }
     single<LessonApi> { HttpLessonApi(get(), get()) }
     single { LearnProgressRepository(get(), get(), get()) }
-    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
+    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, store = get()) }
     single { AccountDraft() }
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModel { (termId: String) -> TermsViewModel(termId, get()) }
     viewModel { (document: PublishedLegalDocument) -> LegalDocumentViewModel(document, get()) }
     // 아이디 기억하기·자동 로그인 선택. 회원이 바뀌면 자동 로그인 표시를 지우므로 앱 시작 때 만든다(App).
-    single { LoginPreferences(get(), getOrNull(), get()) }
+    single { LoginPreferences(get(), getOrNull(), get(), getOrNull<LaunchSession>() ?: ProcessLaunch) }
     viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
     viewModel { (social: Boolean) -> ProfileSetupViewModel(get(), get(), get(), get(), get(), social) }
-    // 간편 로그인·연결. 외부 브라우저와 복귀 주소는 플랫폼 모듈에 구현이 있을 때만 쓴다(Android App Links, iOS 중계).
+    // 간편 로그인·연결. 외부 브라우저와 복귀 주소는 플랫폼 모듈에 구현이 있을 때만 쓴다(Android App Links, iOS 중계, 웹 같은 탭 이동).
     // 복귀 경로(OAuthRoute)를 등록하지 않은 플랫폼은 Android 주소를 쓴다.
-    single { OAuthAttempts(getOrNull(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, get()) }
+    single { OAuthAttempts(getOrNull(OAuthAttemptStore) ?: getOrNull(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, get()) }
     viewModel { (provider: SocialProvider) -> OAuthViewModel(provider, get(), get(), getOrNull(), getOrNull(), get(), get()) }
     viewModel { AccountLinkViewModel(get(), get(), get(), get()) }
 
@@ -226,6 +245,7 @@ val appModule = module {
     single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
+    viewModelOf(::InquiryViewModel)
     viewModelOf(::ProfileImageViewModel)
     viewModelOf(::PasswordChangeViewModel)
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }

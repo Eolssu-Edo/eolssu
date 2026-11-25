@@ -1,12 +1,7 @@
 <resources>
-    <!-- 악보 올리기 전 안내(S15P31E102-997) -->
-    <string name="sheet_upload_tips_title">이런 악보가 잘 읽혀요</string>
+    <!-- 악보 파일 옆 ⓘ 말풍선 안내(S15P31E102-997·1230) -->
+    <string name="sheet_upload_files_info">악보 파일 안내</string>
     <string name="sheet_upload_tips_pdf">표준악보집 같은 PDF가 가장 정확해요</string>
-    <string name="sheet_upload_tips_photo">사진은 정면에서, 악보 전체가 밝게 나오게 찍어 주세요</string>
-    <string name="sheet_upload_tips_staff_photo">오선보 사진은 잘 못 읽을 수 있어요. 되도록 PDF를 올려 주세요</string>
-    <string name="sheet_upload_rules_title">알아 두세요</string>
-    <string name="sheet_upload_rules_limit">내 악보는 %1$d개까지 둘 수 있어요</string>
-    <string name="sheet_upload_rules_one_at_a_time">악보는 한 번에 하나씩 바꿔요</string>
     <!-- 파일 선택 버튼을 누르면 펼쳐지는 가져올 곳 메뉴 -->
     <string name="sheet_upload_source_files">파일</string>
     <string name="sheet_upload_source_album">갤러리</string>
@@ -14,5 +9,5 @@
     <string name="sheet_upload_kind">악보 종류</string>
     <string name="sheet_upload_jangdan_placeholder">장단 고르기</string>
     <!-- 장단을 모를 때 고르는 항목. 추천 장단 굿거리(id 2)로 올린다. -->
-    <string name="sheet_upload_jangdan_unsure">잘 모르겠어요 · 굿거리로 시작</string>
+    <string name="sheet_upload_jangdan_unsure">잘 모르겠어요(굿거리로 시작)</string>
 </resources>

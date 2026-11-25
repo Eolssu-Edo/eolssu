@@ -163,8 +163,6 @@ fun EolssuNavHost(
     onNavHostReady: suspend (NavController) -> Unit = {},
     navController: NavHostController = rememberNavController(),
     browserBackGuard: BrowserBackGuard? = null,
-    // TEMP S15P31E102-309: remove together with the startDestination branch.
-    qaSkipConsent: Boolean = false,
     sessionExpired: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
@@ -174,8 +172,8 @@ fun EolssuNavHost(
     // 앱을 켤 때의 로그인 여부. 로그아웃 뒤 다시 켜면 회원이 없어 만료 안내 없이 로그인에서 시작한다.
     val firstRunCompleted = remember { firstRunRepository.isCompleted() }
     val signedInAtStart = remember { member.id != null }
-    val start = remember(qaSkipConsent, sessionExpired) {
-        startDestination(firstRunCompleted, qaSkipConsent, sessionExpired, signedInAtStart)
+    val start = remember(sessionExpired) {
+        startDestination(firstRunCompleted, sessionExpired, signedInAtStart)
     }
     val performance = remember(navController) { PerformanceNavigation(navController) }
     val scope = rememberCoroutineScope()
@@ -219,10 +217,9 @@ fun EolssuNavHost(
     val appSnackbar = remember { SnackbarHostState() }
     val completionBanner = remember { SnackbarHostState() }
     val sheetAudio = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetAudioRepository>()
-    val deviceSheetAudio = koinInject<com.ssafy.eolssu.core.audio.SheetAudioDeviceStore>()
+    val sheetPractice = koinInject<com.ssafy.eolssu.data.song.SheetPracticeRepository>()
     SheetAudioCompletionEffect(sheetAudio, member, completionBanner) { sheetId ->
-        navController.openCompletedSheet(sheetId,
-            if (deviceSheetAudio.available) SheetCompletionTarget.Practice else SheetCompletionTarget.Editor)
+        navController.openCompletedSheet(sheetId, sheetAudioCompletionTarget(sheetPractice.personalAudioPlayable))
     }
     val sheetConversions = koinInject<com.ssafy.eolssu.data.song.NotifyingSheetConversionRepository>()
     SheetConversionCompletionEffect(sheetConversions, member, completionBanner) { sheetId ->
@@ -446,6 +443,8 @@ fun EolssuNavHost(
                     evaluationId = evaluationId,
                     initialSong = evaluationSong?.takeIf { it.first == evaluationId }?.second,
                     onBack = { navController.popBackStackFrom(entry, pastDirectPractice = true) },
+                    // 저장하지 않은 결과면 Web 브라우저 뒤로 가기도 ‘연주 결과를 버릴까요?’를 띄운다(S15P31E102-1214).
+                    onConfirmBackChange = { browserBackGuard?.onBack = it },
                     onPracticeAgain = { songId ->
                         if (navController.currentBackStackEntry?.id == entry.id) {
                             val previous = navController.previousBackStackEntry
@@ -668,6 +667,8 @@ fun EolssuNavHost(
                 }
             },
         )
+        // 보내지 못한 녹음 안내와 함께 뜨면 업데이트 안내가 위에 온다. 닫으면 아래 안내가 그대로 남는다.
+        StoreUpdateNotice()
     }
     OAuthReturnEffect(navController)
     LaunchedEffect(navController) {

@@ -22,6 +22,9 @@ object WindowBreakpoints {
 
     /** 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣는 데 필요한 창 높이 */
     val LandscapeLayoutMinHeight: Dp = 650.dp
+
+    /** 이 높이 미만이면 [WindowLayout.isCompactHeight] (휴대폰 가로 웹 창처럼 아주 낮은 창). Material 3의 Compact 높이 기준과 같다. */
+    val MediumMinHeight: Dp = 480.dp
 }
 
 /** 창 너비 구간. 기기 종류가 아니라 지금 앱이 쓰는 창의 너비로 정한다. */
@@ -41,10 +44,13 @@ enum class WindowWidthClass {
  *
  * @property isShortHeight 창 높이가 [WindowBreakpoints.LandscapeLayoutMinHeight]보다 낮은지.
  * 너비는 넓지만 높이가 낮은 창(납작한 웹 창, 태블릿 화면 분할)을 가려낸다.
+ * @property isCompactHeight 창 높이가 [WindowBreakpoints.MediumMinHeight]보다 낮은지. 휴대폰 가로 웹 창처럼
+ * 어느 배치도 한 화면에 담기 어려운 창을 가려낸다. 연습 화면은 이때 페이지 전체를 세로로 스크롤한다.
  */
 data class WindowLayout(
     val widthClass: WindowWidthClass,
     val isShortHeight: Boolean,
+    val isCompactHeight: Boolean = false,
 )
 
 fun windowLayoutOf(width: Dp, height: Dp): WindowLayout {
@@ -56,6 +62,7 @@ fun windowLayoutOf(width: Dp, height: Dp): WindowLayout {
     return WindowLayout(
         widthClass = widthClass,
         isShortHeight = height < WindowBreakpoints.LandscapeLayoutMinHeight,
+        isCompactHeight = height < WindowBreakpoints.MediumMinHeight,
     )
 }
 

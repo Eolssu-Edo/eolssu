@@ -33,6 +33,7 @@ import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.feature.guide.learn.LearnListActions
 import com.ssafy.eolssu.feature.guide.learn.LearnListContent
+import com.ssafy.eolssu.feature.guide.learn.LearnInstrumentAction
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
@@ -88,7 +89,9 @@ internal fun LearnExpandedLayout(
                         onBack = onBack,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = outer - 20.dp, end = 4.dp),
                         maxWidth = Dp.Infinity,
-                    )
+                    ) {
+                        LearnInstrumentAction(state.instrument, state.isDropdownOpen, listActions.onToggleDropdown, listActions.onSelectInstrument, listActions.onDismissDropdown)
+                    }
                     LearnListContent(
                         state,
                         listActions,

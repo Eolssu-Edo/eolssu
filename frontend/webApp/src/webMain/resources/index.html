@@ -2,11 +2,35 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- interactive-widget: Android Chrome에서 키보드가 뜨면 화면 높이를 줄여 입력창이 가려지지 않게 한다(앱의 adjustResize).
+         viewport-fit=cover는 쓰지 않는다: Compose 웹은 노치·홈 표시줄 여백(safe-area)을 피하지 못한다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <meta name="referrer" content="no-referrer">
     <title>얼쑤</title>
     <meta name="theme-color" content="#F9FAF9">
+    <script>
+        // 웹 간편 로그인 복귀 주소. 인가 코드·state를 웹 앱에 넘기려고 탭 저장소에 받아 두고, 주소창을 곧바로 /로 바꾼다.
+        // 코드가 주소창·방문 기록·이후 요청에 남지 않고, 아래 상대 경로(styles.css·webApp.js)가 / 기준으로 풀린다.
+        // 키 이름은 shared webMain의 WebOAuth.kt와 같아야 한다(docs/specs/social-auth.md 웹 간편 로그인).
+        (function () {
+            if (!/^\/auth\/oauth\/(kakao|google|naver)\/callback$/.test(location.pathname)) return;
+            try {
+                sessionStorage.setItem("eolssu.oauth_return", location.href);
+            } catch (e) {
+                // 탭 저장소를 막은 브라우저는 시도 상태도 남지 않으므로, 복귀 주소 없이 처음 화면으로 연다.
+            }
+            history.replaceState(null, "", "/");
+        })();
+    </script>
     <link type="text/css" rel="stylesheet" href="styles.css">
+    <!-- 탭 아이콘과 홈 화면 추가(tools/web-icons/build_web_icons.py로 만든다). -->
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="얼쑤">
+    <!-- iOS 16.4 미만은 manifest의 display 대신 이 값으로 단독 창을 연다. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body style="margin: 0; background: #F9FAF9">
     <!-- 앱(Wasm)을 불러오는 동안: 로고와 작은 도는 표시만 둔다. 앱이 화면을 붙이면 지운다.
@@ -128,7 +152,7 @@
             help.style.cssText = "margin: 24px 0 0; font-size: 14px; color: #777;";
 
             var main = document.createElement("main");
-            main.style.cssText = "min-height: 100vh; display: flex; flex-direction: column; align-items: center;"
+            main.style.cssText = "min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center;"
                 + " justify-content: center; padding: 0 16px; text-align: center; font-family: sans-serif;";
             main.append(heading, guide, button, help);
             document.body.appendChild(main);

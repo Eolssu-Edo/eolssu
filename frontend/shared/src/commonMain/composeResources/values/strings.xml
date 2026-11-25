@@ -49,7 +49,7 @@
     <string name="jangdan_label">%1$s장단</string>
 
     <string name="song_list_title">평가할 곡 고르기</string>
-    <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
+    <string name="song_list_heading">당신의 소리로 완성할 한 곡.</string>
     <string name="song_search_placeholder">곡 제목 검색</string>
     <string name="song_sort_ascending">ㄱ→ㅎ</string>
     <string name="song_sort_descending">ㅎ→ㄱ</string>
@@ -120,7 +120,8 @@
     <string name="practice_jangdan_preview_start">장단 듣기</string>
     <string name="practice_jangdan_preview_stop">미리듣기 정지</string>
     <string name="practice_jangdan_sound">연습 중 장단 소리</string>
-    <string name="practice_jangdan_beat">현재 박 시각 표시</string>
+    <string name="practice_jangdan_beat">지금 연주하는 박</string>
+    <string name="practice_jangdan_beat_switch">연습 중 박 표시</string>
     <string name="practice_jangdan_mic_notice">평가 녹음 중에는 장단 소리가 꺼져요.</string>
 
     <string name="practice_tempo_title">연습 속도</string>
@@ -223,6 +224,10 @@
     <string name="pending_recording_body">지난 연주 녹음이 기기에 남아 있어요. 지금 보내서 평가를 받을까요?</string>
     <string name="pending_recording_send">녹음 보내기</string>
     <string name="pending_recording_later">나중에</string>
+    <string name="store_update_title">새 버전이 나왔어요</string>
+    <string name="store_update_body">스토어에 얼쑤 새 버전이 올라왔어요!\n지금 업데이트할까요?</string>
+    <string name="store_update_now">업데이트하기</string>
+    <string name="store_update_later">나중에</string>
     <string name="analysis_resend">녹음 다시 보내기</string>
 
     <string name="result_title">연주 결과</string>
@@ -246,6 +251,10 @@
     <string name="result_saved_open_record">기록으로 이동</string>
     <string name="result_saved_button">저장됨</string>
     <string name="result_save_confirm">저장</string>
+    <string name="result_leave_title">결과를 저장하지 않고 나갈까요?</string>
+    <string name="result_leave_body">저장하지 않은 결과는 다시 볼 수 없어요.</string>
+    <string name="result_leave_discard">나가기</string>
+    <string name="result_leave_keep">계속 보기</string>
     <string name="result_other_song_more">다른 곡 고르기 ›</string>
     <string name="result_weak_line">취약 구간 %1$s · 틀린 정간 %2$d개</string>
     <string name="score_metric_description">%1$s %2$d점</string>
@@ -328,7 +337,6 @@
     <string name="growth_retry">다시 시도</string>
 
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->
-    <string name="guide_instrument_label">악기</string>
     <string name="guide_instrument_select">악기 선택</string>
     <string name="guide_instruments_failed">악기 목록을 불러오지 못했어요. 다시 시도해 주세요.</string>
     <string name="guide_instruments_empty">운지법을 볼 수 있는 악기가 아직 없어요.</string>
@@ -434,6 +442,7 @@
     <string name="learn_tour_done_body">악기의 생김새를 모두 익혔어요.</string>
     <string name="learn_step_try">해 봤어요</string>
     <string name="learn_step_progress">할 일 %1$d / %2$d</string>
+    <string name="learn_step_count">%1$d/%2$d</string>
     <string name="learn_step_all_done">할 일을 모두 마쳤어요!</string>
     <string name="learn_step_state_done">마침</string>
     <string name="learn_step_state_open">지금 할 일</string>
@@ -490,7 +499,7 @@
     <string name="learn_practice_failed">마이크를 켜지 못했어요. 다른 앱이 마이크를 쓰고 있는지 확인하고 다시 시도해 주세요.</string>
     <string name="learn_practice_settings_failed">설정을 열 수 없어요. 기기 설정에서 마이크를 허용해 주세요.</string>
     <string name="learn_practice_box_title">직접 불어 보고 확인받기</string>
-    <string name="learn_first_sound_pass">한 소리를 %1$s초 넘게 끊김 없이 내요</string>
+    <string name="learn_first_sound_pass">한 음을 같은 높이로 %1$s초 동안 이어 불어요</string>
     <string name="learn_pitch_hold_pass">음마다 %1$s초 동안 이어 불어요</string>
     <string name="learn_range_hold_pass">새 음역의 음을 각각 %1$s초 넘게 이어 불어요</string>
     <string name="learn_range_hold_pass_plain">새 음역의 음을 각각 이어 불어요</string>
@@ -644,7 +653,6 @@
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
     <string name="mysongs_sheet_count">내 악보 %1$d/%2$d</string>
-    <string name="mysongs_sheet_limit_note">내 악보는 최대 %1$d개까지만 저장할 수 있어요.</string>
     <string name="mysongs_own_sheets">%1$s 악보 %2$d개</string>
     <string name="mysongs_own_sheets_empty">%1$s 악보가 아직 없어요</string>
     <string name="mysongs_own_sheets_no_match">%1$s 악보 중에는 찾는 곡이 없어요</string>
@@ -731,6 +739,7 @@
     <string name="my_recent_loading">연습 기록을 불러오고 있어요.</string>
     <string name="my_recent_empty">아직 저장한 연주가 없어요. 곡을 연주하고 저장하면 여기에서 돌아볼 수 있어요.</string>
     <string name="my_inquiry">문의하기</string>
+    <string name="my_survey">설문하기</string>
     <string name="my_nickname_edit">닉네임 수정</string>
     <string name="my_nickname">닉네임</string>
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
@@ -775,7 +784,7 @@
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
     <string name="my_password_none">간편 로그인 계정은 비밀번호가 없어요.</string>
     <string name="my_feedback_section">의견·문의</string>
-    <string name="my_feedback_open_failed">문의 폼을 열지 못했어요. 다시 시도해 주세요.</string>
+    <string name="my_feedback_open_failed">설문 폼을 열지 못했어요. 다시 시도해 주세요.</string>
     <string name="my_logout">로그아웃</string>
     <string name="my_logout_confirm_title">로그아웃할까요?</string>
     <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>

@@ -3,11 +3,15 @@ package com.ssafy.eolssu.backend.feature.practice.application
 import com.ssafy.eolssu.backend.common.EvaluationTimingId
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingCheck
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFileValidator
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFormat
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingMetadata
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorageException
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingTranscoder
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadRepository
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadTarget
 import com.ssafy.eolssu.backend.feature.practice.domain.UploadedRecording
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
 import java.time.LocalDateTime
@@ -20,6 +24,7 @@ class UploadRecording(
     private val repository: RecordingUploadRepository,
     private val validator: RecordingFileValidator,
     private val storage: RecordingStorage,
+    private val transcoder: RecordingTranscoder,
     private val clock: Clock,
     private val newObjectId: () -> UUID = UUID::randomUUID,
 ) {
@@ -31,13 +36,30 @@ class UploadRecording(
         if (target.isExpired(now())) return RecordingUploadResult.SESSION_EXPIRED
         if (target.status != RecordingUploadTarget.RECORDING) return RecordingUploadResult.SESSION_NOT_RECORDING
 
-        val metadata = when (val check = validator.validate(file, sizeBytes)) {
-            is RecordingCheck.Accepted -> check.metadata
-            RecordingCheck.TooLarge -> return RecordingUploadResult.TOO_LARGE
-            RecordingCheck.UnsupportedFormat -> return RecordingUploadResult.UNSUPPORTED_FORMAT
-            RecordingCheck.InvalidDuration -> return RecordingUploadResult.INVALID_DURATION
-        }
+        val check = validator.validate(file, sizeBytes)
+        if (check !is RecordingCheck.Accepted) return check.rejection()
+        if (check.format == RecordingFormat.AAC_MP4) return store(userId, sessionId, file, check.metadata, timingId)
 
+        // 웹 녹음의 WAV는 AAC m4a로 바꿔, 변환본을 다시 검사한 뒤 변환본과 그 메타데이터를 저장한다.
+        val converted = Files.createTempFile("recording-", ".m4a")
+        try {
+            if (!transcoder.toAac(file, converted)) {
+                log.warn("Recording WAV conversion failed session={}", sessionId)
+                return RecordingUploadResult.UNSUPPORTED_FORMAT
+            }
+            val convertedCheck = validator.validate(converted, Files.size(converted))
+            if (convertedCheck !is RecordingCheck.Accepted || convertedCheck.format != RecordingFormat.AAC_MP4) {
+                return convertedCheck.rejection()
+            }
+            return store(userId, sessionId, converted, convertedCheck.metadata, timingId)
+        } finally {
+            Files.deleteIfExists(converted)
+        }
+    }
+
+    private fun store(
+        userId: Long, sessionId: Long, file: Path, metadata: RecordingMetadata, timingId: EvaluationTimingId?,
+    ): RecordingUploadResult {
         // 요청마다 새 키라 같은 세션에 동시에 올려도 서로의 객체를 덮어쓰지 않는다.
         val key = "recordings/$sessionId/${newObjectId()}.m4a"
         try {
@@ -69,6 +91,13 @@ class UploadRecording(
             // 지우지 못한 객체는 버킷 수명 주기 규칙(30일)이 지운다.
             log.warn("Recording object cleanup failed session={} key={} error={}", sessionId, key, e.javaClass.simpleName)
         }
+    }
+
+    // 변환본이 AAC m4a로 읽히지 않는 경우(Accepted이지만 WAV)도 형식 위반이다.
+    private fun RecordingCheck.rejection(): RecordingUploadResult = when (this) {
+        RecordingCheck.TooLarge -> RecordingUploadResult.TOO_LARGE
+        RecordingCheck.InvalidDuration -> RecordingUploadResult.INVALID_DURATION
+        RecordingCheck.UnsupportedFormat, is RecordingCheck.Accepted -> RecordingUploadResult.UNSUPPORTED_FORMAT
     }
 
     private fun now(): LocalDateTime = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)

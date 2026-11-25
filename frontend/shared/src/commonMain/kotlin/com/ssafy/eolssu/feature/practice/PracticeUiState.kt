@@ -30,7 +30,7 @@ enum class PracticePanel { Settings, Fingering, Jangdan, Tempo }
  * [PermDenied]는 OS 권한 창에서 허용하지 않음, [PermBlocked]는 ‘다시 묻지 않음’이라 기기 설정에서만 허용할 수 있음(보드 Dialog-PermDenied·PermBlocked).
  * [NoSectionNotes]는 구간 재평가의 구간에 연주할 율명 음이 없어(쉼표만) 평가를 시작하지 않음.
  */
-enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked, ScoreChanged, ScoreUnavailable, NoSectionNotes }
+enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked, ScoreChanged, ScoreUnavailable, ScoreOffline, NoSectionNotes }
 
 /** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
 const val NO_INPUT_HINT_MS = 1500.0
@@ -135,8 +135,10 @@ data class PracticeUiState(
     val sheetPerformanceBpm: Int? = null,
     /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
     val modelClock: ModelClock? = null,
-    /** 기기 음원 저장을 지원하는 내 악보 연습에만 표시한다. */
+    /** 내 악보 음원을 틀 수 있는 플랫폼(기기 저장·웹 스트리밍)의 내 악보 연습에만 표시한다. */
     val personalAudio: PracticePersonalAudio? = null,
+    /** 웹: 기기에 받지 않고 서버가 만든 음원을 바로 튼다. 버튼은 '음원 다운로드' 대신 '음원 만들기'다(S15P31E102-1261). */
+    val personalAudioStreams: Boolean = false,
 ) {
     val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
 

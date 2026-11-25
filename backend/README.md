@@ -113,6 +113,8 @@ V13은 라벨에 대응하는 누락 기준 음11행을 추가합니다. 기존1
 
 `AUTH_MAIL_MODE` 기본값은 `smtp`입니다. `AUTH_MAIL_HOST`·`AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD`가 모두 있으면 STARTTLS(설정 고정)로 실제 발송하고, 하나라도 없으면 서버는 기동하되 발송만 거절합니다. 발송 거절·실패 때 가입 인증 발송은 503이며, 비밀번호 재설정·계정 연결은 가입 여부를 숨기기 위해 202를 반환합니다. SMTP 시간 제한은 연결 3초·읽기/쓰기 5초입니다. `unavailable`은 항상 발송을 거절합니다. 로컬에서는 `AUTH_MAIL_MODE=memory`로 메모리 대역을 명시할 수 있습니다. 최근 100건을 프로세스 안에서만 보관하고 로그·HTTP 조회·파일 저장을 제공하지 않습니다. 번호 확인은 IDE에서 `InMemoryVerificationMailSender.messages()`로 할 수 있습니다.
 
+마이페이지 문의하기(`POST /api/users/me/inquiries`)는 같은 `AUTH_MAIL_MODE`·`AUTH_MAIL_*` 계정으로 `INQUIRY_MAIL_RECIPIENTS`(쉼표 구분, 기본값은 `application.yml`의 개발자 주소 3개)에 보냅니다. SMTP 계정이나 받는 주소가 비면 서버는 기동하고 문의만 503입니다. 형식이 틀린 주소는 기동을 막습니다. `memory`는 보내지 않고 성공 처리합니다. 문의 내용은 DB에 저장하지 않으며, 회원마다 60분에 5번까지 서버 메모리에서 셉니다.
+
 - `POST /api/auth/email-verifications`: JSON `email`(최대 100자·소문자 정규화, S15P31E102-1014)과 `purpose`(`SIGN_UP`, `PASSWORD_RESET`, `ACCOUNT_MERGE`). 202에 문자열 `verificationId`, UTC `expiresAt`, `resendAvailableAt`을 반환합니다. 같은 이메일의 모든 목적을 합산해 60초 간격·KST 날짜별 10회이며 재발송하면 같은 목적의 이전 번호·미사용 완료 토큰을 무효화합니다.
 - `POST /api/auth/email-verifications/{verificationId}/confirm`: JSON `code`는 숫자 6자리 **문자열**입니다. 3분 경과·재발송·확인 성공 뒤에는 410, 없는 ID는 404입니다. 처음 네 오답은 400과 `result.details.remainingAttempts`, 다섯 번째 오답부터는 429입니다. 네 번 틀린 뒤 다섯 번째에 맞히면 성공합니다.
 - 확인 성공 시 임의 256비트 `verificationToken`, 정규화 이메일, 성공 시각부터 30분 뒤의 `expiresAt`을 반환합니다. DB에는 번호 HMAC-SHA256과 완료 토큰 SHA-256만 저장합니다. 가입(AUTH-02)이 완료 토큰을 1회 소비합니다. 계정 연결·비밀번호 재설정의 소비는 후속 Task(S15P31E102-211·210)입니다.
@@ -198,6 +200,7 @@ $env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:8080'
 | `DB_USERNAME`, `DB_PASSWORD` | 해당 DB의 접속 정보. 기본값 없음 |
 | `AUTH_CODE_HMAC_SECRET` | 인증번호 HMAC 비밀키(Base64, 디코딩 후 32바이트 이상). `db`에서 필수 |
 | `AUTH_MAIL_MODE` | 기본 `unavailable`, 로컬 메일 대역은 `memory` |
+| `INQUIRY_MAIL_RECIPIENTS` | 문의하기를 받을 개발자 메일(쉼표 구분). 비우지 않으면 기본 주소 3개를 덮어씀 |
 | `ANALYSIS_AI_BASE_URL` | 연주 분석 AI 서비스 주소. 비우면 업로드 뒤 분석을 시작하지 않음 |
 
 ```powershell
@@ -253,9 +256,11 @@ Docker가 있으면 `python3 -B ../infra/jenkins/run-database-tests.py -- ./grad
 
 ### 녹음 파일 검사와 ffmpeg
 
-업로드된 녹음이 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)에 맞는지 `RecordingFileValidator`가 판정합니다. 크기(20MiB 초과면 `TooLarge`)를 먼저 보고, 실제 내용을 `ffprobe`로 읽어 MP4 계열 컨테이너의 AAC 오디오인지(`UnsupportedFormat`), 길이가 1ms 이상·601초 미만인지(`InvalidDuration`) 봅니다. 1ms 미만은 저장할 길이가 0ms로 반올림돼 V3 메타데이터 CHECK에 걸리므로 먼저 거부합니다. 확장자·MIME는 보지 않습니다. 오디오 스트림이 없는 m4a는 길이 검사 전에 `UnsupportedFormat`이 됩니다. `ffprobe` 실행 실패·10초 초과·대기 중 중단·출력 읽기 실패는 규격 위반이 아니라 `AudioProbeException`이며, 남은 ffprobe 프로세스는 종료합니다. multipart 한도는 스펙대로 파일·요청 25MiB이고, 20MiB 경계는 검사기가 정합니다(Nginx `client_max_body_size 25m`은 업로드 API Task에서 설정).
+업로드된 녹음이 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)에 맞는지 `RecordingFileValidator`가 판정합니다. 크기(20MiB 초과면 `TooLarge`)를 먼저 보고, 실제 내용을 `ffprobe`로 읽어 MP4 계열 컨테이너의 AAC 오디오 또는 WAV 컨테이너의 PCM16(`pcm_s16le`, 웹 녹음) 오디오인지(`UnsupportedFormat`), 길이가 1ms 이상·601초 미만인지(`InvalidDuration`) 봅니다. 1ms 미만은 저장할 길이가 0ms로 반올림돼 V3 메타데이터 CHECK에 걸리므로 먼저 거부합니다. 확장자·MIME는 보지 않습니다. 오디오 스트림이 없는 m4a는 길이 검사 전에 `UnsupportedFormat`이 됩니다. `ffprobe` 실행 실패·10초 초과·대기 중 중단·출력 읽기 실패는 규격 위반이 아니라 `AudioProbeException`이며, 남은 ffprobe 프로세스는 종료합니다. multipart 한도는 스펙대로 파일·요청 25MiB이고, 20MiB 경계는 검사기가 정합니다(Nginx `client_max_body_size 25m`은 업로드 API Task에서 설정).
 
-`mediaTest`는 테스트 중 `ffmpeg`로 사인파·무음 AAC(2초, 600.5초, 601초), 이름만 바꾼 MP3, ALAC, 오디오 없는 m4a, 잘린 파일을 만들어 `ffprobe`로 검사합니다. 큰 파일은 커밋하지 않습니다. `ffmpeg`·`ffprobe`가 `PATH`에 없으면 건너뛰지 않고 실패합니다. 기본 `test`·`clean build`는 테스트 JVM의 `java`로 띄우는 가짜 ffprobe(`FakeFfprobe`)로 출력 해석·종료 코드·시간 초과·중단 시 프로세스 정리를 검사하므로 OS와 ffmpeg 설치에 관계없이 돕니다.
+WAV는 `UploadRecording`이 `FfmpegRecordingTranscoder`로 모노 AAC(64kbps) m4a로 바꾼 뒤 변환본을 같은 검사기로 다시 판정하고, 변환본과 그 메타데이터를 저장합니다(S15P31E102-1272). ffmpeg가 읽지 못하거나 손상된 WAV(`-xerror`)는 415이고, ffmpeg 실행 실패·30초 초과·대기 중 중단은 규격 위반이 아니라 `RecordingTranscodeException`(500)입니다. 업로드 WAV와 변환본 임시 파일은 요청이 끝나면 지웁니다.
+
+`mediaTest`는 테스트 중 `ffmpeg`로 사인파·무음 AAC(2초, 600.5초, 601초), 이름만 바꾼 MP3, ALAC, 오디오 없는 m4a, 잘린 파일, PCM16·float WAV를 만들어 `ffprobe`로 검사하고, 16kHz 모노 WAV(2초·600초)와 48kHz 스테레오 WAV를 실제로 변환해 변환본을 검사합니다. 큰 파일은 커밋하지 않습니다. `ffmpeg`·`ffprobe`가 `PATH`에 없으면 건너뛰지 않고 실패합니다. 기본 `test`·`clean build`는 테스트 JVM의 `java`로 띄우는 가짜 ffprobe·ffmpeg(`FakeFfprobe`)로 출력 해석·종료 코드·시간 초과·중단 시 프로세스 정리를 검사하므로 OS와 ffmpeg 설치에 관계없이 돕니다.
 
 | 환경 | 설치 |
 | --- | --- |
@@ -288,7 +293,7 @@ R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
 3. 버킷 설정 > 객체 수명 주기 규칙: 두지 않습니다. 저장하지 않은 녹음은 서버 정리 작업(`UnsavedRecordingPurgeService`, 매일 04:30 KST)이 업로드 30일 뒤 지우고, 저장한 기록의 녹음은 회원이 지우거나 탈퇴할 때까지 보관합니다(S15P31E102-375, [녹음 보관](../docs/specs/recording-retention.md)). 375 전환 전 운영 버킷에는 `recordings/` 30일 삭제 규칙이 있었고 전환 때 지웁니다([전환 절차](../infra/storage/README.md#저장한-기록-녹음-보관-전환-s15p31e102-375)).
 4. R2 > API 토큰 관리 > API 토큰 만들기: 권한 `Object Read & Write`, 적용 버킷은 이 버킷 하나로 지정합니다. 발급된 Access Key ID·Secret Access Key와 S3 API 주소를 서버 `.env`에 넣습니다.
 
-샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다.
+샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다. WAV 업로드는 변환(상한 30초)과 변환본 ffprobe가 더해져 모든 상한이 겹치면 60초를 넘을 수 있습니다. 이때는 Nginx 504가 되고 서버는 처리를 이어 가므로, 앱의 재전송이 409를 받아 상태 조회로 결과를 확인합니다.
 
 S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다. 2026-10-29에는 사용자 승인으로 운영 버킷의 전용 합성 객체를 사용해 연결·정책을 검증하고 버킷명 오류·누락된 보관 규칙을 수정했습니다([검증 기록](../docs/knowledge/infra/r2-storage-verification.md)).
 

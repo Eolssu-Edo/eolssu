@@ -22,7 +22,7 @@
 
 ## 웹 우선 실연동 준비 (2026-10-29)
 
-**아래 웹 우선안은 같은 날 사용자의 Android 앱 우선 지시로 대체됐다.** 아직 등록·구현하지 않은 과거 계약안이며, 현재 콘솔 등록이나 FE 구현 기준으로 사용하지 않는다. 현재 기준은 아래 Android 우선 준비다.
+**아래 웹 우선안은 같은 날 사용자의 Android 앱 우선 지시로 대체됐다.** 아직 등록·구현하지 않은 과거 계약안이며, 현재 콘솔 등록이나 FE 구현 기준으로 사용하지 않는다. 현재 기준은 아래 Android 우선 준비다. 웹은 이후 S15P31E102-1263에서 같은 콜백 경로·같은 탭 이동으로 구현했다(아래 [웹 간편 로그인](#웹-간편-로그인-s15p31e102-1263)).
 
 사용자는 웹부터 연결하고 Android 복귀 처리는 후속으로 진행하기로 선택했다. 다음 주소는 FE와 콘솔 등록에 제안하는 계약안이며, 해당 화면 구현·FE 합의·콘솔 등록 완료를 뜻하지 않는다.
 
@@ -148,6 +148,30 @@ adb shell pm get-app-links com.ssafy.eolssu
 - 취소: 사용자가 인증 창을 닫으면 복귀 주소가 오지 않는다. Android에서 브라우저를 닫은 것과 같이 화면은 '다시 열기'를 보여 준다.
 - 운영 준비(배포 전 필요): 세 제공자 콘솔에 iOS redirectUri를 등록하고 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_REDIRECT_URIS`에 쉼표로 추가한다. 등록 전 start는 `401 OAUTH_VERIFICATION_FAILED`다.
 - 제외: Sign in with Apple(App Store 심사 4.8 대응)과 유료 계정 Universal Links는 이번 범위가 아니다.
+
+## 웹 간편 로그인 (S15P31E102-1263)
+
+사용자 결정(2026-11-23): 웹도 Android·iOS와 같은 간편 로그인·신규 가입·계정 연결 제안·마이페이지 연결·탈퇴 재인증을 제공한다(웹에서 버튼을 숨기는 안은 채택하지 않음). 서버 API·완료 계약은 바꾸지 않고, 위 웹 우선안의 콜백 경로와 같은 탭 이동을 쓴다.
+
+| 항목 | 웹 |
+| --- | --- |
+| redirectUri(start·완료 요청, 제공자 콘솔·서버 허용 목록) | `{페이지 origin}/auth/oauth/{provider}/callback`. 운영은 `https://k15e102.p.ssafy.io/auth/oauth/{provider}/callback` |
+| 앱이 받는 복귀 주소 | redirectUri 그대로. 같은 프로토콜·호스트·포트와 정확한 경로만 받고, 사용자 정보가 든 주소는 거절한다 |
+| 제공자 화면 | 같은 탭 이동(`location.replace`, 지금 화면 기록을 제공자 화면으로 바꿈). 팝업은 쓰지 않는다. 기록을 남기면 제공자 화면에서 브라우저 뒤로 가기를 눌렀을 때 바로 다시 시작하는 간편 로그인 화면이 열려 제공자 화면으로 되돌아간다 |
+| 시도 상태 보관 | 탭 `sessionStorage`(`OAuthAttemptStore` 이름으로 등록한 `SecureStore`). 탭을 닫으면 사라진다 |
+| 제공자 | kakao·google·naver(Apple 제외) |
+
+- 복귀 페이지: Nginx SPA 대체(`try_files … /index.html`)가 콜백 주소에도 `index.html`을 준다. `index.html` `<head>`의 스크립트는 경로가 `/auth/oauth/{kakao|google|naver}/callback`이면 전체 주소를 `sessionStorage`의 `eolssu.oauth_return`에 받아 두고 `history.replaceState`로 주소창을 `/`로 바꾼다.
+    - 인가 코드가 주소창·방문 기록에 남지 않는다. Nginx 접근 기록은 `$uri`만 남겨 쿼리를 기록하지 않는다.
+    - 뒤따르는 상대 경로 자원(`styles.css`·아이콘·manifest·`webApp.js`)이 `/` 기준으로 풀린다. 그래서 이 스크립트는 모든 상대 경로 자원보다 앞에 둔다.
+    - Android 복귀 경로(`/auth/android/oauth/…`)의 "얼쑤 앱 열기" 안내는 그대로다.
+- 웹 앱이 시작하면 웹 플랫폼 모듈이 받아 둔 주소를 한 번 꺼내 지우고 `IncomingLinks`로 넘긴다. 이후 확인(state·만료·목적·회원·`error`·`code`)과 받을 화면 이동(`OAuthReturnEffect`)은 Android가 프로세스 종료 뒤 돌아온 경우와 같다. 진행 중 시도가 없으면 주소를 버린다.
+    - 복귀한 페이지는 화면 기록이 홈부터 새로 시작한다. 연결·탈퇴 재인증은 마치고 마이페이지로 돌아가도록 `OAuthReturnEffect`가 마이페이지를 먼저 깐다(화면 기록에 이미 있으면 그대로).
+- 결속 쿠키 `oauth_flow_<provider>`(`Path=/api`·`HttpOnly`·`SameSite=Lax`)는 브라우저가 보관하고 같은 origin의 완료 POST에 실린다.
+- 일반 `SecureStore`(로그인 쿠키·자동 로그인)는 웹에 등록하지 않는다. 시도 상태만 이름 붙은 탭 저장소에 둔다.
+- 저장소를 막은 브라우저에서는 시도가 남지 않아 복귀 뒤 첫 화면으로 돌아간다(오류 안내 없음).
+- 운영 준비: 세 제공자 콘솔에 운영 redirectUri를 등록하고 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_REDIRECT_URIS`에 쉼표로 덧붙인 뒤 백엔드 컨테이너를 다시 만든다. 기존 Android·iOS 주소는 유지한다. 허용 목록에 없는 redirectUri의 start는 `401 OAUTH_VERIFICATION_FAILED`다. 로컬·QA origin에서 시험하려면 그 origin의 주소를 해당 환경의 허용 목록과 콘솔에 따로 넣는다.
+- 구현·검증 상태와 남은 운영 확인은 [1263 인계 문서](../plans/web-parity/S15P31E102-1263-handoff.md)에 둔다.
 
 ## Sign in with Apple (S15P31E102-446)
 

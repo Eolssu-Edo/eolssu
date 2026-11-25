@@ -3,7 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.backhandler.BackHandler
+import com.ssafy.eolssu.core.ui.component.ScreenBackHandler
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
@@ -32,6 +32,7 @@ fun SheetConversionRoute(
             onDone(sheetId)
         }
     }
-    BackHandler(onBack = onList)
+    // Web 브라우저 뒤로 가기도 앱 뒤로 가기처럼 목록으로 간다(S15P31E102-1265).
+    ScreenBackHandler(onBack = onList)
     SheetConversionScreen(state, onList = onList, onOpenEditor = { onDone(sheetId) })
 }

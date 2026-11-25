@@ -90,6 +90,15 @@ class ApiUserRepository(
         return@inSession MemberResult.Done
     }
 
+    override suspend fun sendInquiry(title: String, content: String): MemberResult = member.inSession {
+        val response = client.sendOrNull {
+            post("/api/users/me/inquiries") { contentType(ContentType.Application.Json); setBody(Inquiry(title, content)) }
+        } ?: return@inSession MemberResult.Unavailable
+        if (response.status.value != 200) return@inSession memberFailure(response.status.value)
+        response.apiResponse<InquirySent>()?.takeIf { it.isSuccess }?.result ?: return@inSession MemberResult.Unavailable
+        return@inSession MemberResult.Done
+    }
+
     override suspend fun changePassword(current: String, new: String): PasswordCheckResult = member.inSession {
         val response = client.sendOrNull {
             patch("/api/users/me/password") { contentType(ContentType.Application.Json); setBody(PasswordChange(current, new)) }
@@ -230,6 +239,8 @@ class ApiUserRepository(
     @Serializable private class Provider(val provider: String)
     @Serializable private class Nickname(val nickname: String)
     @Serializable private class ProfileImageBody(val profileImage: String)
+    @Serializable private class Inquiry(val title: String, val content: String)
+    @Serializable private class InquirySent(val sentAt: String)
     @Serializable private class PasswordChange(val currentPassword: String, val newPassword: String)
     @Serializable private class CurrentPassword(val currentPassword: String)
     @Serializable private class PasswordChanged(val changed: Boolean)

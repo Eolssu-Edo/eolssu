@@ -18,6 +18,8 @@ kotlinx-coroutines = "1.11.0"
 kotlin = "2.4.20"
 kotlin-wrappers = "2026.9.3"
 ktor = "3.6.0"
+play-appUpdate = "2.1.0"
+firebase-messaging = "26.0.2"
 material3 = "1.12.0-alpha03"
 
 [libraries]
@@ -52,6 +54,8 @@ ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "kto
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+play-appUpdate = { module = "com.google.android.play:app-update", version.ref = "play-appUpdate" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebase-messaging" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 
 [plugins]

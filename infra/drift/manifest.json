@@ -3,6 +3,10 @@
  "hosts": {
   "edo1": [
    {
+    "path": "/etc/apt/apt.conf.d/51eolssu-jenkins-jdk",
+    "source": "infra/needrestart/51eolssu-jenkins-jdk"
+   },
+   {
     "path": "/etc/needrestart/conf.d/50-eolssu-jenkins-agents.conf",
     "source": "infra/needrestart/50-eolssu-jenkins-agents.conf"
    },
@@ -264,6 +268,10 @@
    {
     "job": "eolssu-playback",
     "source": "infra/jenkins/service-image.Jenkinsfile"
+   },
+   {
+    "job": "eolssu-web-tests",
+    "source": "infra/jenkins/web-tests.Jenkinsfile"
    }
   ],
   "edo2": [

@@ -15,7 +15,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,10 +30,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,7 +43,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.InstrumentPicture
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -107,6 +112,10 @@ class LearnStageActions(
     val stepsDone: (Int) -> Int = { 0 },
     /** 단계에서 마친 할 일 박스 수가 바뀌었다. 나갔다 돌아와도 이어 하도록 남긴다. */
     val onStepsDone: (Int, Int) -> Unit = { _, _ -> },
+    /** 상단 바 악기 알약의 목록 열기·닫기와 악기 고르기(S15P31E102-1276, 1281). 고르면 같은 단계를 새 악기로 보인다. */
+    val onToggleDropdown: () -> Unit = {},
+    val onDismissDropdown: () -> Unit = {},
+    val onSelectInstrument: (GuideInstrument) -> Unit = {},
 )
 
 /**
@@ -143,7 +152,10 @@ fun LearnStageScreen(
     val tour = rememberLearnTour(stage.number, state.instrument, { actions.stepsDone(stage.number) }) { actions.onStepsDone(stage.number, it) }
     EolssuScaffold(
         topBar = {
-            GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(stage))
+            // 악기 고르기는 다른 화면처럼 상단 바 오른쪽 알약이다(S15P31E102-1281). 흰 바탕이라 옅은 테두리를 둔다.
+            GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(stage), shrinkRight = true) {
+                LearnInstrumentAction(state.instrument, state.isDropdownOpen, actions.onToggleDropdown, actions.onSelectInstrument, actions.onDismissDropdown, bordered = true)
+            }
         },
         bottomBar = {
             if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions) }
@@ -179,7 +191,11 @@ internal fun learnStageTitle(stage: LearnStage): String = stringResource(Res.str
 internal fun learnStageSubtitle(stage: LearnStage): String? =
     if (stage.optional) stringResource(Res.string.learn_stage_subtitle_optional) else null
 
-/** 단계 상세 본문. 세로로 스크롤하며, [scrollState]를 단계마다 새로 주면 단계를 바꿀 때 맨 위에서 시작한다. */
+/**
+ * 단계 상세 본문. 위쪽 단계 머리(단계 그림·이름·목표와 오른쪽 원형 할 일 진행)는 고정하고,
+ * 그 아래 할 일 박스와 버튼만 세로로 스크롤한다(S15P31E102-1244). [scrollState]를 단계마다 새로 주면 단계를 바꿀 때 맨 위에서 시작한다.
+ * 악기 고르기는 상단 바 오른쪽에 있다(휴대폰·태블릿 세로는 [LearnStageScreen], 태블릿 가로는 왼쪽 목록 상단 바, S15P31E102-1281).
+ */
 @Composable
 internal fun LearnStageContent(
     state: LearnUiState,
@@ -197,21 +213,38 @@ internal fun LearnStageContent(
     if (stage.number == 1) LearnTourDoneDialog(tour) { actions.onConfirm(stage.number) }
     // 2단계 따라 배우기도 같은 창을 띄우고 완료 표시 뒤 3단계로 간다(3단계는 마지막 칸에서 바로 '연습 시작').
     if (stage.number == 2) LearnTourDoneDialog(tour, Res.string.learn_tour_done_body_posture) { actions.onConfirm(stage.number) }
-    Column(
-        modifier
-            .verticalScroll(scrollState)
-            .padding(contentPadding),
-    ) {
-        when (val load = state.detail(stage.number)) {
-            is LearnDetailLoad.Loaded -> {
-                val detail = load.detail
-                // 단계 위치(점 · n / 전체)는 아래 넘김 줄 가운데로 옮기고 위에는 지금 악기만 둔다(S15P31E102-877).
-                Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.End) { StageInstrument(state.instrument) }
-                StageHero(stage, detail)
-                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
-                StagePrimary(stage, learnStepCount(stage.number, detail, state.instrument), actions, tour)
+    when (val load = state.detail(stage.number)) {
+        is LearnDetailLoad.Loaded -> Column(modifier) {
+            val detail = load.detail
+            val stepCount = learnStepCount(stage.number, detail, state.instrument)
+            val direction = LocalLayoutDirection.current
+            val sides = PaddingValues(start = contentPadding.calculateStartPadding(direction), end = contentPadding.calculateEndPadding(direction))
+            Column(Modifier.fillMaxWidth().padding(sides).padding(top = contentPadding.calculateTopPadding())) {
+                // 단계 위치(점 · n / 전체)는 아래 넘김 줄 가운데로 옮겼다(S15P31E102-877).
+                // 할 일 진행은 단계 설명 오른쪽의 원형 표시다(S15P31E102-1281).
+                val total = stepTotal(stepCount, practice)
+                StageHero(stage, detail) {
+                    if (total > 0) StepProgress(done = tour.doneCount.coerceAtMost(total), total = total)
+                }
             }
-            else -> LearnLoadStatus(
+            // 본문이 머리 밑으로 올라가 있을 때만 경계에 옅은 줄이 보인다. 높이는 늘 1dp라 스크롤해도 본문이 들썩이지 않는다.
+            val scrolled by remember(scrollState) { derivedStateOf { scrollState.value > 0 } }
+            val divider by animateColorAsState(if (scrolled) EolssuTheme.colors.lineSoft else Color.Transparent, label = "stageHeadDivider")
+            Box(Modifier.fillMaxWidth().height(1.dp).background(divider))
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(sides)
+                    .padding(bottom = contentPadding.calculateBottomPadding()),
+            ) {
+                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour, practice)
+                StagePrimary(stage, stepCount, actions, tour)
+            }
+        }
+        else -> Column(modifier.verticalScroll(scrollState).padding(contentPadding)) {
+            LearnLoadStatus(
                 failed = load == LearnDetailLoad.Failed,
                 failedMessage = Res.string.learn_detail_failed,
                 onRetry = { actions.onRetryDetail(stage.number) },
@@ -221,14 +254,14 @@ internal fun LearnStageContent(
 }
 
 /**
- * 단계 머리: 왼쪽에 단계 그림, 오른쪽에 판정 방식과 목표 한 줄.
+ * 단계 머리: 왼쪽에 단계 그림, 가운데에 단계 이름과 목표 한 줄, 오른쪽 끝에 [progress](원형 할 일 진행).
  * 입문자가 글을 읽지 않아도 무엇을 하는 단계인지 그림으로 알도록, 근거·배경 설명([LearnStageDetail.why])은 보이지 않는다.
  */
 @Composable
-private fun StageHero(stage: LearnStage, detail: LearnStageDetail) {
+private fun StageHero(stage: LearnStage, detail: LearnStageDetail, progress: @Composable () -> Unit = {}) {
     val colors = EolssuTheme.colors
     Row(
-        Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp),
+        Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -250,6 +283,7 @@ private fun StageHero(stage: LearnStage, detail: LearnStageDetail) {
             Text(stage.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold))
             Text(detail.goal, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp), color = colors.textMuted)
         }
+        progress()
     }
 }
 
@@ -468,29 +502,6 @@ private fun Modifier.attention(on: Boolean): Modifier {
     return graphicsLayer {
         scaleX = scale
         scaleY = scale
-    }
-}
-
-/**
- * 단계 위치 줄 오른쪽의 지금 악기(S15P31E102-793). 단계 목록의 악기 칩과 같은 그림·이름이지만, 단계 안에서는 악기를 바꾸지 않아 펼침 표시 없이 보여 주기만 한다.
- * 예전 '완료로 표시'·'완료 취소' 버튼 자리다. 단계 완료는 '확인했어요'·연습 통과로, 되돌리기는 목록의 '초기화하기'로 한다.
- */
-@Composable
-private fun StageInstrument(instrument: GuideInstrument, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Surface(modifier = modifier.height(32.dp), shape = RoundedCornerShape(16.dp), color = colors.surface) {
-        Row(
-            Modifier.padding(start = 6.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            InstrumentPicture(instrument, size = 22.dp)
-            Text(
-                stringResource(instrument.label),
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-            )
-        }
     }
 }
 

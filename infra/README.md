@@ -25,7 +25,7 @@
 | 부하 확인 | [시연 규모 동시 접속 리허설](loadtest/README.md) |
 | 점검·알림·관측 | [Mattermost 점검 중계·상태 변화 알림](edo-check/README.md) · [Jenkins 실패 알림](jenkins/notifications/README.md) · [Grafana·Prometheus](monitoring/README.md) · [운영 MySQL 웹 조회](mysql-admin/README.md) |
 | 저장공간·로그 | [배포 산출물 보존 정리](retention/README.md) · [Docker 기본 로그 회전](docker/README.md) |
-| 서버 업데이트 | [자동 보안 업데이트 뒤 Jenkins 에이전트 재시작 미루기](needrestart/README.md) |
+| 서버 업데이트 | [자동 보안 업데이트 뒤 Jenkins 에이전트 재시작 미루기와 JDK 수동 업데이트](needrestart/README.md) |
 | 데이터·파일 | [R2 파일·폴더 업로드](r2/README.md) · [기본음·시김새 카탈로그 적재](catalog/README.md) · [국내 비공개 녹음 저장 전환](storage/README.md) |
 | 약관·개인정보 | [약관 본문 공개와 버전 등록](terms/README.md) · [개인정보 보유기간과 관리자 처리 기록](privacy/README.md) |
 | QA·팀 도구 | [실제 Android 기기 QA 웹](qa-phone/README.md) · [Eolssu Updates 앱](tool-updates/README.md) |
@@ -40,6 +40,7 @@
 | --- | --- |
 | [jenkins/backend.Jenkinsfile](jenkins/backend.Jenkinsfile) | backend 검증·이미지·운영 DB 마이그레이션·블루그린 배포(`eolssu-backend`, 서버 복사본 `/opt/eolssu/config/backend.Jenkinsfile`) |
 | [jenkins/frontend.Jenkinsfile](jenkins/frontend.Jenkinsfile) | 검증된 `REVISION`의 웹 빌드·배포(수동 잡) |
+| [jenkins/web-tests.Jenkinsfile](jenkins/web-tests.Jenkinsfile) | 웹 빌드 입력이 바뀐 develop 커밋의 웹 브라우저 테스트만 실행(`eolssu-web-tests`, backend 잡이 예약, 배포 없음) |
 | [qa-phone/android.Jenkinsfile](qa-phone/android.Jenkinsfile) · [ios-qa/ios.Jenkinsfile](ios-qa/ios.Jenkinsfile) | Android·iOS QA 앱 빌드·배포 |
 | [release/release-candidate.Jenkinsfile](release/release-candidate.Jenkinsfile) | 릴리스 후보 검사 잡 초안([릴리스 절차](release/README.md)) |
 

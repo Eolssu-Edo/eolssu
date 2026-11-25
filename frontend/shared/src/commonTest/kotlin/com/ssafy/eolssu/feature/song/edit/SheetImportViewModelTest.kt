@@ -4,6 +4,10 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.*
 import com.ssafy.eolssu.data.song.*
 import com.ssafy.eolssu.testing.CatalogViewModelTest
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheet_upload_format
+import eolssu.shared.generated.resources.sheet_upload_input_required
+import eolssu.shared.generated.resources.sheet_upload_limit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -47,6 +51,49 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         assertEquals(1, uploads)
         assertEquals("91", model.uiState.value.acceptedId)
         assertTrue(errors().isEmpty())
+    }
+
+    @Test fun missingJangdanShowsOnlyUnderJangdanCardAfterSubmitAndClearsWhenChosen() = runTest {
+        // 장단 카드에는 고정 설명이 없고, 고르지 않고 업로드했을 때만 카드 밑 빨간 안내로 알린다(S15P31E102-1248).
+        var uploads = 0
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult { uploads++; return SheetImportResult.Accepted("1") }
+        }, { instruments }, { jangdans }))
+        runCurrent()
+        model.title("곡"); model.instrument("4"); model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        fun state() = model.uiState.value
+        assertTrue(state().inputErrors().isEmpty())
+        model.submit(); runCurrent()
+        assertEquals(0, uploads)
+        assertEquals(setOf(SheetImportField.Jangdan), state().inputErrors())
+        // 칸 밑에 보이는 오류는 업로드 버튼 위 하단 안내에 다시 보이지 않는다.
+        assertNull(importFeedback(state().error, state().inputErrors()))
+        model.jangdan("3")
+        assertTrue(state().inputErrors().isEmpty())
+    }
+
+    @Test fun editedTitleShowsOnlyTitleErrorBeforeSubmissionAndClearsWhenFixed() = runTest {
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String) = SheetImportResult.Accepted("1")
+        }, { instruments }, { jangdans }))
+        runCurrent()
+        fun errors() = model.uiState.value.inputErrors()
+        assertTrue(errors().isEmpty())
+        model.title("곡")
+        assertTrue(errors().isEmpty())
+        model.title("")
+        assertEquals(setOf(SheetImportField.Title), errors())
+        model.title("곡2")
+        assertTrue(errors().isEmpty())
+    }
+
+    @Test fun bottomFeedbackSkipsFieldErrorsButKeepsServerErrors() {
+        assertNull(importFeedback(null, emptySet()))
+        assertNull(importFeedback("INPUT_REQUIRED", setOf(SheetImportField.Title)))
+        assertEquals(Res.string.sheet_upload_input_required, importFeedback("INPUT_REQUIRED", emptySet()))
+        assertNull(importFeedback("UNSUPPORTED_FILE_TYPE", emptySet()))
+        assertEquals(Res.string.sheet_upload_limit, importFeedback("SHEET_LIMIT_EXCEEDED", setOf(SheetImportField.Title)))
+        assertEquals(Res.string.sheet_upload_format, importFeedback("INVALID_FILE_SET", emptySet()))
     }
 
     @Test fun aFullListShowsTheLimit() = runTest {

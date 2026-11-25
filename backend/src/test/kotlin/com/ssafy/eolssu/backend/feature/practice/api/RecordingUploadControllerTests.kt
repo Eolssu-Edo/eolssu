@@ -9,6 +9,7 @@ import com.ssafy.eolssu.backend.feature.practice.application.UploadRecording
 import com.ssafy.eolssu.backend.feature.practice.domain.AudioProbe
 import com.ssafy.eolssu.backend.feature.practice.domain.AudioProbeResult
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingFileValidator
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingTranscoder
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadTarget
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,6 +20,7 @@ import java.time.ZoneOffset
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockMultipartFile
@@ -39,8 +41,12 @@ class RecordingUploadControllerTests {
     private val storage = InMemoryRecordingStorage()
     private val probedFiles = mutableListOf<Path>()
     private var probeResult: AudioProbeResult? = AudioProbeResult(setOf("mov", "mp4", "m4a"), "aac", 44_100, 2, 3.0)
-    private val validator = RecordingFileValidator(AudioProbe { file -> probedFiles.add(file); probeResult })
-    private val upload = UploadRecording(repository, validator, storage, Clock.fixed(now, ZoneOffset.UTC))
+
+    /** 차례대로 먼저 돌려줄 검사 결과. 비면 [probeResult]다. */
+    private val queuedProbeResults = ArrayDeque<AudioProbeResult>()
+    private val validator = RecordingFileValidator(AudioProbe { file -> probedFiles.add(file); queuedProbeResults.removeFirstOrNull() ?: probeResult })
+    private val transcoder = RecordingTranscoder { _, target -> Files.write(target, byteArrayOf(7, 7)); true }
+    private val upload = UploadRecording(repository, validator, storage, transcoder, Clock.fixed(now, ZoneOffset.UTC))
     private val mockMvc = MockMvcBuilders.standaloneSetup(RecordingUploadController(upload))
         .setControllerAdvice(GlobalExceptionHandler())
         .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver())
@@ -91,6 +97,27 @@ class RecordingUploadControllerTests {
         assertEquals(3, repository.sessions.getValue(501).recording?.metadata?.bytes)
         // 검사용 임시 파일은 요청이 끝나면 지운다.
         assertFalse(Files.exists(probedFiles.single()))
+    }
+
+    @Test
+    fun `accepts a web WAV upload and stores the converted m4a`() {
+        session()
+        // 검사는 파일 이름·MIME이 아니라 내용(ffprobe 결과)으로 한다. 첫 검사는 업로드한 WAV, 두 번째는 변환본이다.
+        queuedProbeResults += AudioProbeResult(setOf("wav"), "pcm_s16le", 16_000, 1, 3.0)
+        queuedProbeResults += AudioProbeResult(setOf("mov", "mp4", "m4a"), "aac", 16_000, 1, 3.0)
+        signIn("1")
+
+        mockMvc.perform(
+            multipart("/api/practice-sessions/501/recording").file(MockMultipartFile("audio", "recording.wav", "audio/wav", byteArrayOf(1, 2, 3))),
+        ).andExpect(status().isAccepted)
+
+        val stored = storage.objects.entries.single()
+        assertTrue(stored.key.endsWith(".m4a"))
+        assertContentEquals(byteArrayOf(7, 7), stored.value)
+        assertEquals(16_000, repository.sessions.getValue(501).recording?.metadata?.sampleRate)
+        // 업로드 임시 파일과 변환본 임시 파일을 모두 지운다.
+        assertEquals(2, probedFiles.size)
+        assertFalse(probedFiles.any { Files.exists(it) })
     }
 
     @Test

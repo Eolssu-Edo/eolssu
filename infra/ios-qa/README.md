@@ -20,6 +20,8 @@
 - Mac 사용자 로그인, 인터넷 연결, `~/jenkins-agent/asc/`의 API 키가 필요하다. 잠자기·종료·로그아웃 중에는 빌드할 수 없다.
 - 전원 어댑터에 연결해 둔다(S15P31E102-908). 이 Mac은 AC 전원에서 `sleep 0`, 배터리에서 `sleep 1`이다. 배터리로 두면 15분 남짓마다 잠들고 DarkWake로 잠깐 깬다. 그 사이 에이전트가 다시 붙어 빌드를 받았다가, Mac이 다시 잠들면 서버에 `ChannelPinger … Ping failed`가 남고 60초 뒤 Jetty `Idle timeout expired`, 이어서 `ClosedChannelException` 또는 `is offline`·45분 `Timeout has been exceeded`로 실패한다. 덮개를 닫으면 AC 전원에서도 외부 디스플레이 없이는 잠든다. `build-ipa.sh`의 `caffeinate -i`는 유휴 잠자기만 막는다.
 - Mac 단계는 에이전트 끊김으로 실패하면 재연결 뒤 최대 2회 실행한다(`retry(conditions: [agent(), nonresumable()])`).
+- Mac executor를 15분(`MAC_WAIT_MINUTES`) 안에 받지 못하면 `Mac agent (label ios-eunseo) did not become available within 15 min`으로 FAILURE가 된다. 45분 빌드 제한은 executor를 받은 뒤부터 센다. 재시도에서도 대기는 다시 15분으로 제한된다. 전체 4시간 제한은 안전장치다(S15P31E102-1258).
+- `disableConcurrentBuilds(abortPrevious: true)`: 새 빌드가 큐에 들어오면 실행·대기 중인 이전 빌드를 중단한다. QA에는 최신 develop만 필요하므로, Mac이 끊긴 동안 쌓인 옛 커밋을 복구 뒤 차례로 빌드하지 않는다. 특정 SHA를 수동으로 재빌드하는 중에 backend가 새 커밋을 넘기면 그 수동 빌드도 중단된다.
 - 끊긴 빌드의 `build-ipa.sh`·`xcodebuild`는 Mac에 남아 같은 workspace를 계속 쓴다. executor가 1개이므로 `build-ipa.sh`는 시작할 때 다른 `build-ipa.sh`와 이 derived data·`build/ipa`를 쓰는 `xcodebuild`를 종료한다. 이 Mac에서 같은 경로를 쓰는 수동 빌드를 따로 돌리지 않는다.
 
 상태 확인: `launchctl print gui/$(id -u)/com.eolssu.jenkins-agent`, `~/jenkins-agent/com.eolssu.jenkins-agent.err.log`. secret 내용은 출력하지 않는다.
@@ -48,6 +50,6 @@ bash -n infra/ios-qa/build-ipa.sh
 python3 -B -m unittest discover -s infra/ios-qa -p 'test_*.py' -v
 ```
 
-운영 Jenkins의 `declarative-linter`로 `ios.Jenkinsfile`을 검사한 뒤 적용한다. 잡 원본 XML·관리 스크립트를 서버의 root 전용 백업에 저장하고, 실행 중인 iOS 빌드가 없을 때 전환한다. backend 잡의 변경 감지·Android 예약·다른 잡은 수정하지 않는다.
+운영 Jenkins의 `declarative-linter`로 `ios.Jenkinsfile`을 검사한 뒤 적용한다. 적용은 파일을 `/var/lib/jenkins/ios-qa-candidate.Jenkinsfile`(컨테이너와 같은 경로)에 올리고 관리자 CLI `groovy = < apply-jenkins.groovy`로 한다. 잡 원본 XML·관리 스크립트를 서버의 root 전용 백업에 저장하고, 실행 중인 iOS 빌드가 없을 때 전환한다. backend 잡의 변경 감지·Android 예약·다른 잡은 수정하지 않는다.
 
 복구는 저장한 iOS 잡 XML과 게시 도구를 복원하는 방식이다. 기존 Mac 노드·기존 IPA는 삭제하지 않는다. 이전 잡은 무료 팀 Apple 로그인 서명 오류가 있으므로 설정 복원만으로 성공을 보장하지 않는다.

@@ -86,6 +86,9 @@ interface UserRepository {
 
     /** 간편 로그인 재인증 증명으로 탈퇴를 신청한다. 증명이 만료·재사용이면 [MemberResult.TicketExpired]다. */
     suspend fun withdraw(proof: WithdrawalProof): MemberResult = MemberResult.Unavailable
+
+    /** 마이페이지 문의하기. 제목·내용을 개발자 메일로 보낸다. 발송 횟수를 넘기면 [MemberResult.RateLimited]다(S15P31E102-1240). */
+    suspend fun sendInquiry(title: String, content: String): MemberResult = MemberResult.Unavailable
 }
 
 /** 예시 계정(얼쑤연주자 · 카카오 연결). 비밀번호는 비어 있지 않으면 맞는 것으로 본다. */
@@ -96,6 +99,8 @@ class SampleUserRepository : UserRepository {
     override suspend fun changeNickname(nickname: String): MemberResult { _profile.update { it.copy(nickname = nickname) }; return MemberResult.Done }
 
     override suspend fun changeProfileImage(image: ProfileImage): MemberResult { _profile.update { it.copy(profileImage = image) }; return MemberResult.Done }
+
+    override suspend fun sendInquiry(title: String, content: String): MemberResult = MemberResult.Done
 
     override suspend fun link(callback: OAuthCallback): LinkResult {
         _profile.update { it.copy(linkedProviders = it.linkedProviders + callback.provider) }

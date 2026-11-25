@@ -35,7 +35,7 @@ frontend/
 | `iosMain` | iOS 전용 API를 쓰는 구현과 연결 (`platform/`), `MainViewController` | 화면 로직 |
 | `jsMain` / `wasmJsMain` / `webMain` | 웹 전용 구현. JS·Wasm이 함께 쓰는 코드는 `webMain`(`platform/`, Web `App` 입구)에 둔다 | 화면 로직 |
 | `commonTest` | 공통 로직 테스트 | 플랫폼 API가 필요한 테스트 |
-| `androidHostTest` / `iosTest` / `webTest` | 플랫폼별 테스트. 기존 설정 유지 | — |
+| `androidHostTest` / `iosTest` / `webTest` | 플랫폼별 테스트. `webTest`는 JS·Wasm 브라우저에서 돌며 실제 웹 Koin 모듈 해석 검사와 웹 구현(`platform/`) 테스트를 둔다 | — |
 
 `commonMain`에 라이브러리를 넣으면 **네 타깃(Android·iOS·JS·Wasm) 모두** 지원해야 빌드된다. 모바일 구조를 정리했다고 웹 타깃을 빼지 않는다.
 
@@ -63,6 +63,7 @@ com/ssafy/eolssu/
     audio/                    # 녹음·재생의 공통 인터페이스
     storage/                  # 로컬 저장의 공통 인터페이스(KeyValueStore, 민감한 값은 SecureStore)
     model/                    # 여러 기능이 함께 쓰는 앱 모델 (예: Song, Note)
+    update/                   # 스토어 새 버전 확인의 공통 인터페이스(StoreUpdates), 새 버전 푸시 토픽(UpdateTopics) 구독
 
   data/
     song/                     # 곡 목록·상세 API, DTO, Repository
@@ -100,10 +101,12 @@ shared/src/commonMain/composeResources/
 
 shared/src/androidMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 Android API로 구현
+  update/                           # Play In-App Updates로 스토어 새 버전 확인, FCM 토픽 구독과 포그라운드 푸시 배너
   PlatformModule.kt                 # Android 구현을 Koin에 등록(8절)
 
 shared/src/iosMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 iOS API로 구현
+  update/                           # iTunes Lookup으로 App Store 새 버전 확인, 앱 안 App Store 시트, 토픽 구독 진입점
   PlatformModule.kt
 
 shared/src/webMain/kotlin/com/ssafy/eolssu/platform/
@@ -229,7 +232,7 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 | Web | `main.kt` → `App(onNavHostReady)` | `webMain`의 `App.web.kt` |
 
 - 이렇게 하면 Koin 타입이 `shared` 밖에 드러나지 않아 진입점 모듈에 Koin 의존성을 더하지 않아도 되고, Android Context는 전역 변수나 별도 초기화 라이브러리 없이 생성자로 전달된다. `koin-android`의 `androidContext()`는 쓰지 않는다.
-- 플랫폼 구현을 더할 때는 같은 소스 세트의 `PlatformModule.kt`에 한 줄을 더한다. 한 플랫폼이라도 빠지면 그 플랫폼에서는 컴파일은 되지만 객체를 만들 때 실행 오류가 나므로 세 곳 모두 등록하고, 지원하지 않는 플랫폼은 "지원 안 함" 구현을 등록한다.
+- 플랫폼 구현을 더할 때는 같은 소스 세트의 `PlatformModule.kt`에 한 줄을 더한다. 한 플랫폼이라도 빠지면 그 플랫폼에서는 컴파일은 되지만 객체를 만들 때 실행 오류가 나므로 세 곳 모두 등록하고, 지원하지 않는 플랫폼은 "지원 안 함" 구현을 등록한다. 웹에서 빠진 등록은 `webTest`의 `WebKoinResolutionTest`가 잡는다. 이 테스트는 `webPlatformModule()`과 `appModule`로 등록된 정의를 모두 만들어 보고, 웹에 없는 기능에만 기대는 정의(`platformOnly`)는 그 기능이 정말 없어서 실패하는지 따로 확인한다.
 - `expect`/`actual`은 "플랫폼 이름 문자열"처럼 작은 값이나, 구현 객체를 만드는 팩토리 함수 하나처럼 **연결 지점 한 곳**에만 쓴다. 모든 클래스에 붙이지 않는다. 기존 `Platform.kt`가 `expect`/`actual` 예시다.
 - 웹 타깃도 `commonMain` 인터페이스를 컴파일하므로, 인터페이스를 추가하면 `jsMain`·`wasmJsMain`에도 구현이나 "지원 안 함" 구현이 필요한지 확인한다.
 
@@ -250,8 +253,10 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 | 너비 `Expanded` (`ExpandedMinWidth`) | 840dp 이상 | 태블릿 가로·넓은 웹 창. 와이어프레임 가로 아트보드(1280×800) |
 | 내용 최대 너비 (`ContentMaxWidth`) | 1120dp | 넓은 창에서는 내용을 이 너비로 가운데에 둔다 |
 | 낮은 높이 (`LandscapeLayoutMinHeight`, `isShortHeight`) | 650dp 미만 | 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣으려면 약 650dp가 필요하다. 너비는 넓지만 높이가 낮은 창(납작한 웹 창, 태블릿 화면 분할)을 가려낸다 |
+| 아주 낮은 높이 (`MediumMinHeight`, `isCompactHeight`) | 480dp 미만 | Material 3의 Compact 높이 기준. 휴대폰 가로 웹 창(800×380, 844×390 등)처럼 어느 배치도 한 화면에 담기 어려운 창을 가려낸다 |
 
-- 낮은 높이의 창에서 무엇을 보여줄지(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 지금은 `isShortHeight` 판정 값만 제공하고 화면은 이 값을 쓰지 않는다.
+- 아주 낮은 높이(`isCompactHeight`)의 창에서 연습 화면은 너비로 고른 배치를 650dp(`LandscapeLayoutMinHeight`) 높이로 그리고 페이지 전체를 세로로 스크롤한다. 스낵바는 창 아래에 따로 띄운다([S15P31E102-1268](https://ssafy.atlassian.net/browse/S15P31E102-1268), 2026-11-24 결정). 연주 중 하단 버튼이 창 밖에 있을 수 있다.
+- 480~650dp(`isShortHeight`만 참)의 창과 연습 외 화면의 낮은 창 처리(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 화면은 `isShortHeight`를 쓰지 않는다.
 - 연습·결과 화면도 같은 기준값을 쓴다. 기준값을 바꾸면 이 표와 `WindowBreakpoints`를 함께 고치고 상대 개발자에게 알린다.
 
 ### 화면 방향

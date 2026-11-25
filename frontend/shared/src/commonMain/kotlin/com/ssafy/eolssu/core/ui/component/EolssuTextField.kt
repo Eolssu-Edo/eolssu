@@ -66,9 +66,11 @@ enum class TextFieldType { Text, Email, Password, Number }
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 도움말 대신 오류를 보이고, 테두리 있는 칸([bordered])은 빨간 테두리를 두른다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 로그인·가입과 마이페이지가 함께 쓴다. 칸 높이는 [fieldHeight](기본 52dp)로 줄일 수 있고, 글꼴을 키우면 내용에 맞게 높아진다.
+ * 오류 문구는 기본 글자색이고, [errorColor]를 주면 그 색으로 보인다(악보 올리기의 빨간 칸 안내, S15P31E102-1232).
  * [counter](예: `4/10`)가 있으면 도움말·오류 줄 오른쪽 끝에 함께 보인다.
  * [maxLength]가 있으면 그 글자 수(코드 포인트)를 넘는 입력은 칸에 남기지 않고, 넘겨 치려다 막히면 칸 아래에 'n자까지 입력할 수 있어요'를 보인다
  * ([InputLimit.limit], S15P31E102-996). 비밀번호 칸은 오른쪽 눈 버튼으로 입력한 글자를 보이거나 다시 가린다.
+ * [singleLine]이 false면 줄바꿈을 받는 여러 줄 칸이 되고, 글은 칸 위쪽부터 채운다(문의 내용, S15P31E102-1240).
  * [labelInside]면 칸 위 이름표 없이 이름을 자리 글자로만 두고, 입력하면 사라진다(로그인·가입, S15P31E102-798). 화면 읽기는 그대로 이름을 읽는다.
  */
 @Composable
@@ -91,6 +93,8 @@ fun EolssuTextField(
     labelInside: Boolean = false,
     maxLength: Int? = null,
     qaTarget: QaTarget = QaTarget.TEXT_FIELD,
+    errorColor: Color? = null,
+    singleLine: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -125,7 +129,7 @@ fun EolssuTextField(
                     onValueChange(InputLimit.limit(value, input, maxLength))
                 }
             }),
-            singleLine = true,
+            singleLine = singleLine,
             interactionSource = interaction,
             textStyle = textStyle,
             cursorBrush = SolidColor(colors.text),
@@ -179,7 +183,8 @@ fun EolssuTextField(
                             },
                         )
                         .padding(horizontal = if (labelInside) 16.dp else 14.dp, vertical = 12.dp),
-                    contentAlignment = Alignment.CenterStart,
+                    // 여러 줄 칸(문의 내용)은 첫 줄부터 위에서 채운다.
+                    contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart,
                 ) {
                     Box(Modifier.padding(end = if (trailing != null) 48.dp else if (password) 36.dp else 0.dp)) {
                         // 자리 글자는 대비 기준(4.5:1)을 지키도록 회색 글자색을 쓴다(와이어프레임은 더 옅은 회색).
@@ -222,8 +227,8 @@ fun EolssuTextField(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = colors.text)
-                            Text(error, style = helpStyle.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+                            Icon(EolssuIcons.Info, contentDescription = null, modifier = Modifier.size(15.dp), tint = errorColor ?: colors.text)
+                            Text(error, style = helpStyle.copy(fontWeight = FontWeight.SemiBold), color = errorColor ?: colors.text)
                         }
                         limitNotice != null -> Text(
                             limitNotice,

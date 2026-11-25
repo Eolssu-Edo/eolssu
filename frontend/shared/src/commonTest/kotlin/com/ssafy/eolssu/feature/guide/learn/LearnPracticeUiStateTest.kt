@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -66,44 +67,30 @@ class LearnPracticeUiStateTest {
         assertEquals(four, four.recordTongue(2))
     }
 
+    /** 3단계는 소리 크기만으로 통과하지 않는다. 음높이 판정 계획이 없으면 스스로 확인한다(S15P31E102-1216). */
     @Test
-    fun countsASoundHeldForTheFirstSoundHoldOnce() {
-        // 0.3초가 되기 전에는 세지 않는다
-        assertEquals(0, firstSound().feed(loud, 200).successes)
-        val held = firstSound().feed(loud, 300)
-        assertEquals(1, held.successes)
-        assertEquals(LearnPracticeCue.Counted, held.cue)
-        assertEquals(1f, held.holdProgress)
+    fun stageThreeNeverPassesByLoudnessAlone() {
+        val state = firstSound().feed(loud, 5_000).feed(quiet, 500).feed(loud, 5_000)
 
-        // 한 소리를 길게 이어도 한 번만 센다
-        assertEquals(1, held.feed(loud, 3_000).successes)
+        assertEquals(LearnPracticePhase.Listening, state.phase)
+        assertFalse(state.autoJudged)
+        assertNull(state.cue)
+        assertTrue(state.sounding)
     }
 
+    /** 3단계 음높이 판정 계획을 받으면 앱이 판정하고, 판정기가 통과를 알리면 통과한다. */
     @Test
-    fun passesAfterOneSoundHeldForTheFirstSoundHold() {
-        assertEquals(1, FIRST_SOUND_TARGET)
-        val passed = firstSound().feed(loud, 300)
+    fun stageThreeWithAPitchPlanPassesByThePitchJudge() {
+        val ready = LearnPracticeUiState(stage = 3).withPitchPlan(learnFirstSoundPlan(GuideInstrument.Danso, null))
+        assertTrue(ready.autoJudged)
+        assertEquals(FIRST_SOUND_HOLD_MS, ready.pitch?.holdTargetMs)
 
+        val listening = ready.startListening().feed(loud, 3_000)
+        assertEquals(LearnPracticePhase.Listening, listening.phase)
+        val holding = listening.recordPitch(0, 0, 640.0, null, passed = false, finished = false)
+        assertEquals(0.6f, holding.pitch?.holdProgress)
+        val passed = holding.recordPitch(1, 1, 0.0, LearnNoteResult.Hit, passed = true, finished = true)
         assertEquals(LearnPracticePhase.Passed, passed.phase)
-        assertEquals(1, passed.successes)
-        assertFalse(passed.listening)
-        // 통과한 뒤 들어온 크기는 반영하지 않는다
-        assertEquals(passed, passed.recordLevel(loud, 100.0))
-    }
-
-    @Test
-    fun shortBreaksKeepTheSameSound() {
-        val state = firstSound().feed(loud, 200).feed(quiet, 200).feed(loud, 100)
-        assertEquals(1, state.successes)
-    }
-
-    @Test
-    fun soundEndingBeforeTheFirstSoundHoldIsTooShortAndResetsHold() {
-        val state = firstSound().feed(loud, 200).feed(quiet, 300)
-
-        assertEquals(0, state.successes)
-        assertEquals(0.0, state.holdMs)
-        assertEquals(LearnPracticeCue.TooShort, state.cue)
     }
 
     /** 통과 기준 문구의 초는 끝의 0을 뺀다(S15P31E102-857). */
@@ -116,37 +103,9 @@ class LearnPracticeUiStateTest {
     }
 
     @Test
-    fun silenceWithoutSoundIsNotTooShort() {
-        val state = firstSound().feed(quiet, 1_000)
-        assertNull(state.cue)
-        assertFalse(state.sounding)
-    }
-
-    @Test
-    fun stagesWithoutSoundJudgingNeverCount() {
-        val state = LearnPracticeUiState(stage = 4).startListening().feed(loud, 5_000).feed(quiet, 500)
-
-        assertFalse(state.judgesBySound)
-        assertEquals(0, state.successes)
-        assertNull(state.cue)
-        assertTrue(state.listening)
-    }
-
-    @Test
     fun ignoresLevelsWhenNotListening() {
         val ready = LearnPracticeUiState(stage = 3)
         assertEquals(ready, ready.recordLevel(loud, 100.0))
-    }
-
-    @Test
-    fun stoppingBeforeTheFirstSoundHoldKeepsReadyAndRestartingAfterPassCountsAgain() {
-        val stopped = firstSound().feed(loud, 200).stopListening()
-        assertEquals(0, stopped.successes)
-        assertEquals(LearnPracticePhase.Ready, stopped.phase)
-
-        val passed = firstSound().feed(loud, 2_000)
-        assertEquals(0, passed.startListening().successes)
-        assertEquals(0, passed.reset().successes)
     }
 
     @Test

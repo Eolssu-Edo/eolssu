@@ -105,8 +105,8 @@ class MySongsViewModel(
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                if (generation == loadGeneration && instrumentRepository.instrument.value == instrument) _uiState.update { it.copy(loadState = SongLoadState.Failed) }
+            } catch (error: Exception) {
+                if (generation == loadGeneration && instrumentRepository.instrument.value == instrument) _uiState.update { it.copy(loadState = loadFailure(error)) }
             }
         }
     }

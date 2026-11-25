@@ -1,21 +1,8 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 rules for the release and benchmark builds (S15P31E102-1120).
+# Library rules already cover kotlinx.serialization, coroutines, Ktor, Koin, AndroidX and Play app-update;
+# add a rule here only for code of ours that R8 cannot see (reflection, JNI, names read at runtime).
+# Decisions and measurements: docs/knowledge/frontend/android-r8-release-build.md
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep line numbers so Play Console can retrace crash stacks with the mapping.txt bundled in the AAB.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

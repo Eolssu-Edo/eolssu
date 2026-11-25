@@ -15,7 +15,7 @@
 | Gradle | 9.5.1 (Wrapper로 자동 설치) |
 | Android | minSdk 24 (Android 7.0), targetSdk 37 |
 | iOS | 18.2 이상 |
-| Web | Kotlin/Wasm (운영 배포, Wasm GC를 지원하는 최신 브라우저), Kotlin/JS (빌드·테스트만, 배포하지 않음) |
+| Web | Kotlin/Wasm (운영 배포, [지원 브라우저](#웹-지원-브라우저)), Kotlin/JS (빌드·테스트만, 배포하지 않음) |
 
 버전은 모두 [`gradle/libs.versions.toml`](gradle/libs.versions.toml)에서 관리합니다.
 
@@ -66,6 +66,32 @@ Gradle 프로젝트명은 `eolssu`, Android 앱 표시명은 `얼쑤`입니다. 
 빌드가 끝나면 터미널에 `Loopback: http://localhost:8080/`이 나옵니다. 브라우저에서 이 주소를 열면 앱이 보입니다. 화면이 깨지거나 동작하지 않으면 브라우저 개발자 도구(F12)의 Console을 확인합니다. 멈출 때는 실행 창의 ■(Stop)이나 `Ctrl+C`를 누릅니다.
 
 첫 화면(`webApp/src/webMain/resources/index.html`)은 앱을 불러오는 동안 로고와 로딩 표시를 보여 줍니다. 앱 파일을 받지 못하거나 시작 중 오류가 나면 실패 안내를, 20초가 지나면 지연 안내를, 브라우저가 Wasm GC를 지원하지 않으면 다른 브라우저 안내를 새로고침 버튼과 함께 띄웁니다. 안내가 뜬 뒤에도 앱이 화면을 붙이면 안내는 사라집니다.
+
+탭 아이콘(`favicon.ico`)·홈 화면 아이콘(`apple-touch-icon.png`, `icon-*.png`)과 `manifest.webmanifest`도 같은 폴더에 있습니다. 홈 화면에 추가하면 주소창 없는 단독 창(`standalone`)으로 열립니다. 아이콘은 iOS 앱 아이콘(`iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png`)에서 `frontend/`의 `python -P tools/web-icons/build_web_icons.py`(Pillow 13.0.0)로 다시 만듭니다.
+
+### 웹 지원 브라우저
+
+Kotlin/Wasm은 WebAssembly GC와 예외 처리(legacy) 제안을 지원하는 브라우저에서만 실행됩니다. 아래 버전은 Kotlin 공식 문서([Browser versions](https://kotlinlang.org/docs/wasm-configuration.html#browser-versions))에서 별도 설정 없이 동작한다고 밝힌 최소 버전입니다.
+
+| 브라우저 | 최소 버전 |
+| --- | --- |
+| Chrome, Edge 등 Chromium 기반 | 119 이상 |
+| Firefox | 120 이상 |
+| Safari | 18.2 이상 (macOS 15.2, iOS·iPadOS 18.2) |
+| iPhone·iPad의 모든 브라우저 | iOS·iPadOS 18.2 이상 (WebKit을 사용) |
+
+이보다 낮은 버전에서는 첫 화면이 다른 브라우저 안내를 띄웁니다. 이 표는 공식 문서의 기준이며 각 버전을 실제 기기에서 확인한 결과가 아닙니다.
+
+### 웹에서 아직 지원하지 않는 기능
+
+2026-11-24 `develop`(`a318b3e10`) 기준으로 웹(`shared/src/webMain/.../platform/PlatformModule.kt`)에 등록되지 않아 앱과 다르게 동작하는 플랫폼 기능은 없습니다. 새로 생기면 이 절에 표로 적고, 작업이 병합되면 그 MR에서 해당 줄을 지웁니다. 운영 웹은 마지막으로 배포한 커밋 기준이므로 [웹 빌드·테스트·배포](#웹-빌드테스트배포)의 방법으로 배포 커밋을 확인합니다.
+
+웹 녹음(연주 평가·한 음씩 음 판정·기초 배우기 듣기·구간 재평가)은 앱과 다음이 다릅니다([녹음 파일 규격](../docs/specs/recording-file.md#클라이언트-녹음), S15P31E102-1262).
+
+- 16kHz 모노 WAV로 올리고 서버가 AAC m4a로 바꿔 저장합니다. 마이크는 HTTPS(또는 localhost) 페이지에서만 열립니다.
+- 녹음은 탭 메모리에만 둡니다. 업로드가 실패한 뒤 새로 고치면 녹음이 사라져 다시 연주해야 합니다.
+- 브라우저는 기기 볼륨을 읽지 못해, 평가 녹음 중 장단을 늘 약 1/10(-20dB)로 줄입니다.
+- 브라우저가 막은 마이크 권한은 주소창의 사이트 설정에서만 풀 수 있어 앱은 거부 안내만 띄웁니다.
 
 ## 🍎 iOS 실행 (Mac)
 
@@ -122,9 +148,10 @@ Android Studio 밖에서 실행할 때는 `JAVA_HOME`이 JDK 17 이상을 가리
 | --- | --- | --- |
 | Android 디버그 APK 빌드 | `./gradlew :androidApp:assembleDebug` | `androidApp/build/outputs/apk/debug/androidApp-debug.apk` |
 | 연결된 기기·에뮬레이터에 설치 | `./gradlew :androidApp:installDebug` | 설치만 합니다. 앱 아이콘을 눌러 실행합니다 |
+| 출시와 같은 R8 빌드를 기기에서 확인 | `./gradlew :androidApp:installBenchmark` | debug 키로 서명한 `com.ssafy.eolssu.benchmark`를 설치합니다. Play 앱과 나란히 설치되며 간편 로그인은 되지 않습니다([R8 기록](../docs/knowledge/frontend/android-r8-release-build.md)) |
 | Web 개발 서버 (Wasm, 권장) | `./gradlew :webApp:wasmJsBrowserDevelopmentRun` | `http://localhost:8080/`에 개발 서버를 띄웁니다 |
 | Web 개발 서버 (JS) | `./gradlew :webApp:jsBrowserDevelopmentRun` | 로컬 개발 서버를 띄웁니다. 운영에는 배포하지 않습니다 |
-| Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 13MB) |
+| Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 39MB: Wasm 두 개 약 20MB(gzip 약 6.5MB), `composeResources` 약 16MB 중 글꼴 약 8MB. 2026-11-24 측정) |
 | iOS | Mac에서만 가능 — 위의 "iOS 실행 (Mac)" 참고 | — |
 
 - Android Studio 없이 명령줄만으로 빌드하려면 [Android 명령줄 도구](https://developer.android.com/studio#command-line-tools-only)를 SDK의 `cmdline-tools/` 아래에 설치합니다. `frontend/local.properties`에는 `sdk.dir=C\:/Users/<사용자>/AppData/Local/Android/Sdk`처럼 **콜론을 이스케이프하고 슬래시(`/`) 경로**로 적습니다. Windows 경로를 그대로 쓰면 경로 해석 또는 lint `PropertyEscape` 검사에 실패합니다. 설치 명령은 해당 버전의 `--help`로 확인합니다(cmdline-tools 23은 `android sdk` 제공).
@@ -231,29 +258,37 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 
 | 파일 | 용도 | 글자 범위 |
 | --- | --- | --- |
-| `ibm_plex_sans_kr_regular·semibold·bold.ttf` | 제목·본문·버튼·사용자가 입력한 글자 | Google Fonts 공식 IBM Plex Sans KR 원본 |
-| `song_myung_regular.ttf` | 미사용(제목은 S15P31E102-768부터 IBM Plex Sans KR SemiBold) | Google Fonts 공식 Song Myung 원본 |
+| `eolssu_sans_kr_regular·semibold·bold.otf` | 제목·본문·버튼·사용자가 입력한 글자 | IBM Plex Sans KR 1.001(Google Fonts `ofl/ibmplexsanskr`)의 모든 글자를 CFF로 바꿔 굵기마다 약 2.8MB → 2.0MB로 줄인 수정본. OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Sans KR`로 바꿨고 라이선스 원문은 `files/licenses/ibm_plex_sans_kr_ofl.txt` |
 | `noto_serif_kr_semibold·bold.otf` | 율명·곡 제목 | Noto Serif CJK KR 서브셋, 한글 2,350자·옥타브 -2~2 율명 한자·영숫자 |
 | `eolssu_yul_supplement.ttf` | 하배이·배유·중청대 | Jigmo2 20250912에서 실제 세 글자만 남긴 보조 폰트, 3,808바이트(CC0 1.0) |
 | `seal_brush.ttf` | 연습곡 표지의 붉은 '얼쑤' 도장 | 나눔손글씨 붓(Google Fonts `ofl/nanumbrushscript`)에서 `얼쑤` 2자만 남긴 서브셋(약 4.5KB). OFL 예약 글꼴 이름 때문에 글꼴 이름을 `Eolssu Seal Brush`로 바꿨고 라이선스 원문은 `files/licenses/nanum_brush_script_ofl.txt` |
-| `pretendard_regular·semibold·bold.otf` | 기존 리소스 보존, 기본 본문에서는 미사용 | Pretendard 1.3.9 원본 |
 
 - 세리프 서브셋에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 본문 글꼴로 씁니다.**
 - 기본 율명 폰트는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_YUL`(정간보 원본 표기 옥타브 -2~2와 운지표 글자)을 담습니다. 앱의 `SerifYulHanja`(`core/model/fingering/YulNotation.kt`)와 같게 유지하고, `YulFontCoverageTest`가 실제 글꼴 파일에 글리프가 있는지 검사합니다. 하배이·배유·중청대는 보조 폰트의 실제 한자로 표시합니다.
 - Noto Serif KR(SubsetOTF)에는 탁성·하배·중청 율명이 없어 S15P31E102-923부터 같은 디자인의 Noto Serif CJK KR(OTF/Korean)에서 만듭니다. 그래서 대금의 배·하배 율명도 단소·소금과 같은 세리프 글리프로 그립니다. 변(氵·亻) + 율명 조합(`ComposedGlyph`)은 글꼴 어디에도 없는 글자의 예비 경로로만 남습니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
 - 기존 글꼴은 SIL Open Font License 1.1, 율명 보조 폰트는 CC0 1.0입니다. 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/), 앱에 포함하는 원문은 `shared/src/commonMain/composeResources/files/licenses/`에 있습니다.
 
-기존 Pretendard·Noto 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상; IBM Plex Sans KR·Song Myung에는 적용하지 않음):
+본문 글꼴을 다시 만들 때(`frontend/`에서):
+
+```bash
+python -m pip install --user fonttools==4.60.1
+SRC="${TMPDIR:-/tmp}/eolssu-body-font-src"; mkdir -p "$SRC"
+for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/IBMPlexSansKR-$w.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexsanskr/IBMPlexSansKR-$w.ttf"; done
+PYTHONUTF8=1 python -P tools/fonts/build_body_font.py "$SRC"
+```
+
+글자는 빼지 않고 TrueType 윤곽(이차 곡선)을 CFF 윤곽(삼차 곡선)으로 합쳐(허용 오차 1/1000em) 줄입니다. 글자 범위·폭·행간은 원본과 같습니다. [변환·검증 기록](../docs/knowledge/frontend/web-korean-fonts.md#본문-글꼴-cff-변환-s15p31e102-1267)을 참고합니다.
+
+Noto 세리프 서브셋을 다시 만들 때(`frontend/`에서, Python 3.11 이상):
 
 ```bash
 python -m pip install --user fonttools==4.60.1
 SRC="${TMPDIR:-/tmp}/eolssu-fonts-src"; mkdir -p "$SRC"
-for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/Pretendard-$w.otf "https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/public/static/Pretendard-$w.otf"; done
 for w in SemiBold Bold; do curl -fL -o "$SRC"/NotoSerifCJKkr-$w.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/OTF/Korean/NotoSerifCJKkr-$w.otf"; done
 PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
 ```
 
-스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
+두 스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
 
 하배이·배유·중청대 보조 폰트는 [Jigmo 공식 배포](https://kamichikoichi.github.io/jigmo/)의 `Jigmo-20250912.zip`에서 `Jigmo2.ttf`를 꺼내 `python -P tools/fonts/build_supplementary_yul.py <Jigmo2.ttf>`로 만듭니다(fonttools 4.60.1). 원본 해시·세 코드포인트·실제 윤곽을 검사하고 이름을 `Eolssu Yul Supplement`로 바꿉니다. CC0 원문은 `tools/fonts/licenses/Jigmo-CC0.txt`와 앱의 `files/licenses/jigmo_cc0.txt`에 보존합니다. [출처·검증 기록](../docs/knowledge/frontend/web-korean-fonts.md#보충-평면-율명-세-글자-s15p31e102-813)을 참고합니다.
 
@@ -284,6 +319,8 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
 - **iOS 번들 ID**: Android `applicationId`와 같은 `com.ssafy.eolssu`입니다. App Store에 등록한 뒤에는 바꿀 수 없습니다. Mac에서 빌드하려면 `iosApp/Configuration/Config.xcconfig`의 `TEAM_ID`에 Apple 개발팀 ID를 넣습니다(개인 값이면 커밋하지 않음).
 - **iOS 버전·언어**: 버전·빌드 번호는 `iosApp/Configuration/Config.xcconfig`의 `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION`입니다. App Store에 올릴 때마다 빌드 번호를 마지막 업로드보다 크게 올립니다. 개발 언어는 한국어(`ko`)이고, `iosApp/iosApp/ko.lproj`가 있어야 App Store에 한국어로 표시됩니다([S15P31E102-814](../docs/plans/S15P31E102-814.md)).
+- **스토어 업데이트 안내**: 구버전 앱을 켤 때마다(백그라운드에서 다시 앞으로 가져올 때 포함) Play 스토어·App Store에 설치 버전보다 새 버전이 있으면 '업데이트하기'·'나중에' 안내를 띄웁니다(`core/update`, `platform/update`). '업데이트하기'는 Android에서 Play 즉시 업데이트, iOS에서 앱 안 App Store 시트를 엽니다. 스토어에서 설치한 앱에서만 동작하므로 QA APK·Ad Hoc IPA·TestFlight에서는 뜨지 않습니다. Android는 Play 내부 앱 공유나 테스트 트랙으로, iOS는 App Store 설치본으로 확인합니다([결정 문서](../docs/decisions/frontend-in-app-update.md)).
+- **새 버전 푸시**: 앱은 설치된 버전의 FCM 토픽(`update-android-<versionCode>`, `update-ios-<버전>`)을 구독합니다. Firebase 설정은 `androidApp/src/main/res/values/firebase.xml`과 `iosApp/iosApp/GoogleService-Info.plist`에 있고, 출시 뒤 Firebase 콘솔에서 구버전 토픽으로 보냅니다(발송 절차는 [결정 문서](../docs/decisions/frontend-in-app-update.md)).
 - **iOS 출시 설정**: 마이크 권한 설명·표시 이름은 `iosApp/iosApp/Info.plist`, 개인정보 매니페스트는 `iosApp/iosApp/PrivacyInfo.xcprivacy`에 있습니다. 매니페스트의 수집 항목은 App Store Connect의 개인정보 라벨과 같게 맞춥니다([S15P31E102-373 계획](../docs/plans/S15P31E102-373.md)).
 
 ## Android release 검증
@@ -329,17 +366,16 @@ release 키가 없으면 이 스크립트는 중단하며 debug 키로 대체하
 - [Kotlin/Wasm](https://kotl.in/wasm/)
 
 
-## 웹 자동 빌드·테스트·배포
+## 웹 빌드·테스트·배포
 
-운영 Jenkins는 develop의 백엔드 잡이 성공한 뒤 동일 SHA로 프론트 웹 잡을 시작합니다. `:shared:wasmJsTest`, `:shared:jsTest`, `:webApp:wasmJsBrowserDistribution`을 실행하고 JUnit·웹 산출물을 보관한 뒤 후보 자산 검증과 운영 배포를 수행합니다. 프론트 잡 이름은 `eolssu-frontend`이며 Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경입니다. Android·iOS 패키지는 이 흐름에 포함하지 않습니다.
+운영 웹(`https://k15e102.p.ssafy.io`)은 develop에 병합해도 바뀌지 않습니다. 담당자가 Jenkins `eolssu-frontend-web-수동배포용` 잡의 **Build with Parameters**에서, 성공한 `eolssu-backend` 빌드의 develop 전체 커밋 SHA를 `REVISION`에 넣어 실행해야 바뀝니다. 잡은 그 SHA가 develop 이력에 있는지 확인한 뒤 `:shared:wasmJsTest`, `:shared:jsTest`, production Wasm 최적화와 `:webApp:wasmJsBrowserDistribution`을 실행합니다. 후보 자산 검증을 통과하면 프론트 컨테이너만 교체하고, 배포 검사가 실패하면 이전 웹으로 자동 복구합니다. 백엔드·DB는 건드리지 않으며 교체할 때 몇 초 연결이 끊길 수 있습니다. Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경이고 Android·iOS 패키지는 포함하지 않습니다.
 
-동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 이 잡의 테스트 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.
+- **배포 주기:** 웹에 영향 있는 MR 묶음이 병합되면 그날 안에 배포합니다. 그런 MR이 없어도 develop이 운영 웹보다 앞서 있으면 평일 1회 배포합니다. 담당은 우동균입니다(2026-11-24 결정). 반복 부담이 커지면 하루 1회 예약 배포를 별도 작업으로 검토합니다.
+- **걸리는 시간:** 잡에는 20분 제한이 있습니다. Gradle 캐시가 데워져 있으면 약 8분, 캐시가 비어 있으면 18분 가까이 걸립니다(2026-11-24 #24, 1,061초). 제한 시간으로 ABORTED되면 운영은 바뀌지 않으므로 같은 SHA로 한 번 더 실행합니다.
+- **배포 커밋 확인:** `curl -fsS https://k15e102.p.ssafy.io/__eolssu_release.json`의 `sha`가 `REVISION`과 같아야 합니다.
+- **develop 웹 테스트:** `eolssu-web-tests` 잡([web-tests.Jenkinsfile](../infra/jenkins/web-tests.Jenkinsfile))은 웹 빌드 입력이 바뀐 develop 커밋마다 `eolssu-backend`가 예약하며, `:shared:wasmJsTest`·`:shared:jsTest`만 돌리고 배포하지 않습니다. 배포 잡과 같은 `edo1-web` 노드를 써서 두 잡이 겹치면 나중 잡이 기다립니다. 정의는 develop에 있고, 운영 Jenkins 적용은 [S15P31E102-1275](https://ssafy.atlassian.net/browse/S15P31E102-1275)에서 [적용 절차](../infra/jenkins/controller/README.md#웹-테스트-잡)대로 합니다.
 
-## 임시 Android QA APK (TEMP S15P31E102-309)
-
-기존 테스트 계정으로 후속 API를 검증할 때만 `./gradlew :androidApp:assembleDebug -Peolssu.qaSkipConsent=true`로 빌드합니다. 첫 실행은 다른 빌드와 같이 로그인 화면에서 시작하고(약관 동의는 회원가입 흐름, 마이크 권한은 첫 녹음 때) 실제 로그인은 유지합니다. 약관 동의 기록은 만들지 않으며 신규 가입은 우회하지 않습니다. 기본 debug·release·Web·iOS에는 적용하지 않습니다. release는 이 속성을 주어도 우회가 꺼집니다.
-
-해제는 위 속성을 빼고 재빌드합니다. 이미 실제 로그인으로 첫 실행을 마친 기기는 기존 동작대로 홈에서 시작하므로 정상 첫 실행 비교에는 새 설치 상태의 별도 테스트 기기를 사용합니다. [제거 위치·조건과 검증 결과](../docs/plans/S15P31E102-309.md)를 따릅니다.
+설치·실패 복구·이전 릴리스로 되돌리기는 [운영 문서](../infra/runtime/README.md#프론트-웹-수동-배포), 배포 순서 규칙은 [Jenkins 배포 순서](../docs/specs/jenkins-deploy-order.md#프론트-웹-수동-배포-s15p31e102-520)를 따릅니다. 잡의 테스트 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.
 
 ### 악보 작성 지원음
 

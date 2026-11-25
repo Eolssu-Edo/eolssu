@@ -6,7 +6,9 @@ import com.ssafy.eolssu.core.audio.StepLeniency
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.data.practice.NotePracticeCriteria
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -103,7 +105,7 @@ class LearnPitchJudgeTest {
         assertEquals(StepLeniency.Strict, plan(4, instrument = GuideInstrument.Sogeum).rule.leniency)
     }
 
-    /** 허용 오차·유지 시간·조율 상한은 서버 기준을 넓히거나 좁히지 않고 그대로 쓴다. 4단계 유지 시간만 서버 기준과 상관없이 1초다. 3단계 첫 소리는 한 음씩 유지 시간 초안과 같은 0.3초다. */
+    /** 허용 오차·유지 시간·조율 상한은 서버 기준을 넓히거나 좁히지 않고 그대로 쓴다. 4단계 유지 시간만 서버 기준과 상관없이 1초다. 3단계 첫 소리도 4단계와 같은 1초다. */
     @Test fun criteriaValuesFlowStraightIntoTheRule() {
         listOf(4, 5, 6).forEach { stage ->
             val danso = plan(stage, criteria = criteria.copy(pitchToleranceCent = 70.0, holdMs = 200, maxTuningOffsetCent = 100.0)).rule
@@ -112,7 +114,70 @@ class LearnPitchJudgeTest {
             assertEquals(100.0, danso.maxTuningOffsetCent)
             assertEquals(25.0, plan(stage, criteria = criteria.copy(pitchToleranceCent = 25.0)).rule.toleranceCent)
         }
-        assertEquals(300.0, FIRST_SOUND_HOLD_MS)
+        assertEquals(1_000, FIRST_SOUND_HOLD_MS)
+    }
+
+    /**
+     * 3단계 첫 소리는 정해진 음 없이 1초 동안 같은 높이를 이어 내야 한다(S15P31E102-1216). 허용 오차·신뢰도는 공통 값과 서버 기준 가운데 넓은 쪽,
+     * 끊김 허용·높이 문턱은 한 음씩과 같은 악기별 완화다.
+     */
+    @Test fun firstSoundPlanUsesTheInstrumentLeniencyAndTheWiderTolerance() {
+        val danso = learnFirstSoundPlan(GuideInstrument.Danso, null)
+        assertEquals(1, danso.required)
+        assertTrue(danso.targetsHz.isEmpty())
+        assertEquals(LearnPitchRule(LEARN_PITCH_TOLERANCE_CENT, FIRST_SOUND_HOLD_MS, LEARN_PITCH_MIN_CONFIDENCE, octaveMustMatch = true,
+            firstNoteTuning = false, maxTuningOffsetCent = 0.0, leniency = StepLeniency.Danso), danso.rule)
+        assertEquals(70.0, learnFirstSoundPlan(GuideInstrument.Danso, criteria.copy(pitchToleranceCent = 70.0)).rule.toleranceCent)
+        assertEquals(LEARN_PITCH_TOLERANCE_CENT, learnFirstSoundPlan(GuideInstrument.Danso, criteria.copy(pitchToleranceCent = 25.0)).rule.toleranceCent)
+        assertEquals(0.7, learnFirstSoundPlan(GuideInstrument.Danso, criteria.copy(minConfidence = 0.7)).rule.minConfidence)
+        assertEquals(StepLeniency.Daegeum, learnFirstSoundPlan(GuideInstrument.DaegeumSanjo, null).rule.leniency)
+        assertEquals(StepLeniency.Strict, learnFirstSoundPlan(GuideInstrument.Sogeum, null).rule.leniency)
+    }
+
+    private fun firstSound(instrument: GuideInstrument = GuideInstrument.Danso) =
+        Feed(LearnPitchTracker(learnFirstSoundPlan(instrument, null)))
+
+    @Test fun firstSoundPassesWhenAnyPitchIsHeldSteadyForOneSecond() {
+        // 정해진 음이 없어 어느 높이든 1초 이어 내면 통과한다. 떨림(5Hz, ±30센트, 꼭대기에서 시작)은 같은 높이다. 높이 문턱이 기본인 소금도 같다.
+        listOf(GuideInstrument.Danso to midi(70), GuideInstrument.Danso to midi(65), GuideInstrument.Sogeum to midi(82)).forEach { (instrument, note) ->
+            val short = firstSound(instrument).hold(note, 900)
+            assertTrue(short.results.isEmpty())
+            assertFalse(short.tracker.passed)
+
+            val held = firstSound(instrument)
+            repeat(55) { held.frame(cents(note, 30 * cos(2 * PI * it / 10))) }
+            assertEquals(listOf(LearnNoteResult.Hit), held.results)
+            assertTrue(held.tracker.passed)
+            assertTrue(held.tracker.finished)
+        }
+    }
+
+    /** 말소리처럼 높이가 계속 움직이거나, 소리는 크지만 높이가 잡히지 않으면(박수·잡음) 아무리 길어도 통과하지 못한다. */
+    @Test fun firstSoundDoesNotPassWhenThePitchWandersOrIsMissing() {
+        // 20ms마다 8센트씩 오르내리는 미끄러짐(초당 400센트): 기준에서 ±50센트를 벗어날 때마다 새로 잰다
+        val glide = firstSound()
+        repeat(250) { i -> glide.frame(cents(midi(57), 8.0 * (i % 60) * if ((i / 60) % 2 == 0) 1 else -1)) }
+        assertTrue(glide.results.isEmpty())
+        // 음절마다 높이가 바뀌는 말(0.3초씩 2~3반음 차이)
+        val speech = firstSound()
+        repeat(6) { listOf(0.0, 250.0, -200.0).forEach { c -> speech.hold(cents(midi(57), c), 300) } }
+        assertTrue(speech.results.isEmpty())
+        // 높이 없음·낮은 신뢰도만 이어짐
+        assertTrue(firstSound().hold(null, 5_000).hold(midi(70), 5_000, difference = 0.5).results.isEmpty())
+        // 거의 1초 내다가 다른 높이로 바뀌면 처음부터 다시 잰다
+        val switched = firstSound().hold(midi(70), 900).hold(midi(72), 900)
+        assertTrue(switched.results.isEmpty())
+        assertEquals(listOf(LearnNoteResult.Hit), switched.hold(midi(72), 300).results)
+    }
+
+    /** 높이가 잠깐 비는 끊김은 한 음씩처럼 단소·대금만 봐주고, 소금은 그 자리에서 다시 잰다. */
+    @Test fun firstSoundForgivesShortDropoutsOnlyForLenientInstruments() {
+        val danso = firstSound().hold(midi(70), 600).hold(null, 60).hold(midi(70), 500)
+        assertEquals(listOf(LearnNoteResult.Hit), danso.results)
+
+        val sogeum = firstSound(GuideInstrument.Sogeum).hold(midi(82), 600).hold(null, 60).hold(midi(82), 500)
+        assertTrue(sogeum.results.isEmpty())
+        assertEquals(listOf(LearnNoteResult.Hit), sogeum.hold(midi(82), 600).results)
     }
 
     @Test fun noPlanForOtherStagesOrUnknownNotes() {
