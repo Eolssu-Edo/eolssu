@@ -10,8 +10,6 @@
 
 `단소` · `소금` · `정악대금` · `산조대금` &nbsp;|&nbsp; `Android` · `iOS` · `Web(Kotlin/Wasm)`
 
-<img src="docs/assets/readme/home-scroll.gif" width="260" alt="홈 화면을 내리면 기능 카드가 나타나는 모습">
-
 </div>
 
 제품 범위와 우선순위는 [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)를 기준으로 합니다. 기능별 확정 동작은 [문서 목록](docs/README.md)의 스펙을, 영역별 구현·실행 방법은 각 폴더의 README를 따릅니다.
