@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Jenkins의 GitHub Actions 이전 (1294)](plans/S15P31E102-1294.md) · [GitHub Actions 운영 절차](../infra/github-actions/README.md)
+
 - [웹 로그인 세션 안정화: 탭 사이 토큰 갱신 잠금·브라우저 세션 단위 자동 로그인 끔·다른 탭 계정 따르기·대기 중 로그아웃 (1264)](plans/web-parity/S15P31E102-1264-handoff.md)
 - [웹 브라우저 뒤로 가기·새로고침에서 편집 미저장 확인과 패널·대화상자 닫기 (1265)](plans/web-parity/S15P31E102-1265-handoff.md)
 - [웹 녹음과 연주 평가: 16kHz WAV 녹음기·마이크 권한·분석 주소 직접 진입 안내 (1262)](plans/web-parity/S15P31E102-1262-handoff.md) · [스펙](specs/recording-file.md)
