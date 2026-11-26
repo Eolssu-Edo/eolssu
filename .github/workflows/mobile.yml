@@ -38,6 +38,10 @@ permissions:
   contents: read
   actions: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: mobile-${{ startsWith(inputs.mode, 'ios') && 'ios' || 'android' }}
   cancel-in-progress: false
