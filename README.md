@@ -256,7 +256,7 @@ S15P31E102/
 ├── docs/         # 스펙·계약·지식·결정·작업 기록, README 화면(assets/readme)
 ├── docker-compose.dev.yml · docker-compose.prod.yml   # 초기 backend·Nginx 예시(운영은 infra/runtime/compose.yml)
 ├── .env.dev.example · .env.prod.example               # 위 예시용 환경 변수 이름·용도
-└── .gitlab/      # MR 템플릿
+└── .github/      # PR 템플릿
 ```
 
 ## 🌿 브랜치
