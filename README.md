@@ -9,15 +9,15 @@ Hugo로 만든 프로젝트 소개·기술 블로그·팀 소개 사이트예요
   → Hugo 빌드 → 결과물(HTML)만 GitHub team-edo/team-edo.github.io에 push → https://team-edo.github.io
 ```
 
-- 원본(글·설정)은 이 GitLab `blog` 브랜치에만 있고, GitHub에는 완성된 HTML만 올라가요.
+- 원본(글·설정)은 서비스 저장소(GitHub `team-edo/eolssu`)의 `blog` 브랜치에만 있고, GitHub에는 완성된 HTML만 올라가요.
 - 글 이미지는 GitHub `team-edo/blog-images`에 따로 둬요 (아래 [이미지](#이미지)).
-- Jenkins는 서버 안(loopback)에서만 접속을 받아서 GitLab webhook 대신 SCM polling으로 변경을 감지해요.
+- Jenkins는 서버 안(loopback)에서만 접속을 받아서 GitHub webhook 대신 SCM polling으로 변경을 감지해요.
 
 ## 팀원이 블로그를 사용하는 방식
 
-**coco-blog 실행 → 로컬 TIL 목록에서 하나 또는 여러 글감 선택 → 대화로 정리 → 공개용 draft 작성 → 요청한 Git 반영 → 작성자의 draft 해제 → blog 병합 후 자동 게시** 흐름입니다. 원본 TIL과 대화는 Git에 올리지 않습니다. 요청은 저장소를 연결한 Codex 채팅에 직접 전달하며, GitLab 댓글·메신저를 감지하는 자동 작성 봇은 없습니다.
+**coco-blog 실행 → 로컬 TIL 목록에서 하나 또는 여러 글감 선택 → 대화로 정리 → 공개용 draft 작성 → 요청한 Git 반영 → 작성자의 draft 해제 → blog 병합 후 자동 게시** 흐름입니다. 원본 TIL과 대화는 Git에 올리지 않습니다. 요청은 저장소를 연결한 Codex 채팅에 직접 전달하며, PR 댓글·메신저를 감지하는 자동 작성 봇은 없습니다.
 
-누가 어디에서 무엇을 하는지, TIL 머리말과 요청 문구, 검토·commit·push·MR·게시 확인 절차는 [블로그 사용 방식](docs/blog-workflow.md)을 따라 주세요. 개발 브랜치에서 실행하면 스킬이 `origin/blog` 기반의 별도 worktree·글 작업 브랜치를 준비합니다. Git 반영 시 선택한 공개 Markdown만 올리고, 로컬 TIL과 앱 변경은 포함하지 않습니다. 공개 글 MR의 대상은 `blog`입니다. GitLab MR의 Draft 표시와 Hugo의 `draft`는 별개입니다.
+누가 어디에서 무엇을 하는지, TIL 머리말과 요청 문구, 검토·commit·push·MR·게시 확인 절차는 [블로그 사용 방식](docs/blog-workflow.md)을 따라 주세요. 개발 브랜치에서 실행하면 스킬이 `origin/blog` 기반의 별도 worktree·글 작업 브랜치를 준비합니다. Git 반영 시 선택한 공개 Markdown만 올리고, 로컬 TIL과 앱 변경은 포함하지 않습니다. 공개 글 MR의 대상은 `blog`입니다. GitHub PR의 Draft 표시와 Hugo의 `draft`는 별개입니다.
 
 공개 글에서 작성자가 수정하거나 삭제할 때는 [글 편집과 일괄 반영 안내](editor/README.md)를 따릅니다. [동작·검증 계획](docs/blog-batch-editor.md)에는 임시 저장과 배포 조건을 정리했습니다.
 
@@ -30,7 +30,7 @@ Hugo로 만든 프로젝트 소개·기술 블로그·팀 소개 사이트예요
    git fetch origin
    git switch -c "docs(blog)/S15P31E102-<번호>-<글 제목>" origin/blog
    ```
-   브랜치 이름은 [팀 규칙](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/develop/AGENTS.md)의 `타입(파트)/전체JiraKey-Task제목`을 따르고 파트 자리에 `blog`를 써요.
+   브랜치 이름은 [팀 규칙](https://github.com/team-edo/eolssu/blob/develop/AGENTS.md)의 `타입(파트)/전체JiraKey-Task제목`을 따르고 파트 자리에 `blog`를 써요.
 2. `content/posts/`에 `YYYY-MM-DD-주제.md` 파일을 추가해요 (아래 머리말 복사)
 3. 이미지는 GitHub `team-edo/blog-images`에 올리고 주소로 넣어요
 4. MR을 **대상 브랜치 `blog`**로 올리고, 리뷰 후 머지하면 1분 안에 자동 배포돼요
@@ -128,8 +128,8 @@ hugo server -D
 접속은 서비스 저장소 운영 문서(develop의 `infra/runtime/README.md` Jenkins 절, SSH 터널)를 따라요.
 
 1. 플러그인: Git, Credentials Binding, Pipeline (GitLab·Docker Pipeline 플러그인은 필요 없어요)
-2. Credentials: **Secret text** `github-blog-token`. GitLab 읽기는 기존 `eolssu-gitlab`
-3. Pipeline 잡 `eolssu-blog`: **Pipeline script from SCM**, 저장소 `https://lab.ssafy.com/s15-final/S15P31E102.git`, Credentials `eolssu-gitlab`, 브랜치 `*/blog`, Script Path `Jenkinsfile`
+2. Credentials: **Secret text** `github-blog-token`. 저장소 읽기는 `eolssu-github`(서비스 저장소 운영 문서의 GitHub 연결 절차로 등록)
+3. Pipeline 잡 `eolssu-blog`: **Pipeline script from SCM**, 저장소 `https://github.com/team-edo/eolssu.git`, Credentials `eolssu-github`, 브랜치 `*/blog`, Script Path `Jenkinsfile`
 4. 잡을 **한 번 직접 실행**하면 polling 트리거가 등록돼요. 다음부터는 `blog` 브랜치 변경을 1분 안에 감지해요
 
 빌드는 [블로그 전용 에이전트 `edo1-blog`](docs/blog-jenkins-executor.md)에서 `docker run`으로 Hugo 이미지를 실행하고, 배포는 에이전트의 `git`으로 해요. 실패하면 Stages에서 정리·checkout·Hugo 출력 준비·Hugo 빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push 중 실패한 단계를 확인하세요. S15P31E102-262 변경은 `blog` 병합 후 적용됩니다. `scripts/deploy.sh`는 인자 없이 기존 일괄 게시를 유지하며 Jenkins는 `prepare`, `sync`, `commit`, `push`를 분리 호출합니다. `PAGES_WORK_DIR`은 workspace의 전용 임시 디렉터리이고 성공·실패 모두 Pipeline의 `post/always`에서 정리합니다.
@@ -186,7 +186,7 @@ hugo server -D
 - 팀은 **Team Edo**, 프로젝트는 **얼쑤**로 표기한다. Edo는 세종대왕의 이름인 이도에서 가져왔다.
 - 페이지·게시글·검색 설명·RSS 등 공개 콘텐츠에는 교육기관·기수·반 표기를 사용하지 않는다.
 - 팀 표시는 `data/brand.yaml`의 `name`, 글 작성자 기본값은 `hugo.toml`의 `params.team`으로 관리한다.
-- GitHub 공개 주소와 Jenkins 배포 대상은 `team-edo`로 통일한다. 원본 GitLab 저장소 주소는 기존 연결을 유지한다.
+- GitHub 공개 주소와 Jenkins 배포 대상은 `team-edo`로 통일한다. 원본 저장소는 2026-11-26부터 GitHub `team-edo/eolssu`다.
 
 ### 내용 바꾸기
 
