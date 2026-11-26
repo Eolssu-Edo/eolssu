@@ -31,6 +31,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           bash infra/github-actions/verify-revision.sh require-ci
+          cp infra/github-actions/install-ffmpeg.sh "$RUNNER_TEMP/install-ffmpeg.sh"
           git switch --detach "$REVISION"
           python3 -B infra/release/release-candidate.py check "$REVISION"
           args=(notes "$REVISION")
@@ -43,6 +44,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - run: bash "$RUNNER_TEMP/install-ffmpeg.sh"
       - run: ./gradlew --no-daemon test mediaTest
         working-directory: backend
       - if: always()

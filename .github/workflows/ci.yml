@@ -46,6 +46,11 @@ jobs:
           java-version: '21'
           cache: gradle
           cache-dependency-path: backend/**/*.gradle*
+      - name: Install recording tools and prepare Nginx fixtures
+        run: |
+          bash infra/github-actions/install-ffmpeg.sh
+          docker pull python:3.11.16-slim-trixie
+          docker pull nginx:1.30.6-alpine
       - name: Deploy tooling and runtime configuration
         env:
           RUN_NGINX_TESTS: '1'
@@ -140,6 +145,16 @@ jobs:
       - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
         with:
           enable-cache: false
+      - name: Install audio tools
+        if: matrix.group == 'data' || matrix.group == 'ai'
+        run: bash infra/github-actions/install-ffmpeg.sh
+      - name: Install infra test dependencies
+        if: matrix.group == 'infra'
+        run: |
+          venv="$RUNNER_TEMP/infra-venv"
+          uv venv --python 3.12 "$venv"
+          uv pip install --python "$venv/bin/python" -r infra/qa-phone/live/requirements.txt -r infra/r2/requirements.txt
+          printf '%s\n' "$venv/bin" >> "$GITHUB_PATH"
       - name: Python tests
         env:
           GROUP: ${{ matrix.group }}
