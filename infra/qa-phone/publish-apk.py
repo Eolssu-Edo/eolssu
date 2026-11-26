@@ -3,8 +3,10 @@
 import argparse, datetime, fcntl, hashlib, json, os, pathlib, re, shutil, subprocess, tempfile
 
 def extract_merge_request(message):
-    matches=set(re.findall(r'^See merge request [A-Za-z0-9_./-]+!([1-9][0-9]*)\s*$', message, re.MULTILINE))
-    return int(next(iter(matches))) if len(matches)==1 else None
+    # GitHub merge commits start with "Merge pull request #N from owner/branch".
+    match=re.match(r'Merge pull request #([1-9][0-9]*) from \S+[ \t]*(?:\n|$)', message)
+    if not match or re.search(r'^Merge pull request #', message[match.end():], re.MULTILINE): return None
+    return int(match[1])
 
 def revision_merge_request(revision):
     if not re.fullmatch(r'[a-f0-9]{40}', revision): return None

@@ -333,11 +333,18 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 터널을 유지한 상태에서 브라우저로 `http://127.0.0.1:18080/`에 접속합니다. 로컬 18080이 사용 중이면 다른 로컬 포트를 선택합니다. Jenkins의 인증 정보를 실제로 변경했다면 위 초기 비밀번호 파일과 서버 전용 CLI 인증 파일도 함께 정리해야 합니다.
 
-백엔드 잡은 `eolssu-backend`, GitLab 연결은 Credentials `eolssu-gitlab`을 사용합니다. 기존 서버 Git 연결 정보를 Jenkins의 암호화된 Credentials 저장소에 옮기고 잡에는 비밀값 없는 저장소 URL·`develop`만 지정합니다. 구성 원본은 [infra/jenkins/backend.Jenkinsfile](../jenkins/backend.Jenkinsfile)이며 서버 복사본은 `/opt/eolssu/config/backend.Jenkinsfile`입니다.
+백엔드 잡은 `eolssu-backend`, 저장소 연결은 Credentials `eolssu-github`을 사용합니다. 저장소는 2026-11-26 SSAFY GitLab에서 GitHub `https://github.com/team-edo/eolssu.git`으로 옮겼습니다. 잡에는 비밀값 없는 저장소 URL·`develop`만 지정하고, Git 인증 정보는 Jenkins의 암호화된 Credentials 저장소에만 둡니다. 구성 원본은 [infra/jenkins/backend.Jenkinsfile](../jenkins/backend.Jenkinsfile)이며 서버 복사본은 `/opt/eolssu/config/backend.Jenkinsfile`입니다.
+
+새 서버에 GitHub 연결을 적용하는 순서는 다음과 같습니다.
+
+1. GitHub에서 fine-grained PAT를 두 개 발급합니다. Jenkins 클론용은 저장소 `team-edo/eolssu`의 **Contents: Read-only**, QA 폰 PR 정보 동기화용은 **Pull requests: Read-only**만 줍니다.
+2. Jenkins → Manage Jenkins → Credentials에 ID `eolssu-github`, 종류 Username with password(사용자 이름은 GitHub 계정, 비밀번호는 클론용 PAT)로 등록합니다. 각 잡 등록 스크립트는 이 ID가 없으면 멈춥니다.
+3. `/opt/eolssu/config`의 Jenkinsfile 사본과 각 잡 config.xml을 develop의 `infra/` 파일로 바꿉니다. 바꾸는 방법은 [Jenkins 컨트롤러 안내](../jenkins/controller/README.md)의 적용 절차와 같습니다.
+4. QA 폰을 쓰면 동기화용 PAT를 숨김 입력으로 `/etc/eolssu/qa-github-read-token`(root:root, 0600)에 저장하고, [eolssu-qa-mr-sync.service](../qa-phone/eolssu-qa-mr-sync.service)를 다시 설치한 뒤 `sudo systemctl daemon-reload && sudo systemctl start eolssu-qa-mr-sync.service`로 한 번 실행해 확인합니다. 보관함(`index.json`)은 비어 있는 상태로 시작하며 예전 GitLab MR 번호가 남은 보관함을 옮기지 않습니다.
 
 현재 MR의 인프라 파일이 아직 develop에 없으므로 잡은 서버의 관리된 Pipeline 정의에서 develop 소스를 명시적으로 checkout합니다. Dockerfile과 Dockerfile 전용 ignore 규칙도 `/opt/eolssu/config`의 관리 파일을 사용합니다. 앱 소스는 수정하지 않습니다. CI 구성 검사는 실제 DB 비밀번호 대신 `ci.env.example`의 고정 데이터만 사용하며 서비스를 기동하지 않습니다.
 
-잡은 `develop`을 1분마다 SCM polling으로 확인합니다. 변경이 있을 때만 실행하며 직접 Push로 develop이 바뀌는 경우도 감지합니다. 별도 GitLab webhook이나 Jenkins 공개 포트는 필요하지 않습니다. 정확한 ref `refs/heads/develop`만 checkout하고, 동시 실행을 막으며 20분 제한을 둡니다. 경로 필터는 없습니다.
+잡은 `develop`을 1분마다 SCM polling으로 확인합니다. 변경이 있을 때만 실행하며 직접 Push로 develop이 바뀌는 경우도 감지합니다. 별도 GitHub webhook이나 Jenkins 공개 포트는 필요하지 않습니다. 정확한 ref `refs/heads/develop`만 checkout하고, 동시 실행을 막으며 20분 제한을 둡니다. 경로 필터는 없습니다.
 
 실행 순서는 Gradle 빌드·테스트 → Compose/Nginx 검사 → 이미지 빌드·JAR 보관 → 후보 배포입니다. 격리 후보는 운영 DB 없이 liveness를 확인하고 JAR을 추출한 뒤 정리합니다. 이후 운영 DB 마이그레이션을 확인하고 비활성 슬롯을 실제 운영 설정으로 기동합니다.
 

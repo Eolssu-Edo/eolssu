@@ -33,8 +33,8 @@ pipeline {
                     }
                     def revision = checkout scmGit(
                         branches: [[name: params.RC_SHA]],
-                        userRemoteConfigs: [[credentialsId: 'eolssu-gitlab',
-                            url: 'https://lab.ssafy.com/s15-final/S15P31E102.git',
+                        userRemoteConfigs: [[credentialsId: 'eolssu-github',
+                            url: 'https://github.com/team-edo/eolssu.git',
                             refspec: '+refs/heads/develop:refs/remotes/origin/develop +refs/heads/main:refs/remotes/origin/main +refs/tags/*:refs/tags/*']])
                     if (revision.GIT_COMMIT != params.RC_SHA) {
                         error('Checked out revision does not match RC_SHA')

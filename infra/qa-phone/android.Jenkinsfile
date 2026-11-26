@@ -13,7 +13,7 @@ pipeline {
             steps {
                 script {
                     if (!params.REVISION?.matches('[0-9a-f]{40}')) { error('Full develop SHA required') }
-                    def revision = checkout scmGit(branches: [[name: params.REVISION]], userRemoteConfigs: [[credentialsId: 'eolssu-gitlab', url: 'https://lab.ssafy.com/s15-final/S15P31E102.git', refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
+                    def revision = checkout scmGit(branches: [[name: params.REVISION]], userRemoteConfigs: [[credentialsId: 'eolssu-github', url: 'https://github.com/team-edo/eolssu.git', refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
                     env.GIT_COMMIT = revision.GIT_COMMIT
                     if (env.GIT_COMMIT != params.REVISION) { error('Revision mismatch') }
                     sh 'git merge-base --is-ancestor "$GIT_COMMIT" origin/develop'

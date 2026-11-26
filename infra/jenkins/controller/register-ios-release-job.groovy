@@ -41,7 +41,7 @@ assert (source =~ /name: '([A-Z_]+)'/).collect { it[1] } == parameters*.name: 'P
 
 // IDs only; secret values are never read here.
 def credentialIds = CredentialsProvider.lookupCredentials(StandardCredentials, j, null, null)*.id
-def missing = ['eolssu-gitlab', 'eolssu-asc-api-key', 'eolssu-asc-key-id', 'eolssu-asc-issuer-id'] - credentialIds
+def missing = ['eolssu-github', 'eolssu-asc-api-key', 'eolssu-asc-key-id', 'eolssu-asc-issuer-id'] - credentialIds
 def description = 'App Store 출시용 Release 아카이브·App Store IPA 빌드와 선택적 App Store Connect 업로드(S15P31E102-1256). ' +
     '은서 Mac(ios-eunseo)에서 Credentials eolssu-asc-api-key/-key-id/-issuer-id의 App Store Connect 팀 API 키(Admin)로 클라우드 서명. ' +
     '심사 제출은 하지 않음. 정의 원본: infra/jenkins/ios-release.Jenkinsfile'

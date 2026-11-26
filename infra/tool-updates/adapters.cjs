@@ -36,7 +36,7 @@ async function project(root) {
  const top=(await run(program('git'),['-C',actual,'rev-parse','--show-toplevel'])).stdout.trim();
  if(await fsp.realpath(top)!==actual) throw new Error('Git 프로젝트의 최상위 폴더를 선택해주세요.');
  const origin=(await run(program('git'),['-C',actual,'remote','get-url','origin'])).stdout;
- if(normalizeOrigin(origin)!=='lab.ssafy.com/s15-final/S15P31E102') throw new Error('S15P31E102 프로젝트를 선택해주세요.');
+ if(normalizeOrigin(origin).toLowerCase()!=='github.com/team-edo/eolssu') throw new Error('team-edo/eolssu 프로젝트를 선택해주세요.');
  return actual;
 }
 const legacyGraphPath=root=>path.join(root,'graphify-out');

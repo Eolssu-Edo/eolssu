@@ -257,9 +257,9 @@ EDO1 원본은 두 기기가 공통으로 사용한다: `/opt/eolssu/apks/<build
 
 ‘설치됨’은 해당 기기의 `com.ssafy.eolssu.qa`를 ADB로 읽은 결과다. 일반 앱 `com.ssafy.eolssu`와 별개다. 조회 중/조회 실패와 실제 미설치를 구분한다. 기존 앱 데이터 보존은 `adb install -r`로 같은 패키지를 갱신하며 앱 삭제·데이터 초기화를 자동 실행하지 않는다는 의미다. 서명이 다르면 설치를 실패시키고 기존 앱을 유지한다. 이 동작을 자동 설치 약속으로 표시하지 않는다.
 
-신규 MR의 작성자/제목도 EDO1의 `eolssu-qa-mr-sync.timer`가 약1분마다 GitLab 실제 API에서 갱신한다. Windows 미러는 약1분, 웹 목록은 약5초 간격으로 가져오므로 새 MR 반영에는 보통1~2분과 다운로드 시간이 더해진다. 제목을 나중에 바꾼 경우도 다음 수집 때 갱신된다. GitLab MR 정보는 요청당 최대 10개씩 조회한다. API 오류 시 기존 APK/정보를 유지하고 재시도한다. 미확보 정보는 ‘확인 중’으로 표시하며 커밋 작성자를 MR 작성자로 추정하지 않는다.
+신규 MR의 작성자/제목도 EDO1의 `eolssu-qa-mr-sync.timer`가 약1분마다 GitHub GraphQL API에서 갱신한다(2026-11-26 GitHub `team-edo/eolssu` 이전 후, MR 번호 자리에 PR 번호를 쓴다). Windows 미러는 약1분, 웹 목록은 약5초 간격으로 가져오므로 새 MR 반영에는 보통1~2분과 다운로드 시간이 더해진다. 제목을 나중에 바꾼 경우도 다음 수집 때 갱신된다. PR 정보는 요청당 최대 10개씩 조회한다. 탈퇴한 계정의 PR은 작성자를 `ghost`로 표시한다. API 오류 시 기존 APK/정보를 유지하고 재시도한다. 미확보 정보는 ‘확인 중’으로 표시하며 커밋 작성자를 MR 작성자로 추정하지 않는다.
 
-프로젝트 전용 `eolssu-qa-mr-read` 토큰은 **Reporter / read_api**, 실제 생성본 만료일은 **2027-07-31**이다. 기존 checkout 토큰을 수정하지 않았다. 원본은 EDO1 `/etc/eolssu/qa-gitlab-read-token`에 root:root/0600으로 보관하고, systemd LoadCredential이 실행 시에만 jenkins 사용자 서비스로 전달한다. 값은 명령 인수·환경변수·로그·저장소에 기록하지 않는다. 이 파일을 일반 사용자에게 읽을 수 있도록 바꾸지 않는다.
+토큰은 GitHub fine-grained PAT(저장소 `team-edo/eolssu`만, **Pull requests: Read-only**)이다. GraphQL은 공개 저장소도 인증이 필요하다. 원본은 서버 `/etc/eolssu/qa-github-read-token`에 root:root/0600으로 보관하고, systemd LoadCredential이 실행 시에만 jenkins 사용자 서비스로 전달한다. 값은 명령 인수·환경변수·로그·저장소에 기록하지 않는다. 이 파일을 일반 사용자에게 읽을 수 있도록 바꾸지 않는다.
 
 ```bash
 systemctl status eolssu-qa-mr-sync.timer --no-pager
@@ -268,7 +268,7 @@ journalctl -u eolssu-qa-mr-sync.service -n 10 --no-pager
 sudo systemctl start eolssu-qa-mr-sync.service
 ```
 
-조회 실패가 지속되면 만료·회수 여부와 프로젝트 read_api 권한을 확인한다. 갱신은 GitLab에서 해당 프로젝트 읽기 전용 새 토큰을 발급하고, 승인된 숨김 입력으로 위 root 전용 파일을 교체한 뒤 단발 실행을 확인한다. 키를 채팅·셸 인수에 붙여넣지 않는다. 토큰 회수는 GitLab 프로젝트 Settings → Access tokens의 정확한 토큰을 확인해 운영자가 수행한다.
+조회 실패가 지속되면 만료·회수 여부와 Pull requests 읽기 권한을 확인한다. 갱신은 GitHub Settings → Developer settings → Fine-grained tokens에서 위 권한의 새 토큰을 발급하고, 승인된 숨김 입력으로 위 root 전용 파일을 교체한 뒤 단발 실행을 확인한다. 키를 채팅·셸 인수에 붙여넣지 않는다. 토큰 회수도 같은 화면에서 정확한 토큰을 확인해 운영자가 수행한다.
 
 수집 서비스만 중지하려면 `sudo systemctl disable --now eolssu-qa-mr-sync.timer`를 사용한다. 필요 시 실행 중인 단발 서비스도 `sudo systemctl stop eolssu-qa-mr-sync.service`로 중지한다. APK 빌드·미러·기기 중계는 계속 동작하며 기존 정보는 남는다. 코드·unit 원본은 이 폴더의 `sync-mr-details.py`, `eolssu-qa-mr-sync.service/.timer`다. 초기 index 백업은 `/var/backups/qa498-mr-auto-20261105T032200Z/index.json`이다.
 

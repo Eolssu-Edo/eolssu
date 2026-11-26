@@ -33,14 +33,14 @@
 
 ## 📦 제출 산출물
 
-최종 제출 문서는 `main` 브랜치의 [`exec/`](https://lab.ssafy.com/s15-final/S15P31E102/-/tree/main/exec)에만 있고, `develop`에는 없습니다. 소스를 받은 뒤 빌드·배포하려면 포팅 매뉴얼부터 읽습니다.
+최종 제출 문서는 `main` 브랜치의 [`exec/`](https://github.com/team-edo/eolssu/tree/main/exec)에만 있고, `develop`에는 없습니다. 소스를 받은 뒤 빌드·배포하려면 포팅 매뉴얼부터 읽습니다.
 
 | 산출물 | 파일(`main` 브랜치) |
 | --- | --- |
-| 📘 포팅 매뉴얼(빌드·배포 절차, 제품 버전, 환경 변수, 배포 특이사항) | [exec/1-porting-manual.md](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/1-porting-manual.md) |
-| 🔌 외부 서비스 정보(소셜 로그인, R2, SMTP, 스토어 등) | [exec/2-external-services.md](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/2-external-services.md) |
-| 🗄 DB 덤프 최신본(구조 전체와 기준 데이터, 개인정보 행 제외) | [exec/3-eolssu-db-dump.sql](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/3-eolssu-db-dump.sql) |
-| 🎬 시연 시나리오 | [exec/4-demo-scenario.md](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/main/exec/4-demo-scenario.md) |
+| 📘 포팅 매뉴얼(빌드·배포 절차, 제품 버전, 환경 변수, 배포 특이사항) | [exec/1-porting-manual.md](https://github.com/team-edo/eolssu/blob/main/exec/1-porting-manual.md) |
+| 🔌 외부 서비스 정보(소셜 로그인, R2, SMTP, 스토어 등) | [exec/2-external-services.md](https://github.com/team-edo/eolssu/blob/main/exec/2-external-services.md) |
+| 🗄 DB 덤프 최신본(구조 전체와 기준 데이터, 개인정보 행 제외) | [exec/3-eolssu-db-dump.sql](https://github.com/team-edo/eolssu/blob/main/exec/3-eolssu-db-dump.sql) |
+| 🎬 시연 시나리오 | [exec/4-demo-scenario.md](https://github.com/team-edo/eolssu/blob/main/exec/4-demo-scenario.md) |
 
 ## ✨ 기능 둘러보기
 

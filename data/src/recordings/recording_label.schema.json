@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lab.ssafy.com/s15-final/S15P31E102/data/src/recordings/recording_label.schema.json",
+  "$id": "https://github.com/team-edo/eolssu/data/src/recordings/recording_label.schema.json",
   "title": "녹음 정답 기록",
   "description": "채점 평가용 녹음 1개의 정답: 어떤 악보 구간을 어떤 조건에서 불었고 어디를 일부러 틀렸는가. 음 번호(idx)는 공통 악보 데이터 events 중 NOTE만 0부터 센 번호다.",
   "type": "object",

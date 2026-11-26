@@ -17,7 +17,10 @@ import sys
 
 SHA = re.compile('[0-9a-f]{40}')
 TAG = re.compile(r'v\d+\.\d+\.\d+(-rc\.\d+)?')
-MERGE = re.compile(r"Merge branch '(?P<type>[a-z]+)\((?P<part>[a-z]+)\)/(?P<key>S15P31E102-\d+)-(?P<title>.*)' into 'develop'")
+BRANCH = r"(?P<type>[a-z]+)\((?P<part>[a-z]+)\)/(?P<key>S15P31E102-\d+)-(?P<title>.*)"
+# GitLab merges before the 2026-11-26 move, GitHub pull request merges after it.
+MERGES = (re.compile(r"Merge branch '" + BRANCH + r"' into 'develop'"),
+          re.compile(r"Merge pull request #\d+ from [^/\s]+/" + BRANCH))
 COMPONENTS = ('backend', 'web', 'ai', 'omr', 'playback')
 # Each source is read from the candidate commit. A missing file is reported, not guessed.
 VERSION_SOURCES = (
@@ -125,7 +128,7 @@ def version_warnings(found, expected=None):
 def merged_work(git, since, rev):
     items, other = [], []
     for sha, subject in git.first_parent_subjects(since, rev):
-        match = MERGE.fullmatch(subject)
+        match = next((m for m in (pattern.fullmatch(subject) for pattern in MERGES) if m), None)
         if match:
             items.append({'sha': sha, 'key': match['key'], 'type': match['type'], 'part': match['part'],
                           'title': match['title'].replace('-', ' ')})
