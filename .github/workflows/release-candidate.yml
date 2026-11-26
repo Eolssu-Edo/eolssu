@@ -1,0 +1,55 @@
+name: Release candidate
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full develop commit SHA with a successful CI run
+        required: true
+        type: string
+      release_tag:
+        description: Optional version for notes, such as v1.2.3 or v1.2.3-rc.1
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    if: github.repository == 'team-edo/eolssu' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify revision and prepare release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ inputs.revision }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          bash infra/github-actions/verify-revision.sh require-ci
+          git switch --detach "$REVISION"
+          python3 -B infra/release/release-candidate.py check "$REVISION"
+          args=(notes "$REVISION")
+          if [[ -n "$RELEASE_TAG" ]]; then args+=(--tag "$RELEASE_TAG"); fi
+          python3 -B infra/release/release-candidate.py "${args[@]}" > release-notes.md
+          python3 -B infra/release/release-candidate.py "${args[@]}" --format json > release-notes.json
+          python3 -B -m unittest discover -s infra/release/tests -v
+          python3 -B -m unittest discover -s infra/jenkins/tests -v
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: ./gradlew --no-daemon test mediaTest
+        working-directory: backend
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-candidate
+          path: |
+            release-notes.*
+            backend/build/test-results/*/*.xml
+          retention-days: 7
