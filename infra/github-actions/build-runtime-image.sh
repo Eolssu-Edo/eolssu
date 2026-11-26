@@ -16,10 +16,10 @@ case "$service" in
     ;;
   frontend)
     (cd frontend && ./gradlew --no-daemon :webApp:wasmJsBrowserDistribution)
-    docker build --file infra/jenkins/frontend.Dockerfile \
+    docker build --platform linux/arm64 --file infra/jenkins/frontend.Dockerfile \
       --label "org.opencontainers.image.revision=$REVISION" \
       --tag "eolssu-frontend:ci-$REVISION" frontend/webApp/build/dist/wasmJs/productionExecutable
-    docker run --rm --network none "eolssu-frontend:ci-$REVISION" sh -ec \
+    docker run --rm --network none --platform linux/arm64 "eolssu-frontend:ci-$REVISION" sh -ec \
       'test -s /usr/share/nginx/html/index.html && nginx -t'
     ;;
   ai)

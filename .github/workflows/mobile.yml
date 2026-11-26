@@ -20,11 +20,15 @@ on:
       android_upload:
         description: Google Play upload mode
         type: choice
-        options: [none, internal, production-draft, production-completed]
+        options: [none, internal-draft, internal, production-draft, production-completed]
         default: none
       android_notes:
         description: Optional Korean Google Play release notes
         type: string
+      signing_check_only:
+        description: Verify signing without publishing or uploading any files
+        type: boolean
+        default: false
       ios_upload:
         description: Upload to App Store Connect for TestFlight
         type: boolean
@@ -58,7 +62,14 @@ jobs:
       - name: Verify revision and checkout build inputs
         env:
           GH_TOKEN: ${{ github.token }}
+          CHECK_ONLY: ${{ inputs.signing_check_only }}
+          ANDROID_UPLOAD: ${{ inputs.android_upload }}
+          IOS_UPLOAD: ${{ inputs.ios_upload }}
         run: |
+          if [[ "$CHECK_ONLY" == true && ( "$ANDROID_UPLOAD" != none || "$IOS_UPLOAD" == true ) ]]; then
+            echo 'Signing verification cannot be combined with a store upload' >&2
+            exit 1
+          fi
           bash infra/github-actions/verify-revision.sh require-ci
           cp -R infra/github-actions "$RUNNER_TEMP/ci-tools"
           echo "CI_TOOLS=$RUNNER_TEMP/ci-tools" >> "$GITHUB_ENV"
@@ -76,7 +87,7 @@ jobs:
           ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           EOLSSU_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: bash "$CI_TOOLS/build-android.sh"
-      - name: Build, sign and optionally upload iOS
+      - name: Build and sign iOS
         if: startsWith(inputs.mode, 'ios')
         env:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
@@ -84,22 +95,29 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
           IOS_DEVICE_ID: ${{ secrets.IOS_DEVICE_ID }}
-          UPLOAD_IOS: ${{ inputs.ios_upload }}
         run: bash "$CI_TOOLS/build-ios.sh"
-      - if: ${{ !cancelled() && hashFiles('mobile-out/revision.txt') != '' }}
+      - if: ${{ success() && !inputs.signing_check_only }}
         uses: oras-project/setup-oras@ac735097e22fe643015b0d19645f7c9a69942128 # v2
         with:
           version: '1.4.0'
       - name: Preserve outputs in a private GHCR package
-        if: ${{ !cancelled() && hashFiles('mobile-out/revision.txt') != '' }}
+        if: ${{ success() && !inputs.signing_check_only }}
         env:
           GHCR_MOBILE_USER: ${{ vars.GHCR_MOBILE_USER }}
           GHCR_MOBILE_TOKEN: ${{ secrets.GHCR_MOBILE_TOKEN }}
         run: bash "$CI_TOOLS/publish-mobile.sh"
       - name: Upload AAB to Google Play
-        if: inputs.mode == 'android-release' && inputs.android_upload != 'none'
+        if: inputs.mode == 'android-release' && !inputs.signing_check_only && inputs.android_upload != 'none'
         env:
           PLAY_CREDENTIALS: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           PLAY_TARGET: ${{ inputs.android_upload }}
           PLAY_NOTES: ${{ inputs.android_notes }}
         run: bash "$CI_TOOLS/upload-play.sh"
+      - name: Upload to App Store Connect
+        if: inputs.mode == 'ios-release' && !inputs.signing_check_only && inputs.ios_upload
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+        run: bash "$CI_TOOLS/build-ios.sh" upload

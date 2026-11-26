@@ -15,6 +15,33 @@ printf '%s\n' "$ASC_PRIVATE_KEY" > "$key_file"
 unset ASC_PRIVATE_KEY
 auth=(-authenticationKeyPath "$key_file" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 
+export_archive() {
+  local destination=$1
+  /usr/bin/python3 - "$work/export-$destination.plist" "$IOS_TEAM_ID" "$method" "$destination" <<'PY'
+import plistlib
+import sys
+path, team, method, destination = sys.argv[1:]
+options = dict(method=method, destination=destination, teamID=team,
+               signingStyle='automatic', manageAppVersionAndBuildNumber=False)
+if method == 'app-store-connect':
+    options['uploadSymbols'] = True
+else:
+    options['thinning'] = '<none>'
+with open(path, 'wb') as output:
+    plistlib.dump(options, output)
+PY
+  xcodebuild -exportArchive -archivePath "$archive" -exportPath "$work/$destination" \
+    -exportOptionsPlist "$work/export-$destination.plist" -allowProvisioningUpdates "${auth[@]}"
+}
+
+
+if [[ "${1:-}" == upload ]]; then
+  [[ "$MODE" == ios-release && -d "$archive" && "$(cat "$out/revision.txt")" == "$REVISION" ]]
+  method=app-store-connect
+  export_archive upload
+  exit 0
+fi
+
 case "${MODE:?iOS build mode required}" in
   ios-qa)
     : "${IOS_DEVICE_ID:?Registered QA device ID required}"
@@ -50,25 +77,6 @@ xcodebuild -project frontend/iosApp/iosApp.xcodeproj -scheme iosApp -configurati
   -allowProvisioningUpdates "${auth[@]}" "TEAM_ID=$IOS_TEAM_ID" "PRODUCT_BUNDLE_IDENTIFIER=$bundle" \
   "CURRENT_PROJECT_VERSION=$version" "${overrides[@]}" archive
 
-export_archive() {
-  local destination=$1
-  /usr/bin/python3 - "$work/export-$destination.plist" "$IOS_TEAM_ID" "$method" "$destination" <<'PY'
-import plistlib
-import sys
-path, team, method, destination = sys.argv[1:]
-options = dict(method=method, destination=destination, teamID=team,
-               signingStyle='automatic', manageAppVersionAndBuildNumber=False)
-if method == 'app-store-connect':
-    options['uploadSymbols'] = True
-else:
-    options['thinning'] = '<none>'
-with open(path, 'wb') as output:
-    plistlib.dump(options, output)
-PY
-  xcodebuild -exportArchive -archivePath "$archive" -exportPath "$work/$destination" \
-    -exportOptionsPlist "$work/export-$destination.plist" -allowProvisioningUpdates "${auth[@]}"
-}
-
 export_archive export
 ipas=("$work"/export/*.ipa)
 [[ ${#ipas[@]} -eq 1 && -f "${ipas[0]}" ]]
@@ -83,8 +91,3 @@ else
 fi
 printf '%s\n' "$REVISION" > "$out/revision.txt"
 (cd "$out" && shasum -a 256 "$name.ipa" > "$name.ipa.sha256")
-
-if [[ "$MODE" == ios-release && "$UPLOAD_IOS" == true ]]; then
-  # The Actions step publishes the IPA even if the store upload fails.
-  export_archive upload
-fi

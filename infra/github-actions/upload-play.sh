@@ -2,7 +2,8 @@
 set -euo pipefail
 : "${PLAY_CREDENTIALS:?Google Play service account required}"
 case "$PLAY_TARGET" in
-  internal) track=internal; status=draft ;;
+  internal-draft) track=internal; status=draft ;;
+  internal) track=internal; status=completed ;;
   production-draft) track=production; status=draft ;;
   production-completed) track=production; status=completed ;;
   *) echo 'Select a Google Play upload target' >&2; exit 1 ;;
