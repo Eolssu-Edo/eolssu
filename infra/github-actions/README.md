@@ -6,7 +6,7 @@
 
 - develop PR과 병합 후 CI 실행의 **CI checks**에서 선택된 테스트 결과를 확인한다. 수동 실행은 전체 검사를 돌린다. 월요일 04시대 KST에는 Python 전 그룹을 실행한다. 기존 격리 Python 검사는 별도 단계에 실패를 표시한다. 기존 Jenkins의 경고 전용 MySQL 검사는 이 구성에서 CI 실패로 표시한다.
 - **Release candidate**에 성공한 develop 전체 SHA를 넣으면 기존 후보 검사, 백엔드·미디어 테스트, 릴리스 노트를 실행한다.
-- **Runtime image**에 같은 SHA와 서비스를 넣고 승인한다. 성공한 작업의 Summary에서 SHA와 ghcr.io 이미지 digest를 복사한다. 모바일 파일과 운영 이미지는 각각 GHCR에 보관한다.
+- **Runtime image**에 같은 SHA와 서비스를 넣고 승인한다. 성공한 작업의 Summary에서 SHA와 ghcr.io 이미지 digest를 복사한다. 운영 이미지는 GHCR에 보관한다.
 
 ## Mac mini에서 운영 이미지 적용
 
@@ -27,9 +27,15 @@
 | android-release | ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, Play 업로드 시 PLAY_SERVICE_ACCOUNT_JSON |
 | ios-qa | ASC_PRIVATE_KEY(p8 원문), ASC_KEY_ID, ASC_ISSUER_ID, IOS_DEVICE_ID 비밀값, IOS_TEAM_ID 변수 |
 | ios-release | ASC_PRIVATE_KEY(p8 원문), ASC_KEY_ID, ASC_ISSUER_ID 비밀값, IOS_TEAM_ID 변수 |
-| 모바일 환경 공통 | GHCR_MOBILE_USER 변수, GHCR_MOBILE_TOKEN 비밀값 |
+| 모바일 환경 공통 | 저장소 변수 MOBILE_ARTIFACT_RECIPIENTS에 운영자의 age 공개 수신자 등록 |
 
-모바일 파일은 공개 Actions 아티팩트에서 내려받는 대신 각 환경 전용 비공개 GHCR 패키지에 저장한다. 패키지 이름은 eolssu-mobile- 뒤에 환경 이름을 붙인다. 모바일 게시 계정은 해당 패키지에만 쓰기 권한을 주고, 팀 운영자에 읽기 권한을 부여한다. 공개 저장소에 패키지 접근을 상속시키지 않는다. Summary의 digest로 oras pull을 실행하고 함께 보관한 SHA-256과 revision.txt를 확인한다.
+모바일 빌드는 APK·AAB·IPA와 SHA-256 파일을 운영자 공개 키로 암호화한다. Actions에는 암호화한 mobile.tar.age만 올라가며 1일간 보관된다. Actions에서 다운로드한 뒤 아래 예시처럼 복호화하고 SHA-256과 revision.txt를 확인한다. 복호화에 쓰는 개인 키는 운영자에게 보관하고 공개 수신자만 GitHub에 등록한다.
+
+~~~sh
+mkdir -p mobile-out
+age -d -i "$MOBILE_DECRYPTION_KEY" mobile.tar.age | tar -xf - -C mobile-out
+(cd mobile-out && shasum -a 256 -c ./*.sha256)
+~~~
 
 QA 배포 담당자는 확인한 파일을 기존 기기와 OTA 게시 도구에 전달한다. APK는 [QA 폰 게시 도구](../qa-phone/publish-apk.py), Ad Hoc IPA는 [IPA 게시 도구](../ios-qa/publish-ipa.py)를 쓴다. 양쪽에 Actions의 Run number와 SHA를 넘긴다. Android는 같은 서명으로 설치본 위에 업데이트하고 iPhone은 등록된 기기에서 설치한다. App Store Connect 업로드 뒤 TestFlight 배포와 심사 제출은 App Store Connect에서 진행한다.
 

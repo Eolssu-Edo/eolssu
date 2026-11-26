@@ -96,16 +96,25 @@ jobs:
           IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
           IOS_DEVICE_ID: ${{ secrets.IOS_DEVICE_ID }}
         run: bash "$CI_TOOLS/build-ios.sh"
-      - if: ${{ success() && !inputs.signing_check_only }}
-        uses: oras-project/setup-oras@ac735097e22fe643015b0d19645f7c9a69942128 # v2
-        with:
-          version: '1.4.0'
-      - name: Preserve outputs in a private GHCR package
-        if: ${{ success() && !inputs.signing_check_only }}
+      - name: Encrypt verified mobile output
+        if: ${{ !inputs.signing_check_only }}
         env:
-          GHCR_MOBILE_USER: ${{ vars.GHCR_MOBILE_USER }}
-          GHCR_MOBILE_TOKEN: ${{ secrets.GHCR_MOBILE_TOKEN }}
-        run: bash "$CI_TOOLS/publish-mobile.sh"
+          MOBILE_ARTIFACT_RECIPIENTS: ${{ vars.MOBILE_ARTIFACT_RECIPIENTS }}
+        run: |
+          test -n "$MOBILE_ARTIFACT_RECIPIENTS"
+          bash "$CI_TOOLS/install-age.sh" "$RUNNER_TEMP/age-tools"
+          printf '%s\n' "$MOBILE_ARTIFACT_RECIPIENTS" > "$RUNNER_TEMP/mobile-recipients"
+          tar -C mobile-out -cf - . |
+            "$RUNNER_TEMP/age-tools/age/age" -R "$RUNNER_TEMP/mobile-recipients" -o "$RUNNER_TEMP/mobile.tar.age"
+      - name: Preserve encrypted file
+        if: ${{ !inputs.signing_check_only }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ inputs.mode }}-${{ inputs.revision }}
+          path: ${{ runner.temp }}/mobile.tar.age
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
       - name: Upload AAB to Google Play
         if: inputs.mode == 'android-release' && !inputs.signing_check_only && inputs.android_upload != 'none'
         env:
