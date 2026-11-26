@@ -6,14 +6,17 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Barrier
 from unittest.mock import patch
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
-from editor.app import BRANCH, GITHUB, GITHUB_API, UpstreamError, create_app
-from test_editor import NEW_VERSION, ORIGIN, PATH, SOURCE, VERSION
+from editor.app import BRANCH, GITHUB, GITHUB_API, REPOSITORY_API, UpstreamError, create_app
+from test_editor import NEW_VERSION, ORIGIN, PATH, SOURCE, VERSION, WRITE_HEADERS, github_file
 
 SECOND = "posts/2026-11-03-second.md"
 OTHER = "posts/2026-11-04-other.md"
 BATCH = "/post?mode=batch"
+HEAD = "a" * 40
+TREE = "b" * 40
+NEW_TREE = "c" * 40
 
 
 class BatchEditorTests(unittest.TestCase):
@@ -36,46 +39,73 @@ class BatchEditorTests(unittest.TestCase):
         }
         self.writes = []
         self.commits = []
+        self.head = HEAD
+        self.trees = {}
+        self.pending = {}
+        self.read_refs = []
         self.fail = None
         self.validation_barrier = None
         mock = patch("editor.app.upstream_json", side_effect=self.upstream)
         mock.start()
         self.addCleanup(mock.stop)
 
-    def upstream(self, url, *, headers=None, form=None, submit=None, expected_type=dict):
+    def upstream(self, url, *, headers=None, form=None, submit=None, patch=None, expected_type=dict):
         if url == GITHUB + "/login/oauth/access_token":
             return {"access_token": form["code"], "scope": "user:email"}
         if url.startswith(GITHUB_API + "/user/emails?"):
             return [{"email": headers["Authorization"].split()[1] + "@example.org", "verified": True}]
-        path = unquote(urlsplit(url).path)
-        if path.endswith("/repository/commits"):
-            if submit is None:
-                return self.commits
+        self.assertEqual(headers, WRITE_HEADERS)
+        parts = urlsplit(url)
+        query = parse_qs(parts.query)
+        route = unquote(parts.path).removeprefix(urlsplit(REPOSITORY_API).path)
+        if route == "/git/ref/heads/" + BRANCH:
+            return {"object": {"sha": self.head}}
+        if route == "/git/commits/" + self.head and submit is None:
+            return {"sha": self.head, "tree": {"sha": TREE}}
+        if route == "/git/trees":
+            self.assertEqual(submit["base_tree"], TREE)
+            for entry in submit["tree"]:
+                self.assertEqual((entry["mode"], entry["type"]), ("100644", "blob"))
+                self.assertTrue(entry["path"].startswith("content/posts/"))
+                self.assertTrue(("content" in entry) != (entry.get("sha", "missing") is None))
+            self.trees[NEW_TREE] = submit["tree"]
+            return {"sha": NEW_TREE}
+        if route == "/git/commits":
             self.writes.append(submit)
             if self.fail == "before":
                 raise UpstreamError(502)
-            for action in submit["actions"]:
-                file = action["file_path"].removeprefix("content/")
-                self.assertEqual(self.files[file][1], action["last_commit_id"])
-            for action in submit["actions"]:
-                file = action["file_path"].removeprefix("content/")
-                if action["action"] == "delete":
-                    self.files.pop(file)
+            self.assertEqual(submit["parents"], [self.head])
+            self.pending[NEW_VERSION] = submit
+            return {"sha": NEW_VERSION}
+        if route == "/git/refs/heads/" + BRANCH:
+            self.assertEqual(patch, {"sha": NEW_VERSION, "force": False})
+            commit = self.pending.pop(NEW_VERSION)
+            if commit["parents"] != [self.head]:
+                raise UpstreamError(422)
+            for entry in self.trees[commit["tree"]]:
+                file = entry["path"].removeprefix("content/")
+                if "content" in entry:
+                    self.files[file] = (entry["content"], NEW_VERSION)
                 else:
-                    self.files[file] = (action["content"], NEW_VERSION)
-            commit = {"id": NEW_VERSION, "message": submit["commit_message"]}
-            self.commits.insert(0, commit)
+                    self.files.pop(file)
+            self.head = NEW_VERSION
+            self.commits.insert(0, {"sha": NEW_VERSION, "commit": {"message": commit["message"]}})
             if self.fail == "after":
                 raise UpstreamError(502)
-            return commit
-        self.assertIn("/repository/files/content/", path)
-        file = path.split("/repository/files/content/")[1]
+            return {"object": {"sha": NEW_VERSION}}
+        if route == "/commits":
+            self.assertEqual(query["sha"], [BRANCH])
+            return self.commits
+        self.assertTrue(route.startswith("/contents/content/"), route)
+        self.assertIn(query["ref"], ([BRANCH], [self.head]))
+        self.read_refs.append(query["ref"][0])
+        file = route.removeprefix("/contents/content/")
         if self.validation_barrier:
             self.validation_barrier.wait(timeout=2)
         if file not in self.files:
             raise UpstreamError(404)
         source, version = self.files[file]
-        return {"content": base64.b64encode(source.encode()).decode(), "last_commit_id": version}
+        return github_file(source, version)
 
     def login(self, code="owner"):
         response = self.client.post("/session", headers={"Origin": ORIGIN},
@@ -116,8 +146,11 @@ class BatchEditorTests(unittest.TestCase):
         self.assertEqual(applied.json["items"], [])
         self.assertEqual(self.apply(session, pending["revision"]).json["commit"], NEW_VERSION)
         self.assertEqual(len(self.writes), 1)
-        self.assertEqual(self.writes[0]["branch"], BRANCH)
-        self.assertEqual([entry["action"] for entry in self.writes[0]["actions"]], ["update", "delete"])
+        self.assertEqual(self.writes[0]["parents"], [HEAD])
+        self.assertIn("Blog-Batch: " + pending["revision"], self.writes[0]["message"])
+        self.assertEqual([("content" in entry) for entry in self.trees[NEW_TREE]], [True, False])
+        self.assertEqual(self.head, NEW_VERSION)
+        self.assertIn(HEAD, self.read_refs)
         self.assertIn("# Keep this comment.", self.files[PATH][0])
         self.assertNotIn(SECOND, self.files)
 
@@ -195,6 +228,22 @@ class BatchEditorTests(unittest.TestCase):
         self.assertEqual([result.status_code for result in results], [200, 200])
         self.assertEqual([result.json["commit"] for result in results], [NEW_VERSION, NEW_VERSION])
         self.assertEqual(len(self.writes), 1)
+
+    def test_branch_moved_before_ref_update_keeps_queue(self):
+        session = self.login()
+        pending = self.stage(session).json
+        original = self.upstream
+
+        def moved_branch(url, **kwargs):
+            if kwargs.get("patch") is not None:
+                self.head = "d" * 40
+            return original(url, **kwargs)
+
+        with patch("editor.app.upstream_json", side_effect=moved_branch):
+            result = self.apply(session, pending["revision"])
+        self.assertEqual(result.status_code, 409)
+        self.assertEqual(self.call("GET", session).json, pending)
+        self.assertEqual(self.files[PATH][0], SOURCE)
 
     def test_enabling_batch_rejects_legacy_direct_writes(self):
         session = self.login()

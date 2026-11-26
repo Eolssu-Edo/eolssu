@@ -10,13 +10,22 @@ from urllib.parse import unquote
 import yaml
 from werkzeug.exceptions import Forbidden
 
-from editor.app import BRANCH, FRONT_MATTER, GITHUB, GITHUB_API, GITLAB, UpstreamError, create_app, parse_post, upstream_json
+from editor.app import (BRANCH, FRONT_MATTER, GITHUB, GITHUB_API, REPOSITORY_API, UpstreamError, create_app,
+                        parse_post, upstream_json)
 
 PATH = "posts/2026-11-02-test-fails-first.md"
 SOURCE = '---\ntitle: "기존 제목"\nslug: test-fails-first\nauthor: 오은서\n# Keep this comment.\ncategories: [backend]\ndraft: false\n---\n\n기존 본문\n'
 VERSION = "1" * 40
 NEW_VERSION = "2" * 40
 ORIGIN = "https://team-edo.github.io"
+WRITE_HEADERS = {"Authorization": "Bearer test-project-token", "X-GitHub-Api-Version": "2022-11-28"}
+
+
+def github_file(source, version):
+    """Shape of GitHub's contents API response: base64 wrapped at 60 characters, blob sha."""
+    encoded = base64.b64encode(source if isinstance(source, bytes) else source.encode()).decode()
+    return {"type": "file", "sha": version,
+            "content": "\n".join(encoded[i:i + 60] for i in range(0, len(encoded), 60)) + "\n"}
 
 
 class EditorTests(unittest.TestCase):
@@ -88,33 +97,32 @@ class EditorTests(unittest.TestCase):
             self.assertEqual(headers, {"Authorization": "Bearer test-read-token"})
             self.assertIs(expected_type, list)
             return self.emails
-        self.assertTrue(path.startswith(GITLAB + "/api/v4/projects/"))
-        self.assertEqual(headers, {"PRIVATE-TOKEN": "test-project-token"})
-        self.assertIn("/repository/files/content/" + PATH, unquote(path))
+        self.assertTrue(unquote(path).startswith(REPOSITORY_API + "/contents/content/" + PATH))
+        self.assertEqual(headers, WRITE_HEADERS)
         if delete is not None:
             self.assertEqual(delete["branch"], BRANCH)
-            self.assertEqual(delete["last_commit_id"], self.version)
+            self.assertEqual(delete["sha"], self.version)
             self.assertNotIn("content", delete)
             if self.simulate_race:
                 self.version = NEW_VERSION
-                raise UpstreamError(400)
+                raise UpstreamError(409)
             self.deletions.append(delete)
             self.source = None
             return None
         if update:
             self.updates.append(update)
             self.assertEqual(update["branch"], BRANCH)
-            self.assertEqual(update["last_commit_id"], self.version)
+            self.assertEqual(update["sha"], self.version)
             if self.simulate_race:
                 self.version = NEW_VERSION
-                raise UpstreamError(400)
-            self.source = update["content"]
+                raise UpstreamError(409)
+            self.source = base64.b64decode(update["content"], validate=True).decode()
             self.version = NEW_VERSION
-            return {"branch": BRANCH}
+            return {"content": {"sha": NEW_VERSION}, "commit": {"sha": "3" * 40}}
         self.assertTrue(path.endswith("?ref=blog"))
         if self.source is None:
             raise UpstreamError(404)
-        return {"content": base64.b64encode(self.source.encode()).decode(), "last_commit_id": self.version}
+        return github_file(self.source, self.version)
 
     def start(self, path=PATH):
         return self.client.post("/session", headers={"Origin": ORIGIN},
@@ -163,8 +171,8 @@ class EditorTests(unittest.TestCase):
     def test_upstream_delete_uses_json_and_accepts_empty_response(self):
         with patch("editor.app.upstream_http.open") as open_upstream:
             open_upstream.return_value.__enter__.return_value.read.return_value = b""
-            payload = {"branch": BRANCH, "last_commit_id": VERSION, "commit_message": "delete fixture"}
-            self.assertIsNone(upstream_json(GITLAB + "/fixture", delete=payload))
+            payload = {"branch": BRANCH, "sha": VERSION, "message": "delete fixture"}
+            self.assertIsNone(upstream_json(REPOSITORY_API + "/fixture", delete=payload))
             outgoing = open_upstream.call_args.args[0]
             self.assertEqual(outgoing.get_method(), "DELETE")
             self.assertEqual(outgoing.get_header("Content-type"), "application/json")
@@ -209,7 +217,7 @@ class EditorTests(unittest.TestCase):
             secret_file = Path(directory) / "secret"
             secret_file.write_text(secret + "\n")
             with patch.dict("os.environ", {
-                "EDITOR_GITLAB_WRITE_TOKEN_FILE": str(token_file),
+                "EDITOR_GITHUB_WRITE_TOKEN_FILE": str(token_file),
                 "EDITOR_SESSION_SECRET_FILE": str(secret_file),
             }, clear=True):
                 self.client = create_app(config).test_client()
@@ -295,7 +303,7 @@ class EditorTests(unittest.TestCase):
             for path in Path("content/posts").glob("????-??-??-*.md"):
                 with self.subTest(path=path):
                     source = path.read_bytes()
-                    file = {"content": base64.b64encode(source).decode(), "last_commit_id": VERSION}
+                    file = github_file(source, VERSION)
                     metadata = yaml.safe_load(FRONT_MATTER.match(source.decode())[1])
                     if metadata.get("draft") is True:
                         with self.assertRaises(Forbidden):
