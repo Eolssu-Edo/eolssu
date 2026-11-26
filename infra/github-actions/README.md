@@ -6,7 +6,7 @@
 
 - develop PR과 병합 후 CI 실행의 **CI checks**에서 선택된 테스트 결과를 확인한다. 수동 실행은 전체 검사를 돌린다. 월요일 04시대 KST에는 Python 전 그룹을 실행한다. 기존 격리 Python 검사는 별도 단계에 실패를 표시한다. 기존 Jenkins의 경고 전용 MySQL 검사는 이 구성에서 CI 실패로 표시한다.
 - **Release candidate**에 성공한 develop 전체 SHA를 넣으면 기존 후보 검사, 백엔드·미디어 테스트, 릴리스 노트를 실행한다.
-- **Runtime image**에 같은 SHA와 서비스를 넣고 승인한다. 성공한 작업의 Summary에서 SHA와 ghcr.io 이미지 digest를 복사한다. 운영 이미지는 GHCR에 보관한다.
+- **Runtime image**에 같은 SHA와 서비스를 넣고 승인한다. 성공한 작업의 Summary에서 SHA와 ghcr.io 이미지 digest를 복사한다. 실행별 태그로 게시하고 배포는 digest로 고정한다. 운영 이미지는 GHCR에 보관한다.
 
 ## Mac mini에서 운영 이미지 적용
 

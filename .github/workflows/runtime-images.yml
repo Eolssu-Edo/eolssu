@@ -68,17 +68,9 @@ jobs:
           export DOCKER_CONFIG="$(mktemp -d)"
           trap 'rm -rf "$DOCKER_CONFIG"' EXIT
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          target="$image:ci-$REVISION"
-          if manifest=$(docker buildx imagetools inspect "$target" --format '{{json .Manifest}}' 2>"$RUNNER_TEMP/ghcr-inspect.err"); then
-            digest=$(jq -er .digest <<< "$manifest")
-          elif grep -Eqi 'manifest unknown|manifest tagged.*not found|ghcr[.]io/.*: not found' "$RUNNER_TEMP/ghcr-inspect.err"; then
-            docker tag "eolssu-$SERVICE:ci-$REVISION" "$target"
-            docker push "$target"
-            digest=$(docker buildx imagetools inspect "$target" --format '{{json .Manifest}}' | jq -er .digest)
-          else
-            echo 'Could not establish whether this tag exists in GHCR' >&2
-            cat "$RUNNER_TEMP/ghcr-inspect.err" >&2
-            exit 1
-          fi
+          target="$image:ci-$REVISION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker tag "eolssu-$SERVICE:ci-$REVISION" "$target"
+          docker push "$target"
+          digest=$(docker buildx imagetools inspect "$target" --format '{{json .Manifest}}' | jq -er .digest)
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf 'Commit: %s\n\nImage: %s@%s\n' "$REVISION" "$image" "$digest" | tee -a "$GITHUB_STEP_SUMMARY"
