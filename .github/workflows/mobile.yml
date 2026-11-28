@@ -1,0 +1,136 @@
+name: Mobile build
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: QA or store build
+        required: true
+        type: choice
+        options: [android-qa, android-release, ios-qa, ios-release]
+      revision:
+        description: Full develop commit SHA with a successful CI run
+        required: true
+        type: string
+      version_name:
+        description: Store release version (X.Y.Z)
+        type: string
+      version_code:
+        description: Store release build number
+        type: string
+      android_upload:
+        description: Google Play upload mode
+        type: choice
+        options: [none, internal-draft, internal, production-draft, production-completed]
+        default: none
+      android_notes:
+        description: Optional Korean Google Play release notes
+        type: string
+      signing_check_only:
+        description: Verify signing without publishing or uploading any files
+        type: boolean
+        default: false
+      ios_upload:
+        description: Upload to App Store Connect for TestFlight
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: mobile-${{ startsWith(inputs.mode, 'ios') && 'ios' || 'android' }}
+  cancel-in-progress: false
+
+env:
+  MODE: ${{ inputs.mode }}
+  REVISION: ${{ inputs.revision }}
+  VERSION_CODE: ${{ inputs.version_code }}
+  VERSION_NAME: ${{ inputs.version_name }}
+
+jobs:
+  build:
+    if: github.repository == 'team-edo/eolssu' && github.ref == 'refs/heads/develop'
+    environment: ${{ inputs.mode }}
+    runs-on: ${{ startsWith(inputs.mode, 'ios') && 'macos-26' || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify revision and checkout build inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_ONLY: ${{ inputs.signing_check_only }}
+          ANDROID_UPLOAD: ${{ inputs.android_upload }}
+          IOS_UPLOAD: ${{ inputs.ios_upload }}
+        run: |
+          if [[ "$CHECK_ONLY" == true && ( "$ANDROID_UPLOAD" != none || "$IOS_UPLOAD" == true ) ]]; then
+            echo 'Signing verification cannot be combined with a store upload' >&2
+            exit 1
+          fi
+          bash infra/github-actions/verify-revision.sh require-ci
+          cp -R infra/github-actions "$RUNNER_TEMP/ci-tools"
+          echo "CI_TOOLS=$RUNNER_TEMP/ci-tools" >> "$GITHUB_ENV"
+          git switch --detach "$REVISION"
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android SDK platform
+        if: startsWith(inputs.mode, 'android')
+        run: bash "$CI_TOOLS/android-sdk.sh"
+      - name: Test and build Android
+        if: startsWith(inputs.mode, 'android')
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          EOLSSU_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: bash "$CI_TOOLS/build-android.sh"
+      - name: Build and sign iOS
+        if: startsWith(inputs.mode, 'ios')
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+          IOS_DEVICE_ID: ${{ secrets.IOS_DEVICE_ID }}
+        run: bash "$CI_TOOLS/build-ios.sh"
+      - name: Encrypt verified mobile output
+        if: ${{ !inputs.signing_check_only }}
+        env:
+          MOBILE_ARTIFACT_RECIPIENTS: ${{ vars.MOBILE_ARTIFACT_RECIPIENTS }}
+        run: |
+          test -n "$MOBILE_ARTIFACT_RECIPIENTS"
+          bash "$CI_TOOLS/install-age.sh" "$RUNNER_TEMP/age-tools"
+          printf '%s\n' "$MOBILE_ARTIFACT_RECIPIENTS" > "$RUNNER_TEMP/mobile-recipients"
+          tar -C mobile-out -cf - . |
+            "$RUNNER_TEMP/age-tools/age/age" -R "$RUNNER_TEMP/mobile-recipients" -o "$RUNNER_TEMP/mobile.tar.age"
+      - name: Preserve encrypted file
+        if: ${{ !inputs.signing_check_only }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ inputs.mode }}-${{ inputs.revision }}
+          path: ${{ runner.temp }}/mobile.tar.age
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+      - name: Upload AAB to Google Play
+        if: inputs.mode == 'android-release' && !inputs.signing_check_only && inputs.android_upload != 'none'
+        env:
+          PLAY_CREDENTIALS: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TARGET: ${{ inputs.android_upload }}
+          PLAY_NOTES: ${{ inputs.android_notes }}
+        run: bash "$CI_TOOLS/upload-play.sh"
+      - name: Upload to App Store Connect
+        if: inputs.mode == 'ios-release' && !inputs.signing_check_only && inputs.ios_upload
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+        run: bash "$CI_TOOLS/build-ios.sh" upload

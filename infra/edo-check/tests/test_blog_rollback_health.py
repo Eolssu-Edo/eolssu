@@ -30,6 +30,7 @@ class BlogRollbackHealthTests(unittest.TestCase):
              patch.object(collector, 'required_containers', return_value=set()), \
              patch.object(collector, 'edo1_host_health', return_value=[]), \
              patch.object(collector, 'prometheus_health', return_value=[]), \
+             patch.object(collector, 'edo1_dependency_rows', return_value=[]), \
              patch.object(collector, 'edo2_host_health', return_value=[]), \
              patch.object(collector, 'backup_health', return_value=[]), \
              patch.object(collector.http.client, 'HTTPConnection', return_value=connection):

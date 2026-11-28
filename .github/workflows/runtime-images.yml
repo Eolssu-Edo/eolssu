@@ -1,0 +1,76 @@
+name: Runtime image
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full develop commit SHA with a successful CI run
+        required: true
+        type: string
+      service:
+        description: Service to build and publish
+        required: true
+        type: choice
+        options: [backend, backend-runtime, frontend, ai, omr, playback]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: runtime-image-${{ inputs.service }}
+  cancel-in-progress: false
+
+env:
+  SERVICE: ${{ inputs.service }}
+  REVISION: ${{ inputs.revision }}
+
+jobs:
+  publish:
+    if: github.repository == 'team-edo/eolssu' && github.ref == 'refs/heads/develop'
+    environment: runtime-images
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    runs-on: ${{ (inputs.service == 'omr' || inputs.service == 'frontend') && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash infra/github-actions/verify-revision.sh require-ci
+          cp -R infra/github-actions "$RUNNER_TEMP/ci-tools"
+          echo "CI_TOOLS=$RUNNER_TEMP/ci-tools" >> "$GITHUB_ENV"
+          git switch --detach "$REVISION"
+      - if: inputs.service == 'backend' || inputs.service == 'frontend'
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - if: inputs.service == 'frontend'
+        run: bash "$CI_TOOLS/android-sdk.sh"
+      - if: inputs.service == 'frontend'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+        with:
+          platforms: arm64
+      - name: Build and verify the local image
+        run: bash "$CI_TOOLS/build-runtime-image.sh" "$SERVICE"
+      - name: Publish to GHCR and record the digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          image="ghcr.io/$GITHUB_REPOSITORY_OWNER/eolssu-$SERVICE"
+          export DOCKER_CONFIG="$(mktemp -d)"
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          target="$image:ci-$REVISION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker tag "eolssu-$SERVICE:ci-$REVISION" "$target"
+          docker push "$target"
+          digest=$(docker buildx imagetools inspect "$target" --format '{{json .Manifest}}' | jq -er .digest)
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf 'Commit: %s\n\nImage: %s@%s\n' "$REVISION" "$image" "$digest" | tee -a "$GITHUB_STEP_SUMMARY"
