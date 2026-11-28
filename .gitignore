@@ -3,7 +3,7 @@ public/
 resources/_gen/
 .hugo_build.lock
 
-# Jenkins 빌드 결과물
+# 배포 빌드 결과물
 blog-build/
 
 # OS·IDE

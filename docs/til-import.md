@@ -10,14 +10,14 @@
 
 `develop`의 TIL 원본은 유지하고, 작성자가 공개 후보로 표시한 글만 `blog` 작업 브랜치의 Hugo 초안으로 복사합니다. 두 브랜치를 합치지 않으며, 앱 코드나 develop의 다른 문서를 가져오지 않습니다.
 
-이 도구는 목록 조회·초안 생성·변경 확인만 합니다. Git fetch·브랜치 생성·커밋·push·MR 생성·병합·게시를 실행하지 않습니다. Jenkins의 기존 `blog` 배포 파이프라인도 바꾸지 않습니다.
+이 도구는 목록 조회·초안 생성·변경 확인만 합니다. Git fetch·브랜치 생성·커밋·push·MR 생성·병합·게시를 실행하지 않습니다. GitHub Actions의 `blog` 배포 워크플로도 바꾸지 않습니다.
 
 전체 역할 분담과 Codex 요청 예시는 [블로그 사용 방식](blog-workflow.md)을 먼저 확인하세요. 이 문서는 CLI 설치·실행·상태·갱신 방법을 설명합니다.
 
 ## 준비
 
 - Python 3.10 이상과 Git이 필요합니다.
-- 블로그 작업 환경에서 `python -m pip install -r requirements-blog.txt`로 PyYAML을 설치합니다. Jenkins의 Hugo 빌드에는 설치할 필요가 없습니다.
+- 블로그 작업 환경에서 `python -m pip install -r requirements-blog.txt`로 PyYAML을 설치합니다. GitHub Actions의 Hugo 빌드에는 설치할 필요가 없습니다.
 - TIL 원본을 `develop`의 `TIL/` 아래에 커밋합니다. 작업 중이거나 커밋하지 않은 파일은 가져오지 않습니다.
 - 실행 전 `git fetch origin develop blog`로 원격 추적 브랜치를 갱신하고, 최신 `origin/blog`를 포함하는 별도 작업 브랜치를 준비합니다. `blog`, `develop`, `main`에서 직접 가져오기는 거부합니다.
 
@@ -61,7 +61,7 @@ blog:
 - `blog` 안에 쓴 값이 원래 머리말보다 우선합니다. `title`, `slug`, `author`, `description`, `categories`는 필수이고 `tags`는 선택입니다.
 - `categories`는 `backend`, `frontend`, `ai`, `ai-native`, `data`, `infra`, `security`, `회고` 중에서 선택합니다.
 - TIL 작성일은 게시일로 복사하지 않습니다. 게시일은 가져온 한국 날짜가 기본이며 `blog.date` 또는 `import --date YYYY-MM-DD`로 지정할 수 있습니다. 갱신할 때는 처음 게시일을 유지합니다.
-- 생성한 게시일은 `YYYY-MM-DDT00:00:00+09:00`으로 기록해 Jenkins가 UTC로 실행돼도 한국 날짜 기준 당일 글을 미래 글로 건너뛰지 않도록 합니다. 미래 게시일은 거부합니다.
+- 생성한 게시일은 `YYYY-MM-DDT00:00:00+09:00`으로 기록해 GitHub Actions가 UTC로 실행돼도 한국 날짜 기준 당일 글을 미래 글로 건너뛰지 않도록 합니다. 미래 게시일은 거부합니다.
 - `thumbnail`과 본문 이미지는 `https://team-edo.github.io/blog-images/`의 영문 소문자 파일명 URL만 허용합니다. 이미지 업로드는 기존 README 절차를 따릅니다.
 
 ## 2. 후보를 보고 한 편 선택
@@ -121,7 +121,7 @@ hugo server -D
 - 이는 패턴 검사이며 모든 개인정보·내부 정보·저작권 문제를 판별하지는 않습니다. 이미지 URL의 실제 응답이나 이미지 속 정보도 자동 확인하지 않습니다. 작성자가 본문·이미지·출처를 확인합니다.
 - 확인한 뒤 직접 `draft: false`로 바꾸고 `check`와 Hugo 빌드를 다시 실행합니다. 준비된 글과 `.til-imports.json`을 작업 브랜치에서 커밋합니다.
 - 정해진 GitLab 양식에 맞춰 MR 본문을 준비하고 **사용자가 MR을 생성·검토·병합**합니다. 도구는 MR을 만들지 않습니다.
-- `blog` 병합 후에는 기존 Jenkins가 빌드하고 GitHub Pages에 게시합니다.
+- `blog` 병합 후에는 GitHub Actions `Blog pages`가 빌드하고 GitHub Pages에 게시합니다.
 
 ## 검증
 

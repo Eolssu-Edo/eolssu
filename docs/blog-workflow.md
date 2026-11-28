@@ -16,7 +16,7 @@ TIL 원본은 개발자 로컬에만 보관합니다. 개발자가 coco-blog를 
 | 6 | coco-blog | 개발자가 Git 반영을 요청하면 블로그 작업 브랜치에 선택한 공개 글 .md 파일만 commit·push |
 | 7 | 작성자·리뷰어 | 저장소 양식으로 MR 생성·검토·blog 병합. AI는 요청받지 않으면 MR 본문만 전달 |
 | 8 | 작성자 | 공개할 때 draft: false 변경을 blog에 반영 |
-| 9 | Jenkins → Hugo → GitHub Pages | blog 변경 감지 후 초안을 제외해 빌드하고 공개 결과물 게시 |
+| 9 | GitHub Actions → Hugo → GitHub Pages | blog push 후 초안을 제외해 빌드하고 공개 결과물 게시 |
 
 ## 개발 중인 브랜치에서 실행해도 되나요?
 
@@ -60,7 +60,7 @@ python scripts/til_to_blog.py check content/posts/YYYY-MM-DD-post-slug.md
 
 공개 제어는 Hugo 머리말의 draft: true / false입니다. 초안을 blog에 병합해도 기본 빌드에서는 글이 제외됩니다. 단, Git 저장소 접근자는 초안 소스를 볼 수 있고 공개 소스 저장소에 올리면 초안도 보이므로 업로드 전에 저장소 공개 범위를 확인합니다.
 
-작성자가 공개를 결정하면 draft: false로 수정하고 검사·리뷰 후 blog에 반영합니다. 로컬에서만 수정하거나 GitLab Draft MR 표시만 해제하는 것으로는 공개되지 않습니다. Jenkins는 초안 변경에도 실행될 수 있으며 draft:false가 blog에 반영된 다음 빌드에서 글을 포함합니다. 기존 배포 명령에는 --buildDrafts를 넣지 않습니다.
+작성자가 공개를 결정하면 draft: false로 수정하고 검사·리뷰 후 blog에 반영합니다. 로컬에서만 수정하거나 GitLab Draft MR 표시만 해제하는 것으로는 공개되지 않습니다. GitHub Actions는 초안 변경에도 실행될 수 있으며 draft:false가 blog에 반영된 다음 빌드에서 글을 포함합니다. 기존 배포 명령에는 --buildDrafts를 넣지 않습니다.
 
 ## 자동화 범위
 
