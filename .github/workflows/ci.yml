@@ -1,0 +1,196 @@
+name: CI
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 19 * * 0'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.plan.outputs.backend }}
+      web: ${{ steps.plan.outputs.web }}
+      android: ${{ steps.plan.outputs.android }}
+      python: ${{ steps.plan.outputs.python }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: plan
+        run: python3 -B infra/github-actions/ci-plan.py
+
+  backend:
+    needs: plan
+    if: needs.plan.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: backend/**/*.gradle*
+      - name: Install recording tools and prepare Nginx fixtures
+        run: |
+          bash infra/github-actions/install-ffmpeg.sh
+          docker pull python:3.11.16-slim-trixie
+          docker pull nginx:1.30.6-alpine
+      - name: Deploy tooling and runtime configuration
+        env:
+          RUN_NGINX_TESTS: '1'
+        run: |
+          python3 -B -m unittest discover -s infra/jenkins/tests -v
+          python3 -B -m unittest discover -s infra/scripts/tests -p 'test_*nginx*.py' -v
+          python3 -B -m unittest discover -s infra/scripts/tests -p test_init_letsencrypt.py -v
+          docker compose --env-file infra/runtime/ci.env.example -f infra/runtime/compose.yml --profile backend-slots config --quiet
+          docker run --rm --network none --mount "type=bind,src=$PWD/infra/runtime/nginx.conf,dst=/etc/nginx/conf.d/default.conf,readonly" nginx:1.30.6-alpine nginx -t
+      - name: Backend build, unit and recording tests
+        working-directory: backend
+        run: ./gradlew --no-daemon build mediaTest
+      - name: Tests against disposable MySQL
+        working-directory: backend
+        run: python3 -B ../infra/jenkins/run-database-tests.py -- ./gradlew --no-daemon databaseTest
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: backend-test-results
+          path: backend/build/test-results/*/*.xml
+          retention-days: 3
+
+  web:
+    needs: plan
+    if: needs.plan.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: frontend/**/*.gradle*
+      - run: bash infra/github-actions/android-sdk.sh
+      - name: JS and Wasm browser tests
+        working-directory: frontend
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: ./gradlew --no-daemon :shared:wasmJsTest :shared:jsTest :webApp:compileKotlinWasmJs
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: web-test-results
+          path: |
+            frontend/shared/build/test-results/wasmJsBrowserTest/*.xml
+            frontend/shared/build/test-results/jsBrowserTest/*.xml
+          retention-days: 3
+
+  android:
+    needs: plan
+    if: needs.plan.outputs.android == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: frontend/**/*.gradle*
+      - run: bash infra/github-actions/android-sdk.sh
+      - name: Android tests and lint
+        working-directory: frontend
+        run: ./gradlew --no-daemon --no-configuration-cache :shared:testAndroidHostTest :androidApp:lintDebug
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: android-test-results
+          path: frontend/shared/build/test-results/testAndroidHostTest/*.xml
+          retention-days: 3
+
+  python:
+    needs: plan
+    if: needs.plan.outputs.python != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.plan.outputs.python) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: false
+      - name: Install audio tools
+        if: matrix.group == 'data' || matrix.group == 'ai'
+        run: bash infra/github-actions/install-ffmpeg.sh
+      - name: Install infra test dependencies
+        if: matrix.group == 'infra'
+        run: |
+          venv="$RUNNER_TEMP/infra-venv"
+          uv venv --python 3.12 "$venv"
+          uv pip install --python "$venv/bin/python" -r infra/qa-phone/live/requirements.txt -r infra/r2/requirements.txt
+          printf '%s\n' "$venv/bin" >> "$GITHUB_PATH"
+      - name: Python tests
+        env:
+          GROUP: ${{ matrix.group }}
+          UV_LINK_MODE: copy
+          UV_PYTHON_PREFERENCE: only-managed
+        run: python3 -B infra/jenkins/python-tests.py run "$GROUP" --work "$RUNNER_TEMP/python-tests"
+      - name: Report previously quarantined tests
+        if: always() && (matrix.group == 'data' || matrix.group == 'ai')
+        continue-on-error: true
+        env:
+          GROUP: ${{ matrix.group }}
+          UV_LINK_MODE: copy
+          UV_PYTHON_PREFERENCE: only-managed
+        run: python3 -B infra/jenkins/python-tests.py run "$GROUP" --work "$RUNNER_TEMP/python-tests" --quarantine
+      - if: always() && (matrix.group == 'data' || matrix.group == 'ai')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: python-${{ matrix.group }}-test-results
+          path: ${{ runner.temp }}/python-tests/results/*.xml
+          retention-days: 3
+
+  required:
+    name: CI checks
+    if: always()
+    needs: [plan, backend, web, android, python]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PLAN: ${{ needs.plan.result }}
+      BACKEND: ${{ needs.backend.result }}
+      WEB: ${{ needs.web.result }}
+      ANDROID: ${{ needs.android.result }}
+      PYTHON: ${{ needs.python.result }}
+    steps:
+      - run: |
+          test "$PLAN" = success
+          for result in "$BACKEND" "$WEB" "$ANDROID" "$PYTHON"; do
+            [[ "$result" == success || "$result" == skipped ]]
+          done
