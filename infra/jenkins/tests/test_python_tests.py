@@ -39,7 +39,8 @@ class SelectionTests(unittest.TestCase):
 
     def test_areas_without_python_tests_select_nothing(self):
         self.assertEqual(self.groups('frontend/shared/src/A.kt', 'backend/src/main/kotlin/B.kt',
-                                     'docs/plans/S15P31E102-1.md', 'README.md', '.gitignore'), [])
+                                     'docs/plans/S15P31E102-1.md', 'README.md', '.gitignore',
+                                     '.github/pull_request_template.md'), [])
 
     def test_job_files_and_unknown_paths_select_every_group(self):
         for path in ['infra/jenkins/python-tests.py', 'infra/jenkins/python-tests-requirements.txt',

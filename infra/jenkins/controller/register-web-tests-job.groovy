@@ -34,7 +34,7 @@ def parameters = [new StringParameterDefinition('REVISION', '', '백엔드 잡�
 assert (source =~ /name: '([A-Z_]+)'/).collect { it[1] } == parameters*.name: 'Parameter list differs from candidate'
 
 // IDs only; secret values are never read here.
-def missing = ['eolssu-gitlab'] - CredentialsProvider.lookupCredentials(StandardCredentials, j, null, null)*.id
+def missing = ['eolssu-github'] - CredentialsProvider.lookupCredentials(StandardCredentials, j, null, null)*.id
 def description = 'develop 웹 브라우저 테스트(:shared:wasmJsTest·:shared:jsTest)만 실행하고 배포하지 않는다(S15P31E102-1270). ' +
     '웹 빌드 입력이 바뀐 develop 커밋마다 eolssu-backend가 REVISION을 넘겨 예약한다. 정의 원본: infra/jenkins/web-tests.Jenkinsfile'
 def currentParameters = job?.getProperty(ParametersDefinitionProperty)?.parameterDefinitions?.collect { it.name }

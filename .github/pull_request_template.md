@@ -10,6 +10,3 @@
 
 ## 📌 관련 Jira 이슈
 Closes JIRA_KEY
-
-/assign me
-/assign_reviewer me

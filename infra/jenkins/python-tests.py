@@ -36,7 +36,7 @@ RULES = (
 # Standard-library unittest suites outside infra/ that run with the infra group.
 INFRA_EXTRA = ('backend/tools',)
 # Areas with no Python tests. Anything not listed here or above selects every group.
-NO_PYTHON = ('frontend/', 'backend/', 'blog/', 'docs/', 'TIL/', '.gitlab/')
+NO_PYTHON = ('frontend/', 'backend/', 'blog/', 'docs/', 'TIL/', '.github/')
 NO_PYTHON_ROOT = ('.env.dev.example', '.env.prod.example', '.gitattributes', '.gitignore',
                   'docker-compose.dev.yml', 'docker-compose.prod.yml')
 

@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [Jenkins·QA 도구의 저장소 연결을 SSAFY GitLab에서 GitHub로 전환 (1290)](plans/S15P31E102-1290.md) · [새 서버·새 도메인 이전 안내](knowledge/infra/new-server-and-domain-migration.md)
 - [Jenkins의 GitHub Actions 이전 (1294)](plans/S15P31E102-1294.md) · [GitHub Actions 운영 절차](../infra/github-actions/README.md)
 
 - [웹 로그인 세션 안정화: 탭 사이 토큰 갱신 잠금·브라우저 세션 단위 자동 로그인 끔·다른 탭 계정 따르기·대기 중 로그아웃 (1264)](plans/web-parity/S15P31E102-1264-handoff.md)

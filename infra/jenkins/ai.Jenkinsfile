@@ -27,8 +27,8 @@ pipeline {
                 script {
                     def revision = checkout scmGit(
                         branches: [[name: 'refs/heads/develop']],
-                        userRemoteConfigs: [[credentialsId: 'eolssu-gitlab',
-                            url: 'https://lab.ssafy.com/s15-final/S15P31E102.git',
+                        userRemoteConfigs: [[credentialsId: 'eolssu-github',
+                            url: 'https://github.com/team-edo/eolssu.git',
                             refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
                     env.GIT_COMMIT = revision.GIT_COMMIT
                     if (!env.GIT_COMMIT?.matches('[0-9a-f]{40}')) {

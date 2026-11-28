@@ -11,7 +11,7 @@ async function fixture(t) {
  t.after(()=>fs.rm(root,{recursive:true,force:true}));
  const git=(...args)=>execFileSync('git',['-C',root,...args],{stdio:'pipe'});
  git('init','-q');
- git('remote','add','origin','git@lab.ssafy.com:s15-final/S15P31E102.git');
+ git('remote','add','origin','git@github.com:team-edo/eolssu.git');
  const graph=path.join(root,'graphify-out');
  const commit='a'.repeat(40),release=commit+'-'+'b'.repeat(16);
  const version=path.join(graph,'versions',release);

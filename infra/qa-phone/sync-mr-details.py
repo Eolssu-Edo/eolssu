@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read only this project's MR metadata; never rewrite immutable APK files."""
+"""Read only this project's GitHub PR metadata; never rewrite immutable APK files."""
 import argparse
 import fcntl
 import json
@@ -8,10 +8,10 @@ import pathlib
 import re
 import tempfile
 import unicodedata
-import urllib.parse
 import urllib.request
 
-API = 'https://lab.ssafy.com/api/v4/projects/s15-final%2FS15P31E102/merge_requests'
+API = 'https://api.github.com/graphql'
+OWNER, REPOSITORY = 'team-edo', 'eolssu'
 MAX_BYTES = 4 * 1024 * 1024
 BATCH_SIZE = 10
 
@@ -22,13 +22,21 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch_batch(ids, token, api_base=API):
-    query = urllib.parse.urlencode([('scope', 'all'), ('per_page', str(len(ids)))] + [('iids[]', str(i)) for i in ids])
-    request = urllib.request.Request(api_base + '?' + query, headers={'PRIVATE-TOKEN': token, 'Accept': 'application/json'})
+    # ids are validated positive ints, so they are safe to place in the query text.
+    fields = ' '.join(f'p{i}:pullRequest(number:{int(i)}){{number title author{{login ... on User{{name}}}}}}' for i in ids)
+    query = f'query{{repository(owner:"{OWNER}",name:"{REPOSITORY}"){{{fields}}}}}'
+    request = urllib.request.Request(api_base, data=json.dumps({'query': query}).encode(), method='POST', headers={
+        'Authorization': 'Bearer ' + token, 'Accept': 'application/json',
+        'Content-Type': 'application/json', 'User-Agent': 'eolssu-qa-mr-sync'})
     with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
         body = response.read(MAX_BYTES + 1)
     if len(body) > MAX_BYTES:
-        raise ValueError('oversized MR response')
-    return json.loads(body)
+        raise ValueError('oversized PR response')
+    value = json.loads(body)
+    repository = (value.get('data') or {}).get('repository') if isinstance(value, dict) else None
+    if not isinstance(repository, dict) or value.get('errors'):
+        raise ValueError('PR query failed')
+    return [repository.get(f'p{i}') for i in ids]
 
 
 def read_index(root):
@@ -50,10 +58,13 @@ def details_for(rows, ids):
         raise ValueError('invalid MR response')
     details = {}
     for row in rows:
-        iid = row.get('iid')
+        iid = row.get('number') if isinstance(row, dict) else None
         if type(iid) is not int or iid not in ids or str(iid) in details:
             raise ValueError('unexpected MR identity')
-        values = {'authorName': row.get('author', {}).get('name'), 'title': row.get('title')}
+        author = row.get('author')
+        # A deleted GitHub account is returned as author null; GitHub shows it as "ghost".
+        name = 'ghost' if author is None else (author.get('name') or author.get('login')) if isinstance(author, dict) else None
+        values = {'authorName': name, 'title': row.get('title')}
         for key, limit in [('authorName', 128), ('title', 512)]:
             text = values[key]
             if not isinstance(text, str) or not text.strip() or len(text) > limit or any(unicodedata.category(c).startswith('C') for c in text):
@@ -108,4 +119,4 @@ if __name__ == '__main__':
         print(f'MR metadata synchronized: {count}')
     except Exception:
         # No raw exception/request/header/body: they may contain a secret.
-        parser.exit(1, 'MR metadata sync failed: verify read API permission, expiry and archive access\n')
+        parser.exit(1, 'MR metadata sync failed: verify GitHub token Pull requests read permission, expiry and archive access\n')

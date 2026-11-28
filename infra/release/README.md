@@ -76,7 +76,7 @@ ssh edo1 "sudo docker inspect --format '{{index .Config.Labels \"org.opencontain
 
 동결 기간(제안: 11-17(화) 17:00 main 반영 직후 ~ 11-18(수) 발표 종료)에는 다음을 지킨다.
 
-- **develop 병합 중지.** GitLab에서 develop 병합 권한을 릴리스 담당으로 좁히거나 팀 공지로 멈춘다. 병합하면 1분 안에 backend가, `ai/`·`data/`의 이미지 입력이 바뀌었으면 ai·omr·playback도 운영에서 교체된다.
+- **develop 병합 중지.** GitHub 저장소 규칙(ruleset)에서 develop 병합을 릴리스 담당만 할 수 있게 좁히거나 팀 공지로 멈춘다. 병합하면 1분 안에 backend가, `ai/`·`data/`의 이미지 입력이 바뀌었으면 ai·omr·playback도 운영에서 교체된다.
 - 병합을 막기 어렵다면 배포 잡 **4개를 모두** 일시 중지(Disable)한다: `eolssu-backend`, `eolssu-ai`, `eolssu-omr`, `eolssu-playback`. backend만 멈추면 채점·악보 인식·음원 서비스는 계속 자동 교체된다. 진행 중인 빌드가 있으면 끝난 뒤 멈춘다. 재개 후 첫 빌드가 동결 중 쌓인 변경을 한꺼번에 배포하므로 발표 후 병합 순서를 확인하고 재개한다.
 - 웹은 수동 잡이라 자동 배포되지 않는다. 동결 중에는 `eolssu-frontend-web-수동배포용`을 실행하지 않는다.
 - ai·omr·playback 수동 이미지 재빌드, Flyway 수동 적용, Nginx·Compose·Jenkins 설정 변경, 서버 패키지 업데이트, 재부팅을 하지 않는다.
@@ -89,9 +89,9 @@ ssh edo1 "sudo docker inspect --format '{{index .Config.Labels \"org.opencontain
 11-17(화) 17:00에 팀 승인을 받은 뒤 사람이 실행한다. `notes` 출력의 마지막 절에 같은 명령이 SHA와 함께 나온다.
 
 1. `release-candidate.py check <RC_SHA>`가 성공하는지 다시 확인한다.
-2. main을 RC SHA로 fast-forward한다. GitLab의 main 보호 설정에 맞춰 MR(병합 방식 fast-forward)이나 권한자 Push를 사용한다. **병합 커밋을 만들지 않는다.**
+2. main을 RC SHA로 fast-forward한다. GitHub PR은 merge 커밋만 만들도록 설정했으므로 PR로 병합하지 않는다. main 규칙을 우회할 수 있는 저장소 관리자가 `git push origin <RC_SHA>:refs/heads/main`으로 Push한다(규칙이 fast-forward가 아닌 Push는 막는다). **병합 커밋을 만들지 않는다.**
 3. 주석 태그 `v<버전>`을 RC SHA에 만들고 Push한다. RC를 여러 번 고르면 `v<버전>-rc.N` 태그를 쓰고 최종에만 `v<버전>`을 붙인다.
-4. `release-notes.md`를 GitLab 릴리스 또는 계획 문서에 첨부한다.
+4. `release-notes.md`를 GitHub 릴리스 또는 계획 문서에 첨부한다.
 5. 다음 릴리스의 `notes`는 이 태그를 비교 기준으로 자동 사용한다.
 
 ## 시연 당일 점검

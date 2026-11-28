@@ -45,12 +45,14 @@ class Repo:
         self.git('commit', '-q', '-m', message)
         return self.git('rev-parse', 'HEAD')
 
-    def merge(self, branch, files=None):
+    def merge(self, branch, files=None, pull_request=None):
         base = self.git('rev-parse', 'HEAD')
         self.git('checkout', '-q', '-b', branch)
         self.commit('work on ' + branch, files)
         self.git('checkout', '-q', 'develop')
-        self.git('merge', '-q', '--no-ff', branch, '-m', "Merge branch '" + branch + "' into 'develop'")
+        message = ("Merge branch '" + branch + "' into 'develop'" if pull_request is None
+                   else 'Merge pull request #' + str(pull_request) + ' from team-edo/' + branch + '\n\n' + branch)
+        self.git('merge', '-q', '--no-ff', branch, '-m', message)
         self.git('branch', '-q', '-D', branch)
         assert base != self.git('rev-parse', 'HEAD')
         return self.git('rev-parse', 'HEAD')
@@ -114,6 +116,16 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertEqual(notes['merged'][0]['part'], 'infra')
         self.assertEqual(notes['merged'][0]['title'], '운영 문서')
         self.assertNotIn('S15P31E102-13', json.dumps(notes, ensure_ascii=False))
+
+    def test_github_pull_request_merges_are_listed_with_gitlab_history(self):
+        github = self.repo.merge('fix(be)/S15P31E102-14-깃허브-이전', pull_request=3)
+        self.repo.publish(self.main, github)
+        notes = rc.build_notes(self.git, github)
+        self.assertEqual([item['key'] for item in notes['merged']],
+                         ['S15P31E102-14', 'S15P31E102-13', 'S15P31E102-12', 'S15P31E102-11', 'S15P31E102-10'])
+        self.assertEqual((notes['merged'][0]['type'], notes['merged'][0]['part'], notes['merged'][0]['title']),
+                         ('fix', 'be', '깃허브 이전'))
+        self.assertNotIn('Merge pull request', json.dumps(notes['other_commits'], ensure_ascii=False))
 
     def test_expected_version_is_checked_against_both_apps(self):
         notes = rc.build_notes(self.git, self.rc, expected='1.0.1')

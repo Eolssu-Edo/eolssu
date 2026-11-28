@@ -26,7 +26,7 @@ pipeline {
                     if (!params.VERSION_CODE?.matches('[1-9][0-9]{0,8}')) { error('Positive integer VERSION_CODE required') }
                     if (!params.VERSION_NAME?.matches('[0-9]+\\.[0-9]+\\.[0-9]+')) { error('VERSION_NAME must look like 1.3.0') }
                     if ((params.RELEASE_NOTES_KO ?: '').trim().length() > 500) { error('RELEASE_NOTES_KO must be 500 characters or fewer') }
-                    def revision = checkout scmGit(branches: [[name: params.REVISION]], userRemoteConfigs: [[credentialsId: 'eolssu-gitlab', url: 'https://lab.ssafy.com/s15-final/S15P31E102.git', refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
+                    def revision = checkout scmGit(branches: [[name: params.REVISION]], userRemoteConfigs: [[credentialsId: 'eolssu-github', url: 'https://github.com/team-edo/eolssu.git', refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
                     env.GIT_COMMIT = revision.GIT_COMMIT
                     if (env.GIT_COMMIT != params.REVISION) { error('Revision mismatch') }
                     sh 'git merge-base --is-ancestor "$GIT_COMMIT" origin/develop'

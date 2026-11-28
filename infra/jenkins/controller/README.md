@@ -73,7 +73,7 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
 - 백엔드 검사·배포 단계보다 먼저 예약하므로 백엔드가 실패해도 웹 테스트는 돈다.
 - 웹 수동 배포와 같은 `edo1-web` 노드(executor 1개)를 쓴다. 두 잡이 겹치면 나중 잡이 기다린다.
 - 새 커밋이 예약되면 대기·실행 중인 이전 빌드를 중단한다(`abortPrevious`). 새 develop 커밋이 이전 변경을 모두 담기 때문이다.
-- 결과는 잡의 테스트 결과(junit)에 남는다. 실패·UNSTABLE은 [Jenkins 실패 알림](../notifications/README.md)이 `eolssu-*` 잡으로 따로 설정 없이 Mattermost에 알린다. GitLab MR에는 표시되지 않는다.
+- 결과는 잡의 테스트 결과(junit)에 남는다. 실패·UNSTABLE은 [Jenkins 실패 알림](../notifications/README.md)이 `eolssu-*` 잡으로 따로 설정 없이 Mattermost에 알린다. GitHub PR에는 표시되지 않는다.
 
 ### 적용 (develop 병합 뒤)
 
@@ -91,7 +91,7 @@ sudo journalctl -u eolssu-jenkins-agent --since today --no-pager
    $C groovy = apply < register-web-tests-job.groovy
    ```
 
-   [등록 파일](register-web-tests-job.groovy)은 실행·대기 중인 빌드가 있거나 `edo1-web` 노드·`eolssu-gitlab` Credentials가 없으면 멈춘다. 기존 잡이 있으면 config.xml을 `/var/lib/jenkins/webtests1270-backup-<시각>.config.xml`로 백업하고 바꾼다.
+   [등록 파일](register-web-tests-job.groovy)은 실행·대기 중인 빌드가 있거나 `edo1-web` 노드·`eolssu-github` Credentials가 없으면 멈춘다. 기존 잡이 있으면 config.xml을 `/var/lib/jenkins/webtests1270-backup-<시각>.config.xml`로 백업하고 바꾼다.
 2. 현재 develop 전체 SHA를 `REVISION`에 넣어 `eolssu-web-tests`를 한 번 수동 실행한다. 두 단계의 테스트 결과가 잡에 남는지 확인한다. 첫 실행은 작업 공간이 새로 생기지만, 같은 커밋을 웹 수동 배포 잡이 빌드한 적이 있으면 Gradle 빌드 캐시로 컴파일을 건너뛰어 몇 분 안에 끝난다(2026-11-24 154초, [실측](../../../docs/knowledge/infra/web-tests-ci.md#운영-적용-s15p31e102-1275)).
 3. 실행·대기 중인 백엔드 빌드가 없을 때 `eolssu-backend` 잡의 config.xml과 서버 사본 `/opt/eolssu/config/backend.Jenkinsfile`을 root 전용 폴더에 백업한다. develop의 [backend.Jenkinsfile](../backend.Jenkinsfile)을 `declarative-linter`로 검사한 뒤 관리자 CLI `update-job`으로 저장하고, 서버 사본도 같은 내용으로 바꾼다. 저장할 config.xml은 `get-job eolssu-backend` 결과에서 `<script>` 안만 XML 이스케이프한 develop 파일로 바꿔 만든다. 저장 뒤 `get-job`을 다시 받아 만든 파일과 같은지 비교한다.
 4. [일치 점검](../../drift/README.md)(`infra/drift/check.py --host edo1`)에서 `jenkins:eolssu-backend`, `jenkins:eolssu-web-tests`, `/opt/eolssu/config/backend.Jenkinsfile`이 '일치'인지 확인한다.

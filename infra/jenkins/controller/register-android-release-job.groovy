@@ -48,7 +48,7 @@ assert (source =~ /name: '([A-Z_]+)'/).collect { it[1] } == parameters*.name: 'P
 
 // IDs only; secret values are never read here.
 def credentialIds = CredentialsProvider.lookupCredentials(StandardCredentials, j, null, null)*.id
-def needed = ['eolssu-gitlab', 'eolssu-android-upload-keystore', 'eolssu-android-upload-password']
+def needed = ['eolssu-github', 'eolssu-android-upload-keystore', 'eolssu-android-upload-password']
 if (source.contains('eolssu-play-service-account')) { needed << 'eolssu-play-service-account' }
 def missing = needed - credentialIds
 def description = 'Play 스토어 출시용 서명 AAB 빌드(테스트·lint 포함)와 Google Play 업로드(S15P31E102-1254). ' +
