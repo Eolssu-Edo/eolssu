@@ -24,10 +24,9 @@ from werkzeug.exceptions import HTTPException
 from yaml.nodes import MappingNode, ScalarNode
 from yaml.tokens import AliasToken, AnchorToken
 
-GITLAB = "https://lab.ssafy.com"
 GITHUB = "https://github.com"
 GITHUB_API = "https://api.github.com"
-PROJECT = "s15-final/S15P31E102"
+REPOSITORY_API = GITHUB_API + "/repos/team-edo/eolssu"
 BRANCH = "blog"
 POST_PATH = re.compile(r"posts/\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]{0,175}\.md")
 PUBLIC_POST_PATH = re.compile(r"/posts/[0-9]{4}/(?:0[1-9]|1[0-2])/[a-z0-9][a-z0-9-]{0,175}/")
@@ -58,7 +57,8 @@ class NoRedirect(HTTPRedirectHandler):
 upstream_http = build_opener(NoRedirect)
 
 
-def upstream_json(url, *, headers=None, form=None, update=None, delete=None, submit=None, expected_type=dict):
+def upstream_json(url, *, headers=None, form=None, update=None, delete=None, submit=None, patch=None,
+                  expected_type=dict):
     headers = dict(headers or {}, Accept="application/json", **{"User-Agent": "Team-Edo-Blog-Editor"})
     data = None
     method = "GET"
@@ -66,7 +66,7 @@ def upstream_json(url, *, headers=None, form=None, update=None, delete=None, sub
         method = "POST"
         data = urlencode(form).encode()
         headers["Content-Type"] = "application/x-www-form-urlencoded"
-    for verb, payload in (("PUT", update), ("DELETE", delete), ("POST", submit)):
+    for verb, payload in (("PUT", update), ("DELETE", delete), ("POST", submit), ("PATCH", patch)):
         if payload is not None:
             method = verb
             data = json.dumps(payload, ensure_ascii=False).encode()
@@ -115,9 +115,9 @@ class Post:
 
 def parse_post(file):
     try:
-        source = base64.b64decode(file["content"], validate=True).decode()
-        version = file["last_commit_id"]
-    except (KeyError, TypeError, UnicodeError, binascii.Error):
+        source = base64.b64decode(file["content"].replace("\n", ""), validate=True).decode()
+        version = file["sha"]  # Blob sha: changes whenever the file content changes.
+    except (AttributeError, KeyError, TypeError, UnicodeError, binascii.Error):
         abort(502, description="원본 글을 읽을 수 없습니다.")
     if not isinstance(version, str) or not COMMIT.fullmatch(version):
         abort(502, description="원본 글의 버전을 확인할 수 없습니다.")
@@ -212,7 +212,7 @@ def create_app(config=None):
         BLOG_ORIGIN=os.environ.get("BLOG_ORIGIN", ""),
         CLIENT_ID=os.environ.get("EDITOR_GITHUB_CLIENT_ID", ""),
         CLIENT_SECRET=read_secret("EDITOR_GITHUB_CLIENT_SECRET"),
-        WRITE_TOKEN=read_secret("EDITOR_GITLAB_WRITE_TOKEN"),
+        WRITE_TOKEN=read_secret("EDITOR_GITHUB_WRITE_TOKEN"),
         SESSION_SECRET=read_secret("EDITOR_SESSION_SECRET"),
         AUTHOR_EMAILS_FILE=os.environ.get("EDITOR_GITHUB_AUTHOR_EMAILS_FILE", ""),
         MAX_CONTENT_LENGTH=MAX_SOURCE + 20_000,
@@ -255,10 +255,7 @@ def create_app(config=None):
         signer_kwargs={"digest_method": hashlib.sha256},
     ) if writes_enabled else None
     redirect_uri = origin + "/edit/"
-    repository = GITLAB + "/api/v4/projects/" + quote(PROJECT, safe="") + "/repository/"
-    project_files = repository + "files/"
-    project_commits = repository + "commits"
-    write_headers = {"PRIVATE-TOKEN": app.config["WRITE_TOKEN"]}
+    write_headers = {"Authorization": "Bearer " + app.config["WRITE_TOKEN"], "X-GitHub-Api-Version": "2022-11-28"}
 
     @app.before_request
     def require_blog_origin():
@@ -300,12 +297,12 @@ def create_app(config=None):
     def file_endpoint(path):
         if not isinstance(path, str) or not POST_PATH.fullmatch(path):
             abort(400, description="글 주소를 확인해 주세요.")
-        return project_files + quote("content/" + path, safe="")
+        return REPOSITORY_API + "/contents/" + quote("content/" + path)
 
-    def read_owned_post(path, author):
+    def read_owned_post(path, author, ref=BRANCH):
         endpoint = file_endpoint(path)
         try:
-            file = upstream_json(endpoint + "?" + urlencode({"ref": BRANCH}), headers=write_headers)
+            file = upstream_json(endpoint + "?" + urlencode({"ref": ref}), headers=write_headers)
         except UpstreamError as error:
             if error.status == 404:
                 abort(404, description="글을 찾을 수 없습니다.")
@@ -465,12 +462,12 @@ def create_app(config=None):
         try:
             upstream_json(file_endpoint(path), headers=write_headers, update={
                 "branch": BRANCH,
-                "content": content,
-                "last_commit_id": version,
-                "commit_message": f"docs(blog): {post.author} 글 수정",
+                "content": base64.b64encode(content.encode()).decode(),
+                "sha": version,
+                "message": f"docs(blog): {post.author} 글 수정",
             })
         except UpstreamError as error:
-            if error.status in (400, 409) and read_owned_post(path, session["author"]).version != version:
+            if error.status in (409, 422) and read_owned_post(path, session["author"]).version != version:
                 abort(409, description="다른 수정이 먼저 저장됐습니다. 내용을 복사한 뒤 글을 다시 열어 주세요.")
             raise
         return jsonify(status="saved")
@@ -493,11 +490,11 @@ def create_app(config=None):
         try:
             upstream_json(file_endpoint(path), headers=write_headers, delete={
                 "branch": BRANCH,
-                "last_commit_id": version,
-                "commit_message": f"docs(blog): {post.author} 글 삭제",
+                "sha": version,
+                "message": f"docs(blog): {post.author} 글 삭제",
             })
         except UpstreamError as error:
-            if error.status in (400, 409) and read_owned_post(path, author).version != version:
+            if error.status in (409, 422) and read_owned_post(path, author).version != version:
                 abort(409, description=conflict)
             raise
         return jsonify(status="deleted")
@@ -597,31 +594,58 @@ def create_app(config=None):
                 db.execute("DELETE FROM editor_queue WHERE owner = ? AND path = ?", (owner, path))
             return jsonify(queue_state(db, owner))
 
-    def build_action(author, entry):
+    def branch_head():
+        sha = upstream_json(REPOSITORY_API + "/git/ref/heads/" + BRANCH, headers=write_headers).get("object") or {}
+        sha = sha.get("sha") if isinstance(sha, dict) else None
+        if not isinstance(sha, str) or not COMMIT.fullmatch(sha):
+            raise UpstreamError(502)
+        return sha
+
+    def build_action(author, entry, head):
         path = entry["path"]
         version = entry["delete_version"] or entry["draft_version"]
         try:
-            post = read_owned_post(path, author)
+            post = read_owned_post(path, author, head)
         except HTTPException as error:
             if error.code in (403, 404):
                 return None
             raise
         if post.version != version:
             return None
-        action = {"file_path": "content/" + path, "last_commit_id": version}
+        action = {"path": "content/" + path, "mode": "100644", "type": "blob"}
         if entry["delete_version"]:
-            return dict(action, action="delete")
-        return dict(action, action="update", content=post.with_edit(entry["draft_title"], entry["draft_markdown"]))
+            return dict(action, sha=None)
+        return dict(action, content=post.with_edit(entry["draft_title"], entry["draft_markdown"]))
+
+    def commit_actions(head, actions, message):
+        """Create one commit on top of head and move the branch without force (fails if it moved)."""
+        tree = upstream_json(REPOSITORY_API + "/git/commits/" + head, headers=write_headers).get("tree") or {}
+        tree = tree.get("sha") if isinstance(tree, dict) else None
+        if not isinstance(tree, str) or not COMMIT.fullmatch(tree):
+            raise UpstreamError(502)
+        new_tree = upstream_json(REPOSITORY_API + "/git/trees", headers=write_headers,
+                                 submit={"base_tree": tree, "tree": actions}).get("sha")
+        if not isinstance(new_tree, str) or not COMMIT.fullmatch(new_tree):
+            raise UpstreamError(502)
+        sha = upstream_json(REPOSITORY_API + "/git/commits", headers=write_headers,
+                            submit={"message": message, "tree": new_tree, "parents": [head]}).get("sha")
+        if not isinstance(sha, str) or not COMMIT.fullmatch(sha):
+            raise UpstreamError(502)
+        upstream_json(REPOSITORY_API + "/git/refs/heads/" + BRANCH, headers=write_headers,
+                      patch={"sha": sha, "force": False})
+        return sha
 
     def confirmed_commit(trailer, entries):
         # A timed-out POST may already have landed. Identify our exact batch before clearing drafts.
         since = datetime.fromisoformat(max(entry["updated_at"] for entry in entries)) - timedelta(minutes=1)
         for page in range(1, 5):
-            params = urlencode({"ref_name": BRANCH, "since": since.isoformat(), "per_page": 100, "page": page})
-            commits = upstream_json(project_commits + "?" + params, headers=write_headers, expected_type=list)
+            params = urlencode({"sha": BRANCH, "since": since.isoformat(), "per_page": 100, "page": page})
+            commits = upstream_json(REPOSITORY_API + "/commits?" + params, headers=write_headers, expected_type=list)
             for commit in commits:
-                if isinstance(commit, dict) and str(commit.get("message", "")).rstrip().endswith("\n" + trailer):
-                    sha = commit.get("id")
+                detail = commit.get("commit") if isinstance(commit, dict) else None
+                message = str(detail.get("message", "")) if isinstance(detail, dict) else ""
+                if message.rstrip().endswith("\n" + trailer):
+                    sha = commit.get("sha")
                     if isinstance(sha, str) and COMMIT.fullmatch(sha):
                         return sha
             if len(commits) < 100:
@@ -646,8 +670,9 @@ def create_app(config=None):
                 abort(409, description=BATCH_CHANGED)
             entries = db.execute("SELECT * FROM editor_queue WHERE owner = ? ORDER BY path", (owner,)).fetchall()
 
+        head = branch_head()
         with ThreadPoolExecutor(max_workers=8) as executor:
-            actions = list(executor.map(lambda entry: build_action(author, entry), entries))
+            actions = list(executor.map(lambda entry: build_action(author, entry, head), entries))
         sha = None
         trailer = "Blog-Batch: " + revision
         if None in actions:
@@ -666,17 +691,11 @@ def create_app(config=None):
                 abort(409, description=BATCH_CHANGED)
             if not sha:
                 try:
-                    commit = upstream_json(project_commits, headers=write_headers, submit={
-                        "branch": BRANCH, "actions": actions,
-                        "commit_message": f"docs(blog): {author} 글 변경 일괄 반영\n\n{trailer}",
-                    })
+                    sha = commit_actions(head, actions, f"docs(blog): {author} 글 변경 일괄 반영\n\n{trailer}")
                 except UpstreamError as error:
-                    if error.status in (400, 409):
+                    if error.status in (409, 422):
                         abort(409, description="일괄 반영을 완료하지 못했습니다. 글과 대기 목록을 다시 확인해 주세요.")
                     raise
-                sha = commit.get("id")
-                if not isinstance(sha, str) or not COMMIT.fullmatch(sha):
-                    raise UpstreamError(502)
             db.execute("DELETE FROM editor_queue WHERE owner = ?", (owner,))
             db.execute("""
                 INSERT INTO editor_applied (owner, revision, commit_sha) VALUES (?, ?, ?)

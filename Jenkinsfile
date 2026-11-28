@@ -1,8 +1,8 @@
 // 기술 블로그 배포 파이프라인
 // blog 브랜치를 1분마다 polling해서 변경이 있으면 Hugo로 빌드하고, 결과물만 GitHub Pages 저장소에 push
 // blog 브랜치는 develop과 기록을 공유하지 않는 블로그 전용 브랜치다. 서비스 코드 잡(develop)과 서로 영향을 주지 않는다.
-// Jenkins가 loopback에서만 수신하므로 GitLab webhook 대신 SCM polling을 쓴다.
-// 필요: 호스트 에이전트의 Docker·git / Credentials 'eolssu-gitlab'(GitLab 읽기), 'github-blog-token'(Secret text)
+// Jenkins가 loopback에서만 수신하므로 GitHub webhook 대신 SCM polling을 쓴다.
+// 필요: 호스트 에이전트의 Docker·git / Credentials 'eolssu-github'(GitHub `team-edo/eolssu` 읽기), 'github-blog-token'(Secret text)
 pipeline {
     agent { label 'edo1-blog' }
 
@@ -38,8 +38,8 @@ pipeline {
                     dir('site') {
                         def revision = checkout scmGit(
                             branches: [[name: 'refs/heads/blog']],
-                            userRemoteConfigs: [[credentialsId: 'eolssu-gitlab',
-                                url: 'https://lab.ssafy.com/s15-final/S15P31E102.git',
+                            userRemoteConfigs: [[credentialsId: 'eolssu-github',
+                                url: 'https://github.com/team-edo/eolssu.git',
                                 refspec: '+refs/heads/blog:refs/remotes/origin/blog']])
                         env.GIT_COMMIT = revision.GIT_COMMIT
                     }
