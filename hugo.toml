@@ -1,4 +1,4 @@
-# 배포 주소는 Jenkins에서 --baseURL로 덮어씀 (Jenkinsfile 참고)
+# 배포 주소는 GitHub Actions에서 --baseURL로 덮어씀 (.github/workflows/blog-pages.yml 참고)
 baseURL = "https://team-edo.github.io/"
 languageCode = "ko-kr"
 defaultContentLanguage = "ko"

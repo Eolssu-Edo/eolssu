@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # No argument keeps the existing one-shot entrypoint. Named phases use the
-# private workspace supplied by Jenkins and are cleaned by its post/always.
+# private workspace supplied by the caller, which also cleans it up.
 PHASE="${1:-all}"
 GH_BRANCH="${GH_BRANCH:-main}"
 PUBLIC_DIR="${PUBLIC_DIR:-blog/public}"
@@ -27,7 +27,7 @@ prepare() {
   chmod 700 "$WORK"
   if git ls-remote --exit-code --heads "$remote" "$GH_BRANCH" >/dev/null 2>&1; then
     git clone --quiet --depth 1 --branch "$GH_BRANCH" "$remote" "$WORK"
-    # Do not retain credentials between Jenkins stages.
+    # Do not retain credentials between phases.
     git -C "$WORK" remote remove origin
   else
     git init --quiet "$WORK"

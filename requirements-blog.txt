@@ -1,2 +1,2 @@
-# Local TIL import tool only; Hugo/Jenkins deployment needs no Python dependency.
+# Local TIL import tool only; Hugo/GitHub Actions deployment needs no Python dependency.
 PyYAML==6.0.3

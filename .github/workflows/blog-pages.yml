@@ -1,0 +1,49 @@
+name: Blog pages
+# blog 브랜치가 바뀌면 Hugo로 빌드하고 결과물(HTML)만 team-edo/team-edo.github.io에 push한다.
+# 배포 토큰은 blog 브랜치만 쓸 수 있는 Environment `blog-pages`의 BLOG_PAGES_TOKEN에 둔다.
+on:
+  push:
+    branches: [blog]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blog-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'team-edo/eolssu' && github.ref == 'refs/heads/blog'
+    environment: blog-pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HUGO_IMAGE: ghcr.io/gohugoio/hugo:v0.145.0
+      GH_REPO: team-edo/team-edo.github.io
+      GH_BRANCH: main
+      SITE_URL: https://team-edo.github.io/
+      PUBLIC_DIR: blog-build/public
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: site
+          persist-credentials: false
+      - name: Build Hugo site
+        # 소스는 읽기 전용, 네트워크 없이 빌드한다. 초안(draft: true)은 기본 빌드에서 빠진다.
+        run: |
+          mkdir -p blog-build
+          docker run --rm --network none \
+            --user "$(id -u):$(id -g)" \
+            --env HUGO_CACHEDIR=/tmp/hugo_cache \
+            --mount "type=bind,src=$GITHUB_WORKSPACE/site,dst=/project,readonly" \
+            --mount "type=bind,src=$GITHUB_WORKSPACE/blog-build,dst=/out" \
+            --entrypoint hugo "$HUGO_IMAGE" \
+            --source /project --destination /out/public --noBuildLock \
+            --minify --cleanDestinationDir --baseURL "$SITE_URL"
+          test -s "$PUBLIC_DIR/index.html"
+      - name: Publish to GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.BLOG_PAGES_TOKEN }}
+        run: bash site/scripts/deploy.sh

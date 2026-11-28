@@ -29,7 +29,7 @@ gunicorn --bind 127.0.0.1:8120 --timeout 45 'editor.app:create_app()'
 1. 병합한 `blog` 리비전에서 편집 서버 이미지를 빌드합니다. 운영의 기존 자격 증명과 뷰 DB 마운트를 유지하고, 같은 영속 마운트에 `BLOG_QUEUE_DB=/var/lib/blog-views/editor-queue.sqlite3`를 설정합니다. 기존 조회수 DB와는 별개 파일입니다. 컨테이너 UID/GID `65532`가 이 파일과 디렉터리에 쓸 수 있어야 합니다.
 2. 공개 Hugo 사이트에 새 편집 화면이 배포되면 편집 컨테이너를 교체합니다. 전환 중에는 기존 API에서 새 화면이 준비 안내를 표시할 수 있습니다. SQLite를 활성화한 서버는 기존 즉시 저장·삭제 요청에 새로고침 안내를 반환합니다.
 3. TLS 프록시는 기존 `/blog-editor/post`를 유지합니다. 여기서 조회·임시 저장·삭제 대기·취소·일괄 반영을 처리합니다. 기존 요청 크기와 호출 제한이 적용됩니다. 로그인 없는 `GET /blog-editor/post?mode=batch`가 401이고, 정확한 블로그 Origin으로 요청한 `GET /blog-editor/config`가 `canBatch: true`인지 확인합니다. 공개 글의 조회수 API도 확인합니다.
-4. 승인된 테스트 글에서 임시 저장과 삭제 대기 동안 `blog` 커밋이 생기지 않는지 확인합니다. 최종 반영과 Jenkins 배포가 완료되면 글과 목록을 확인합니다. 문제가 있으면 이전 이미지·사이트 조합으로 되돌리고 영속 DB 파일은 보존합니다.
+4. 승인된 테스트 글에서 임시 저장과 삭제 대기 동안 `blog` 커밋이 생기지 않는지 확인합니다. 최종 반영과 GitHub Actions 배포가 완료되면 글과 목록을 확인합니다. 문제가 있으면 이전 이미지·사이트 조합으로 되돌리고 영속 DB 파일은 보존합니다.
 
 댓글은 기존 giscus 위젯을 사용합니다. 글 상세에서도 유지되는 편집 토큰이 원격 JavaScript에 노출되는 범위를 줄이기 위해, 위젯을 불러오는 로더는 [검토한 giscus 리비전](https://github.com/giscus/giscus/blob/3d6430237108ca4ee3eb6a1a20595201c09c72d5/client.ts)을 사이트에서 제공하고 iframe의 발신 창과 Origin을 확인합니다.
 

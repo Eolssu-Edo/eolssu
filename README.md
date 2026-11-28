@@ -5,13 +5,13 @@ Hugo로 만든 프로젝트 소개·기술 블로그·팀 소개 사이트예요
 이 `blog` 브랜치는 **블로그 전용 브랜치**예요. 서비스 코드(develop·main)와 기록을 공유하지 않아서, develop에는 블로그 파일이 없고 블로그 글을 머지해도 앱 빌드·배포가 일어나지 않아요.
 
 ```
-글 브랜치 → MR (대상: blog) → blog 머지 → Jenkins가 1분마다 blog 브랜치 polling
+글 브랜치 → PR (대상: blog) → blog 머지 → GitHub Actions `Blog pages`가 blog push로 실행
   → Hugo 빌드 → 결과물(HTML)만 GitHub team-edo/team-edo.github.io에 push → https://team-edo.github.io
 ```
 
 - 원본(글·설정)은 서비스 저장소(GitHub `team-edo/eolssu`)의 `blog` 브랜치에만 있고, GitHub에는 완성된 HTML만 올라가요.
 - 글 이미지는 GitHub `team-edo/blog-images`에 따로 둬요 (아래 [이미지](#이미지)).
-- Jenkins는 서버 안(loopback)에서만 접속을 받아서 GitHub webhook 대신 SCM polling으로 변경을 감지해요.
+- 배포는 GitHub Actions에서 돌아서 서버가 꺼져 있어도 글이 게시돼요.
 
 ## 팀원이 블로그를 사용하는 방식
 
@@ -124,15 +124,13 @@ hugo server -D
 2. Fine-grained 토큰: 대상 저장소는 `team-edo.github.io`만, 권한은 **Contents: Read and write**만
 3. 이미지 저장소 `blog-images`를 **Public**으로 생성 (README만 추가), Settings → Pages → Branch `main` / `(root)`. 배포 토큰에는 이 저장소 권한을 주지 않아요
 
-### Jenkins
-접속은 서비스 저장소 운영 문서(develop의 `infra/runtime/README.md` Jenkins 절, SSH 터널)를 따라요.
+### GitHub Actions
+워크플로는 [`.github/workflows/blog-pages.yml`](.github/workflows/blog-pages.yml)이에요. `blog` 브랜치에 push되면 실행되고, Actions 화면에서 **Blog pages → Run workflow**(브랜치 `blog`)로 다시 게시할 수도 있어요.
 
-1. 플러그인: Git, Credentials Binding, Pipeline (GitLab·Docker Pipeline 플러그인은 필요 없어요)
-2. Credentials: **Secret text** `github-blog-token`. 저장소 읽기는 `eolssu-github`(서비스 저장소 운영 문서의 GitHub 연결 절차로 등록)
-3. Pipeline 잡 `eolssu-blog`: **Pipeline script from SCM**, 저장소 `https://github.com/team-edo/eolssu.git`, Credentials `eolssu-github`, 브랜치 `*/blog`, Script Path `Jenkinsfile`
-4. 잡을 **한 번 직접 실행**하면 polling 트리거가 등록돼요. 다음부터는 `blog` 브랜치 변경을 1분 안에 감지해요
+1. 저장소 `team-edo/eolssu` Settings → Environments에서 `blog-pages`를 만들고 Deployment branches를 `blog`만 허용해요. 자동 게시라 승인자는 두지 않아요.
+2. 위 2번의 Fine-grained 토큰을 `blog-pages`의 Environment secret `BLOG_PAGES_TOKEN`으로 등록해요. 토큰 값은 저장소·문서·로그에 남기지 않아요.
 
-빌드는 [블로그 전용 에이전트 `edo1-blog`](docs/blog-jenkins-executor.md)에서 `docker run`으로 Hugo 이미지를 실행하고, 배포는 에이전트의 `git`으로 해요. 실패하면 Stages에서 정리·checkout·Hugo 출력 준비·Hugo 빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push 중 실패한 단계를 확인하세요. S15P31E102-262 변경은 `blog` 병합 후 적용됩니다. `scripts/deploy.sh`는 인자 없이 기존 일괄 게시를 유지하며 Jenkins는 `prepare`, `sync`, `commit`, `push`를 분리 호출합니다. `PAGES_WORK_DIR`은 workspace의 전용 임시 디렉터리이고 성공·실패 모두 Pipeline의 `post/always`에서 정리합니다.
+빌드는 GitHub 실행기에서 Hugo 이미지를 네트워크 없이 읽기 전용 소스로 실행하고, `scripts/deploy.sh`가 결과물만 Pages 저장소에 push해요. 바뀐 내용이 없으면 커밋하지 않아요. 실패하면 Actions 실행의 `Build Hugo site`·`Publish to GitHub Pages` 중 실패한 단계를 확인하세요. 2026-11 edo1 서버 회수에 맞춰 Jenkins `eolssu-blog` 잡에서 이 워크플로로 옮겼어요(S15P31E102-1294).
 
 ### Team Edo 주소로 전환하기
 
@@ -140,8 +138,8 @@ hugo server -D
 
 1. **GitHub 조직 확인**: 기존 `team-edo` 조직이 없다면 조직 소유자가 `team-ido`의 이름을 `team-edo`로 바꾼다. 이미 팀이 사용하는 `team-edo` 조직이 있다면 블로그·이미지 저장소를 해당 조직으로 이전한다. 다른 저장소·팀·패키지에 미치는 영향도 먼저 확인한다.
 2. **Pages 저장소 이름**: 대상 조직의 블로그 저장소 이름은 반드시 `team-edo.github.io`로 맞춘다. 이미지 저장소 이름은 `blog-images`를 유지한다. 두 저장소의 Pages는 `main` / `(root)`로 확인한다.
-3. **Jenkins 인증**: `github-blog-token`이 새 조직의 블로그 저장소에 쓸 수 있는지 확인한다. 같은 조직의 이름만 바꾼 경우에는 기존 토큰으로 새 주소에 접근할 수 있는지 먼저 검증한다. 다른 조직으로 이전했거나 기존 권한으로 접근할 수 없을 때만 관리자가 대상 조직과 블로그 저장소를 지정한 토큰을 발급하고 Jenkins 자격증명을 갱신한다. 토큰 값은 저장소·문서에 기록하지 않는다.
-4. **소스 반영과 배포**: 이 작업의 변경을 `blog`에 병합한 뒤 Jenkins `eolssu-blog`의 빌드·배포 성공과 새 Pages 주소·글 링크·RSS·이미지 주소를 확인한다. 외부 설정이 준비되기 전에 대상 주소 변경만 먼저 병합하면 배포가 실패할 수 있다.
+3. **배포 인증**: 배포 토큰이 새 조직의 블로그 저장소에 쓸 수 있는지 확인한다. 같은 조직의 이름만 바꾼 경우에는 기존 토큰으로 새 주소에 접근할 수 있는지 먼저 검증한다. 다른 조직으로 이전했거나 기존 권한으로 접근할 수 없을 때만 관리자가 대상 조직과 블로그 저장소를 지정한 토큰을 발급하고 `BLOG_PAGES_TOKEN`을 갱신한다. 토큰 값은 저장소·문서에 기록하지 않는다.
+4. **소스 반영과 배포**: 이 작업의 변경을 `blog`에 병합한 뒤 GitHub Actions `Blog pages`의 빌드·배포 성공과 새 Pages 주소·글 링크·RSS·이미지 주소를 확인한다. 외부 설정이 준비되기 전에 대상 주소 변경만 먼저 병합하면 배포가 실패할 수 있다.
 5. **기존 링크**: GitHub 저장소 URL 리디렉션과 Pages 사이트 URL은 별개다. 이전 Pages 주소의 자동 이동을 전제로 하지 말고, 공유한 링크와 외부 문서를 새 주소로 갱신한다.
 
 조직명 변경·저장소 이전·토큰 갱신·실제 배포는 별도 운영 단계다. 로컬 빌드 성공만으로 주소 전환이 완료된 것으로 보지 않는다.
@@ -157,7 +155,7 @@ hugo server -D
 ├── static/            # CSS·사이트 JS·로고·앱 홈 화면 (글 이미지는 GitHub blog-images 저장소)
 ├── archetypes/        # 새 글 머리말 템플릿
 ├── scripts/deploy.sh  # GitHub Pages로 결과물 push
-└── Jenkinsfile        # 빌드·배포 파이프라인 (blog 브랜치 SCM polling)
+└── .github/workflows/blog-pages.yml  # 빌드·배포 (blog push 시 GitHub Actions)
 ```
 
 `hugo server`·`hugo`가 만드는 `public/`, `resources/_gen/`, `.hugo_build.lock`은 Git에서 제외돼요.
@@ -186,7 +184,7 @@ hugo server -D
 - 팀은 **Team Edo**, 프로젝트는 **얼쑤**로 표기한다. Edo는 세종대왕의 이름인 이도에서 가져왔다.
 - 페이지·게시글·검색 설명·RSS 등 공개 콘텐츠에는 교육기관·기수·반 표기를 사용하지 않는다.
 - 팀 표시는 `data/brand.yaml`의 `name`, 글 작성자 기본값은 `hugo.toml`의 `params.team`으로 관리한다.
-- GitHub 공개 주소와 Jenkins 배포 대상은 `team-edo`로 통일한다. 원본 저장소는 2026-11-26부터 GitHub `team-edo/eolssu`다.
+- GitHub 공개 주소와 배포 대상은 `team-edo`로 통일한다. 원본 저장소는 2026-11-26부터 GitHub `team-edo/eolssu`다.
 
 ### 내용 바꾸기
 
@@ -225,7 +223,7 @@ hugo server -D
   3. [giscus 앱](https://github.com/apps/giscus)을 `team-edo` 조직의 `team-edo.github.io` 저장소에만 설치한다.
   4. [giscus.app](https://giscus.app/ko)에 저장소 `team-edo/team-edo.github.io`, 카테고리 `Comments`를 넣어 나온 `data-repo-id`·`data-category-id`를 `hugo.toml`에 적고 `blog`에 MR한다. 두 값은 공개 식별자라 저장소에 적어도 된다.
 - 댓글 모양은 `static/css/giscus-theme.css`(giscus 기본 light 테마 위에 블로그 색·글꼴·배치를 덮어쓴 전용 테마)가 정한다. giscus가 배포된 주소의 이 파일을 불러오므로, 바꾼 모양은 `blog` 병합·배포 후에 보인다. 로컬 미리 보기(`localhost`)에서는 브라우저의 사설망 접근 차단으로 이 테마가 적용되지 않는다. 글 반응은 "댓글 N개" 줄 오른쪽에 둔다.
-- Jenkins 배포는 저장소 파일만 덮어쓰므로 Discussions의 댓글은 그대로 남는다. 글 주소(slug·날짜)를 바꾸면 기존 댓글과 연결이 끊긴다.
+- 배포는 저장소 파일만 덮어쓰므로 Discussions의 댓글은 그대로 남는다. 글 주소(slug·날짜)를 바꾸면 기존 댓글과 연결이 끊긴다.
 
 ### 검증 기록 (2026-11-02, S15P31E102-386)
 
@@ -233,8 +231,8 @@ hugo server -D
 - 실제 Chrome에서 1280px·390px의 블로그·프로젝트·팀 소개·글 상세 화면을 확인했다. 가로 넘침 없음, 휴대폰 프레임 안 앱 홈 화면 표시 확인.
 - 빌드 결과에 시안·초안·미리보기·예시 등 개발용 문구가 없음을 확인했다. `node --check static/js/site.js`, `git diff --check` 통과.
 
-재확인할 때는 `hugo server -D`로 미리보기를 열어 위 주소와 화면 너비를 확인한다. 배포와 같은 빌드는 `Jenkinsfile`의 Build 단계 옵션을 기준으로 실행한다.
+재확인할 때는 `hugo server -D`로 미리보기를 열어 위 주소와 화면 너비를 확인한다. 배포와 같은 빌드는 `.github/workflows/blog-pages.yml`의 `Build Hugo site` 옵션을 기준으로 실행한다.
 
-### Jenkins 단계 검증 (S15P31E102-262)
+### 게시 단계 검증 (S15P31E102-262)
 
-`python -m pip install -r requirements-blog.txt` 후 `python -B -m unittest discover -s tests -v`로 확인합니다. 게시 단계 검사는 외부 GitHub 대신 로컬 bare Git 원격을 사용합니다. 원격 준비·파일 복사·커밋까지 게시가 일어나지 않고 마지막 Push에서만 반영되며, 동일 내용은 추가 커밋을 만들지 않습니다. Git 토큰은 단계 사이 `.git/config`에 남기지 않습니다. Jenkins 선언형 문법은 실제 컨트롤러 linter를 통과했고 실제 Pages 게시는 수행하지 않았습니다. 이 변경은 `blog`를 대상으로 전달하며 서비스 develop 이력과 합치지 않습니다.
+`python -m pip install -r requirements-blog.txt` 후 `python -B -m unittest discover -s tests -v`로 확인합니다. 게시 단계 검사는 외부 GitHub 대신 로컬 bare Git 원격을 사용합니다. 원격 준비·파일 복사·커밋까지 게시가 일어나지 않고 마지막 Push에서만 반영되며, 동일 내용은 추가 커밋을 만들지 않습니다. Git 토큰은 단계 사이 `.git/config`에 남기지 않습니다. 당시 Jenkins 선언형 문법은 실제 컨트롤러 linter를 통과했고 실제 Pages 게시는 수행하지 않았습니다. 현재 배포는 GitHub Actions가 `deploy.sh`를 인자 없이 한 번에 호출합니다. 이 변경은 `blog`를 대상으로 전달하며 서비스 develop 이력과 합치지 않습니다.
